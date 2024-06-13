@@ -13,6 +13,7 @@ USE public_var,    ONLY: realMissing     ! missing value for real number
 USE public_var,    ONLY: integerMissing  ! missing value for integer number
 USE public_var,    ONLY: dt              ! simulation time step [sec]
 USE public_var,    ONLY: qmodOption      ! qmod option (use 1==direct insertion)
+USE public_var,    ONLY: hw_drain_point  ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
 USE public_var,    ONLY: is_flux_wm      ! logical water management components fluxes should be read
 USE globalData,    ONLY: idxMC           ! routing method index for muskingum method
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
@@ -22,6 +23,9 @@ implicit none
 
 private
 public::mc_route_rch
+
+integer(i4b), parameter :: top_reach=1
+integer(i4b), parameter :: bottom_reach=2
 
 type, extends(base_route_rch) :: mc_route_rch
  CONTAINS
@@ -79,7 +83,14 @@ CONTAINS
  nUps = count(NETOPO_in(segIndex)%goodBas) ! reminder: goodBas is reach with >0 total contributory area
  isHW = .true.
  q_upstream = 0.0_dp
- if (nUps>0) then
+
+ Qabs = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
+ RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
+
+ ! update volume at previous time step
+ RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1)
+
+ if (nUps>0) then ! this hru is not headwater
    isHW = .false.
    do iUps = 1,nUps
      if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach which does not any flow due to zero total contributory areas
@@ -89,17 +100,23 @@ CONTAINS
      end if
      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q
    end do
+   q_upstream_mod  = q_upstream
+   Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+ else ! headwater
+   if (verbose) then
+     write(iulog,'(A)')            ' This is headwater '
+   endif
+   if (hw_drain_point==top_reach) then ! lateral flow is poured in a reach at the top
+     q_upstream = q_upstream + RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+     q_upstream_mod = q_upstream
+     Qlat = 0._dp
+   else if (hw_drain_point==bottom_reach) then ! lateral flow is poured in a reach at the top
+     q_upstream_mod = q_upstream
+     Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+   end if
  endif
 
  RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_INFLOW = q_upstream ! total inflow from the upstream reaches
-
- q_upstream_mod  = q_upstream
- Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
- Qabs = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
- RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
-
- ! update volume at previous time step
- RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1)
 
  ! Water management - water injection or abstraction (irrigation or industrial/domestic water usage)
  ! For water abstraction, water is extracted from the following priorities:
@@ -146,7 +163,7 @@ CONTAINS
  call muskingum_cunge(RPARAM_in(segIndex),                     & ! input: parameter at segIndex reach
                       T0,T1,                                   & ! input: start and end of the time step
                       q_upstream_mod,                          & ! input: total discharge at top of the reach being processed
-                      qlat,                                    & ! input: lateral flow [m3/s]
+                      Qlat,                                    & ! input: lateral flow [m3/s]
                       isHW,                                    & ! input: is this headwater basin?
                       RCHSTA_out(iens,segIndex)%MC_ROUTE,      & ! inout:
                       RCHFLX_out(iens,segIndex),               & ! inout: updated fluxes at reach
@@ -160,12 +177,12 @@ CONTAINS
    write(iulog,'(A,1X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_Q
  endif
 
- if (RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1) < 0) then
+ if (RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1) < 0._dp) then
    write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1), &
          'at ', NETOPO_in(segIndex)%REACHID
  end if
 
- call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxMC, q_upstream, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
+ call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxMC, q_upstream, Qlat, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
 
  END SUBROUTINE mc_rch
 
@@ -175,7 +192,7 @@ CONTAINS
  SUBROUTINE muskingum_cunge(rch_param,     & ! input: river parameter data structure
                             T0,T1,         & ! input: start and end of the time step
                             q_upstream,    & ! input: discharge from upstream
-                            q_lat,         & ! input: lateral discharge into chaneel [m3/s]
+                            Qlat,          & ! input: lateral discharge into chaneel [m3/s]
                             isHW,          & ! input: is this headwater basin?
                             rstate,        & ! inout: reach state at a reach
                             rflux,         & ! inout: reach flux at a reach
@@ -204,7 +221,7 @@ CONTAINS
  type(RCHPRP), intent(in)                 :: rch_param    ! River reach parameter
  real(dp),     intent(in)                 :: T0,T1        ! start and end of the time step (seconds)
  real(dp),     intent(in)                 :: q_upstream   ! total discharge at top of the reach being processed
- real(dp),     intent(in)                 :: q_lat        ! lateral discharge into chaneel [m3/s]
+ real(dp),     intent(in)                 :: Qlat         ! lateral discharge into chaneel [m3/s]
  logical(lgt), intent(in)                 :: isHW         ! is this headwater basin?
  type(mcRCH),  intent(inout)              :: rstate       ! curent reach states
  type(STRFLX), intent(inout)              :: rflux        ! current Reach fluxes
@@ -221,12 +238,12 @@ CONTAINS
  real(dp)                                 :: Qbar         ! 3-point average discharge [m3/s]
  real(dp)                                 :: Abar         ! 3-point average flow area [m2]
  real(dp)                                 :: Vbar         ! 3-point average velocity [m/s]
- real(dp)                                 :: Ybar         ! 3-point average flow depth [m]
  real(dp)                                 :: B            ! flow top width [m]
  real(dp)                                 :: ck           ! kinematic wave celerity [m/s]
  real(dp)                                 :: Cn           ! Courant number [-]
  real(dp)                                 :: dTsub        ! time inteval for sut time-step [sec]
  real(dp)                                 :: C0,C1,C2     ! muskingum parameters
+ real(dp)                                 :: pcntReduc    ! flow profile adjustment based on storage [-]
  real(dp), allocatable                    :: QoutLocal(:) ! out discharge [m3/s] at sub time step
  real(dp), allocatable                    :: QinLocal(:)  ! in discharge [m3/s] at sub time step
  integer(i4b)                             :: ix           ! loop index
@@ -240,7 +257,7 @@ CONTAINS
  Q(0,1) = rstate%molecule%Q(2) ! outflow at previous time step (t-1)
  Q(1,1) = realMissing
 
- if (.not. isHW) then
+ if (.not. isHW .or. hw_drain_point==top_reach) then
 
    ! Get the reach parameters
    ! A = (Q/alpha)**(1/beta)
@@ -264,61 +281,66 @@ CONTAINS
 
    ! first, using 3-point average in computational molecule, check Cournat number is less than 1, otherwise subcycle within one time step
    Qbar = (Q(0,0)+Q(1,0)+Q(0,1))/3.0  ! average discharge [m3/s]
-   Abar = (Qbar/alpha)**(1/beta)      ! average flow area [m2] (from manning equation)
-   Vbar = Qbar/Abar                   ! average velocity [m/s]
-   ck   = beta*Vbar                   ! kinematic wave celerity [m/s]
-   Cn   = ck*theta                    ! Courant number [-]
+   if (Qbar>0._dp) then
+     Abar = (Qbar/alpha)**(1/beta)      ! average flow area [m2] (from manning equation)
+     Vbar = Qbar/Abar                   ! average velocity [m/s]
+     ck   = beta*Vbar                   ! kinematic wave celerity [m/s]
+     Cn   = ck*theta                    ! Courant number [-]
 
-   ! time-step adjustment so Courant number is less than 1
-   ntSub = 1
-   dTsub = dt
-   if (Cn>1.0_dp) then
-     ntSub = ceiling(dt/dx*cK)
-     dTsub = dt/ntSub
-   end if
-   if (verbose) then
-     write(iulog,'(A,1X,I3,A,1X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
-   end if
-
-   allocate(QoutLocal(0:ntSub), QinLocal(0:ntSub), stat=ierr, errmsg=cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   QoutLocal(:) = realMissing
-   QoutLocal(0) = Q(0,1)        ! outfloe last time step
-   QinLocal(0)  = Q(0,0)        ! inflow at last time step
-   QinLocal(1:ntSub)  = Q(1,0)  ! infllow at sub-time step in current time step
-
-   ! solve outflow at each sub time step
-   do ix = 1, nTsub
-
-     Qbar = (QinLocal(ix)+QinLocal(ix-1)+QoutLocal(ix-1))/3.0 ! 3 point average discharge [m3/s]
-     Abar = (Qbar/alpha)**(1/beta)                            ! flow area [m2] (manning equation)
-     Ybar = Abar/rch_param%R_WIDTH                            ! flow depth [m] (rectangular channel)
-     B = rch_param%R_WIDTH                                    ! top width at water level [m] (rectangular channel)
-     ck = beta*(Qbar/Abar)                                    ! kinematic wave celerity [m/s]
-
-     X = 0.5*(1.0 - Qbar/(B*rch_param%R_SLOPE*ck*dX))         ! X factor for descreterized kinematic wave equation
-     Cn = ck*dTsub/dx                                         ! Courant number [-]
-
-     C0 = (-X+Cn*(1-Y))/(1-X+Cn*(1-Y))
-     C1 = (X+Cn*Y)/(1-X+Cn*(1-Y))
-     C2 = (1-X-Cn*Y)/(1-X+Cn*(1-Y))
-
-     QoutLocal(ix) = C0* QinLocal(ix)+ C1* QinLocal(ix-1)+ C2* QoutLocal(ix-1)
-     QoutLocal(ix) = max(0.0_dp, QoutLocal(ix))
-
-     ! -- EBK 06/26/2023 -- comment out isnan check, doesn't seem to be needed.
-     !if (isnan(QoutLocal(ix))) then
-     !  ierr=10; message=trim(message)//'QoutLocal is Nan; activate vodose for this segment for diagnosis';return
-     !end if
-
-     if (verbose) then
-       write(iulog,'(A,I3,1X,A,G12.5,1X,A,G12.5)') '   sub time-step= ',ix,'Courant number= ',Cn, 'Q= ',QoutLocal(ix)
+     ! time-step adjustment so Courant number is less than 1
+     ntSub = 1
+     dTsub = dt
+     if (Cn>1.0_dp) then
+       ntSub = ceiling(dt/dx*ck)
+       dTsub = dt/ntSub
      end if
-   end do
+     if (verbose) then
+       write(iulog,'(A,1X,I3,A,1X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
+     end if
 
-   Q(1,1) = sum(QoutLocal(1:nTsub))/real(nTsub,kind=dp)
+     allocate(QoutLocal(0:ntSub), QinLocal(0:ntSub), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     QoutLocal(:) = realMissing
+     QoutLocal(0) = Q(0,1)        ! outfloe last time step
+     QinLocal(0)  = Q(0,0)        ! inflow at last time step
+     QinLocal(1:ntSub)  = Q(1,0)  ! infllow at sub-time step in current time step
 
- else ! if head-water
+     ! solve outflow at each sub time step
+     do ix = 1, nTsub
+
+       Qbar = (QinLocal(ix)+QinLocal(ix-1)+QoutLocal(ix-1))/3.0 ! 3 point average discharge [m3/s]
+       if (Qbar>0._dp) then
+         Abar = (Qbar/alpha)**(1/beta)                            ! flow area [m2] (manning equation)
+         B = rch_param%R_WIDTH                                    ! top width at water level [m] (rectangular channel)
+         ck = beta*(Qbar/Abar)                                    ! kinematic wave celerity [m/s]
+
+         X = 0.5*(1.0 - Qbar/(B*rch_param%R_SLOPE*ck*dX))         ! X factor for descreterized kinematic wave equation
+         Cn = ck*dTsub/dx                                         ! Courant number [-]
+
+         C0 = (-X+Cn*(1-Y))/(1-X+Cn*(1-Y))
+         C1 = (X+Cn*Y)/(1-X+Cn*(1-Y))
+         C2 = (1-X-Cn*Y)/(1-X+Cn*(1-Y))
+
+         QoutLocal(ix) = C0* QinLocal(ix)+ C1* QinLocal(ix-1)+ C2* QoutLocal(ix-1)
+         QoutLocal(ix) = max(0.0_dp, QoutLocal(ix))
+       else
+         QoutLocal(ix) = 0._dp
+       end if
+       ! -- EBK 06/26/2023 -- comment out isnan check, doesn't seem to be needed.
+       !if (isnan(QoutLocal(ix))) then
+       !  ierr=10; message=trim(message)//'QoutLocal is Nan; activate vodose for this segment for diagnosis';return
+       !end if
+
+       if (verbose) then
+         write(iulog,'(A,I3,1X,A,G12.5,1X,A,G12.5)') '   sub time-step= ',ix,'Courant number= ',Cn, 'Q= ',QoutLocal(ix)
+       end if
+     end do
+
+     Q(1,1) = sum(QoutLocal(1:nTsub))/real(nTsub,kind=dp)
+   else
+     Q(1,1) = 0._dp
+   end if
+ else ! if head-water and pour runnof to the bottom of reach
 
    Q(1,0) = 0._dp
    Q(1,1) = 0._dp
@@ -330,11 +352,14 @@ CONTAINS
  endif
 
  ! For very low flow condition, outflow - inflow > current storage, so limit outflow and adjust Q(1,1)
- Q(1,1) = min(rflux%ROUTE(idxMC)%REACH_VOL(1)/dt + Q(1,0)*0.999, Q(1,1))
+ if (abs(Q(1,1))>0._dp) then
+   pcntReduc = min((rflux%ROUTE(idxMC)%REACH_VOL(1)/dt+Q(1,0))*0.999/Q(1,1), 1._dp)
+   Q(1,1) = Q(1,1) *pcntReduc
+ end if
  rflux%ROUTE(idxMC)%REACH_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) + (Q(1,0)-Q(1,1))*dt
 
  ! add catchment flow
- rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+ q_lat
+ rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+ Qlat
 
  if (verbose) then
    write(iulog,'(A,1X,G12.5)') ' Qout(t)=',Q(1,1)

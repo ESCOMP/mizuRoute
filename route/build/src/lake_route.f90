@@ -469,7 +469,7 @@ CONTAINS
 !      endif
 !    endif
 
-    call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxRoute, q_upstream, RCHFLX_out(iens,segIndex), &
+    call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxRoute, q_upstream, RCHFLX_out(iens,segIndex)%BASIN_QR(1), RCHFLX_out(iens,segIndex), &
                        verbose, lakeFlag=.true.,tolerance=lakeWBtol)
 
     ! assign the zero value as lake do not have a QFUTURE_IRF
