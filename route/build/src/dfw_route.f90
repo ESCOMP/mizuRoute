@@ -14,6 +14,7 @@ USE public_var,    ONLY: integerMissing  ! missing value for integer number
 USE public_var,    ONLY: dt              ! simulation time step [sec]
 USE public_var,    ONLY: is_flux_wm      ! logical water management components fluxes should be read
 USE public_var,    ONLY: qmodOption      ! qmod option (use 1==direct insertion)
+USE public_var,    ONLY: hw_drain_point  ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
 USE globalData,    ONLY: idxDW           ! routing method index for diffusive wave
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
 USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
@@ -26,6 +27,9 @@ implicit none
 
 private
 public::dfw_route_rch
+
+integer(i4b), parameter :: top_reach=1
+integer(i4b), parameter :: bottom_reach=2
 
 type, extends(base_route_rch) :: dfw_route_rch
  CONTAINS
@@ -83,7 +87,15 @@ CONTAINS
  nUps = count(NETOPO_in(segIndex)%goodBas) ! reminder: goodBas is reach with >0 total contributory area
  isHW = .true.
  q_upstream = 0.0_dp
- if (nUps>0) then
+
+ Qabs = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
+ RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
+
+ ! update volume at previous time step
+ RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1)
+ RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%FLOOD_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%FLOOD_VOL(1)
+
+ if (nUps>0) then ! this hru is not headwater
    isHW = .false.
    do iUps = 1,nUps
      if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach which does not any flow due to zero total contributory areas
@@ -93,16 +105,23 @@ CONTAINS
      end if
      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q
    end do
- endif
+   q_upstream_mod  = q_upstream
+   Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+ else ! headwater
+   if (verbose) then
+     write(iulog,'(A)')            ' This is headwater '
+   endif
+   if (hw_drain_point==top_reach) then ! lateral flow is poured in a reach at the top
+     q_upstream = q_upstream + RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+     q_upstream_mod = q_upstream
+     Qlat = 0._dp
+   else if (hw_drain_point==bottom_reach) then ! lateral flow is poured in a reach at the top
+     q_upstream_mod = q_upstream
+     Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+   end if
+ end if
 
- q_upstream_mod  = q_upstream
- Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
- Qabs = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
- RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
-
- ! update volume at previous time step
- RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1)
- RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%FLOOD_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%FLOOD_VOL(1)
+ RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_INFLOW = q_upstream ! total inflow from the upstream reaches
 
  ! Water management - water injection or abstraction (irrigation or industrial/domestic water usage)
  ! For water abstraction, water is extracted from the following priorities:
@@ -149,7 +168,7 @@ CONTAINS
  call diffusive_wave(RPARAM_in(segIndex),                     &  ! input: parameter at segIndex reach
                      T0,T1,                                   &  ! input: start and end of the time step
                      q_upstream_mod,                          &  ! input: total discharge at top of the reach being processed
-                     qlat,                                    &  ! input: lateral flow [m3/s]
+                     Qlat,                                    &  ! input: lateral flow [m3/s]
                      isHW,                                    &  ! input: is this headwater basin?
                      RCHSTA_out(iens,segIndex)%DW_ROUTE,      &  ! inout:
                      RCHFLX_out(iens,segIndex),               &  ! inout: updated fluxes at reach
@@ -169,7 +188,7 @@ CONTAINS
          'at ', NETOPO_in(segIndex)%REACHID
  end if
 
- call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxDW, q_upstream, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
+ call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxDW, q_upstream, Qlat, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
 
  END SUBROUTINE dfw_rch
 
@@ -180,7 +199,7 @@ CONTAINS
  SUBROUTINE diffusive_wave(rch_param,     & ! input: river parameter data structure
                            T0,T1,         & ! input: start and end of the time step
                            q_upstream,    & ! input: discharge from upstream
-                           q_lat,         & ! input: lateral discharge into chaneel [m3/s]
+                           Qlat,          & ! input: lateral discharge into chaneel [m3/s]
                            isHW,          & ! input: is this headwater basin?
                            rstate,        & ! inout: reach state at a reach
                            rflux,         & ! inout: reach flux at a reach
@@ -217,7 +236,7 @@ CONTAINS
  type(RCHPRP), intent(in)        :: rch_param      ! River reach parameter
  real(dp),     intent(in)        :: T0,T1          ! start and end of the time step (seconds)
  real(dp),     intent(in)        :: q_upstream     ! total discharge at top of the reach being processed
- real(dp),     intent(in)        :: q_lat          ! lateral discharge into chaneel [m3/s]
+ real(dp),     intent(in)        :: Qlat           ! lateral discharge into chaneel [m3/s]
  logical(lgt), intent(in)        :: isHW           ! is this headwater basin?
  type(dwRch),  intent(inout)     :: rstate         ! curent reach states
  type(STRFLX), intent(inout)     :: rflux          ! current Reach fluxes
@@ -273,7 +292,7 @@ CONTAINS
            bankVol   => rch_param%R_STORAGE,  & ! bankful volume
            L         => rch_param%RLENGTH)      ! channel length
 
- if (.not. isHW) then
+ if (.not. isHW .or. hw_drain_point==top_reach) then
 
    allocate(Qprev(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -377,8 +396,10 @@ CONTAINS
    end do
 
    ! For very low flow condition, outflow - inflow may exceed current storage, so limit outflow and adjust flow profile
-   pcntReduc = min((rflux%ROUTE(idxDW)%REACH_VOL(1)/dt + q_upstream *0.999)/Qlocal(nMolecule%DW_ROUTE-1,1), 1._dp)
-   Qlocal(2:nMolecule%DW_ROUTE,1) = Qlocal(2:nMolecule%DW_ROUTE,1)*pcntReduc
+   if (abs(Qlocal(nMolecule%DW_ROUTE-1,1))>0._dp) then
+     pcntReduc = min((rflux%ROUTE(idxDW)%REACH_VOL(1)/dt + Qlocal(1,1) *0.999)/Qlocal(nMolecule%DW_ROUTE-1,1), 1._dp)
+     Qlocal(2:nMolecule%DW_ROUTE,1) = Qlocal(2:nMolecule%DW_ROUTE,1)*pcntReduc
+   end if
 
    rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(1) + (q_upstream - Qlocal(nMolecule%DW_ROUTE-1,1))*dt
 
@@ -391,7 +412,7 @@ CONTAINS
    end if
 
    ! store final outflow in data structure
-   rflux%ROUTE(idxDW)%REACH_Q = Qlocal(nMolecule%DW_ROUTE-1,1) + q_lat
+   rflux%ROUTE(idxDW)%REACH_Q = Qlocal(nMolecule%DW_ROUTE-1,1) + Qlat
 
    ! update state
    rstate%molecule%Q = Qlocal(:,1)
@@ -408,9 +429,9 @@ CONTAINS
      write(iulog,fmt1) ' b= ', b(1:nMolecule%DW_ROUTE)
    end if
 
- else ! if head-water
+ else ! if head-water and pour runnof to the bottom of reach
 
-   rflux%ROUTE(idxDW)%REACH_Q = q_lat
+   rflux%ROUTE(idxDW)%REACH_Q = Qlat
 
    rflux%ROUTE(idxDW)%REACH_VOL(0) = 0._dp
    rflux%ROUTE(idxDW)%REACH_VOL(1) = 0._dp

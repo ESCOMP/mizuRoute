@@ -353,6 +353,7 @@ implicit none
  ! ---------- reach fluxes --------------------------------------------------------------------
  type, public :: hydraulic
    real(dp)        :: REACH_ELE              ! water height at current time step [m]
+   real(dp)        :: REACH_INFLOW           ! total upstream discharge at current time step [m3/s]
    real(dp)        :: FLOOD_VOL(0:1)         ! water volume in floodplain [m3]
    real(dp)        :: REACH_Q                ! discharge at current time step [m3/s]
    real(dp)        :: REACH_VOL(0:1)         ! water volume at previous and current time steps [m3]

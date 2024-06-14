@@ -98,6 +98,7 @@ MODULE public_var
   character(len=10)    ,public    :: routOpt              = '0'             ! routing scheme options  0: accum runoff, 1:IRF, 2:KWT, 3:KW, 4:MC, 5:DW
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   logical(lgt)         ,public    :: floodplain           = .false.         ! logical if flood water is computed or not (floodplain is added)
+  integer(i4b)         ,public    :: hw_drain_point       = 2               ! how to add inst. runoff in reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)
   logical(lgt)         ,public    :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
   logical(lgt)         ,public    :: lake_model_D03       = .false.         ! logical if Doll 2003 model is used, specify as 1 in lake_model_type in network topology
   logical(lgt)         ,public    :: lake_model_H06       = .false.         ! logical if Hanasaki 2006 model is used, specify as 2 in lake_model_type in network topology
@@ -176,6 +177,8 @@ MODULE public_var
   character(len=strLen),public    :: dname_gageSite       = ''              ! dimension name for gauge site
   character(len=strLen),public    :: dname_gageTime       = ''              ! dimension name for time
   integer(i4b)         ,public    :: strlen_gageSite      = 30              ! maximum character length for site name
+  ! OUTPUT OPTIONS
+  logical(lgt)         ,public    :: outputInflow         = .false.         ! logical; T-> write upstream inflow in history file output
   ! USER OPTIONS
   integer(i4b)         ,public    :: qmodOption           = 0               ! option for streamflow modification
   integer(i4b)         ,public    :: hydGeometryOption    = readFromFile    ! option for hydraulic geometry calculations (0=read from file, 1=compute)

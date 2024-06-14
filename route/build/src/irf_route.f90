@@ -11,6 +11,7 @@ USE public_var,        ONLY: realMissing       ! missing value for real number
 USE public_var,        ONLY: integerMissing    ! missing value for integer number
 USE public_var,        ONLY: dt                ! simulation time step [sec]
 USE globalData,        ONLY: idxIRF            ! routing method index for IRF method
+USE public_var,        ONLY: hw_drain_point    ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
 USE water_balance,     ONLY: comp_reach_wb     ! compute water balance error
 USE base_route,        ONLY: base_route_rch    ! base (abstract) reach routing method class
 
@@ -18,6 +19,9 @@ implicit none
 
 private
 public::irf_route_rch
+
+integer(i4b), parameter :: top_reach=1
+integer(i4b), parameter :: bottom_reach=2
 
 type, extends(base_route_rch) :: irf_route_rch
  CONTAINS
@@ -85,22 +89,38 @@ CONTAINS
   end if
 
   ! get discharge coming from upstream
-  nUps = size(NETOPO_in(segIndex)%UREACHI)
+  nUps = count(NETOPO_in(segIndex)%goodBas) ! reminder: goodBas is reach with >0 total contributory area
   q_upstream = 0.0_dp
-  if (nUps>0) then
-    do iUps = 1,nUps
-      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxIRF)%REACH_Q
-    end do
-  endif
 
-  q_upstream_mod  = q_upstream
-  Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
   Qabs = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
   RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
 
   ! update volume at previous time step
   RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)
+
+  if (nUps>0) then ! this hru is not headwater
+    do iUps = 1,nUps
+      if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach which does not any flow due to zero total contributory areas
+      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
+      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxIRF)%REACH_Q
+    end do
+    q_upstream_mod  = q_upstream
+    Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+  else ! head water
+    if (verbose) then
+      write(iulog,'(A)')            ' This is headwater '
+    endif
+    if (hw_drain_point==top_reach) then ! lateral flow is poured in a reach at the top
+      q_upstream = q_upstream + RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+      q_upstream_mod = q_upstream
+      Qlat = 0._dp
+    else if (hw_drain_point==bottom_reach) then ! lateral flow is poured in a reach at the top
+      q_upstream_mod = q_upstream
+      Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+    end if
+  endif
+
+  RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_INFLOW = q_upstream ! total inflow from the upstream reaches
 
   ! Water management - water injection or abstraction (irrigation or industrial/domestic water usage)
   ! For water abstraction, water is extracted from the following priorities:
@@ -180,7 +200,7 @@ CONTAINS
 !    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = 0._dp
   end if
 
-  call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxIRF, q_upstream, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
+  call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxIRF, q_upstream, Qlat, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
 
  END SUBROUTINE irf_rch
 
