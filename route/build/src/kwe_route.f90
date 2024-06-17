@@ -18,6 +18,8 @@ USE public_var,    ONLY: hw_drain_point  ! headwater catchment pour point (top_r
 USE globalData,    ONLY: idxKW           ! routing method index for kinematic wwave
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
 USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
+USE hydraulic,     ONLY: flow_depth
+USE hydraulic,     ONLY: Pwet
 
 implicit none
 
@@ -89,6 +91,7 @@ CONTAINS
 
  ! update volume at previous time step
  RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(1)
+ RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%FLOOD_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%FLOOD_VOL(1)
 
  if (nUps>0) then
    isHW = .false.
@@ -226,6 +229,9 @@ CONTAINS
  integer(i4b), intent(out)                :: ierr         ! error code
  character(*), intent(out)                :: message      ! error message
  ! Local variables
+ real(dp)                                 :: depth        ! flow depth [m]
+ real(dp)                                 :: overFlowVol  ! overflow volume [m3]
+ real(dp)                                 :: p            ! wetness perimeter [m]
  real(dp)                                 :: alpha        ! sqrt(slope)(/mannings N* width)
  real(dp)                                 :: beta         ! constant, 5/3
  real(dp)                                 :: alpha1       ! sqrt(slope)(/mannings N* width)
@@ -247,22 +253,32 @@ CONTAINS
  Q(0,0) = rstate%molecule%Q(1) ! previous time and inlet  1 (0,0)
  Q(0,1) = rstate%molecule%Q(2) ! previous time and outlet 2 (0,1)
 
+ associate(S         => rch_param%R_SLOPE,    & ! channel slope
+           n         => rch_param%R_MAN_N,    & ! manning n
+           bt        => rch_param%R_WIDTH,    & ! channel bottom width
+           bankDepth => rch_param%R_DEPTH,    & ! bankfull depth
+           zc        => rch_param%SIDE_SLOPE, & ! channel side slope
+           zf        => rch_param%FLDP_SLOPE, & ! floodplain slope
+           bankVol   => rch_param%R_STORAGE,  & ! bankful volume
+           L         => rch_param%RLENGTH)      ! channel length
+
  if (.not. isHW .or. hw_drain_point==top_reach) then
 
+   ! compute total flow rate and flow area at upstream end at current time step
+   Q(1,0) = q_upstream
    Q(1,1) = realMissing ! current time and outlet 4 (1,1)
 
    ! Get the reach parameters
    ! A = (Q/alpha)**(1/beta)
    ! Q = alpha*A**beta
-   alpha = sqrt(rch_param%R_SLOPE)/(rch_param%R_MAN_N*rch_param%R_WIDTH**(2._dp/3._dp))
+   Qbar   = (Q(0,1) + Q(1,0))/2._dp
+   depth = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
+   p = Pwet(depth, bt, zc, zf, bankDepth=bankDepth)
+   alpha = sqrt(S)/(n*p**(2._dp/3._dp))
    beta  = 5._dp/3._dp
    beta1  = 1._dp/beta
    alpha1 = (1.0/alpha)**beta1
-   dX = rch_param%RLENGTH
-   theta = dt/dX
-
-   ! compute total flow rate and flow area at upstream end at current time step
-   Q(1,0) = q_upstream
+   theta = dt/L
 
    if (verbose) then
      write(iulog,'(A,1X,G12.5)') ' length [m]        =',rch_param%RLENGTH
@@ -277,7 +293,6 @@ CONTAINS
    ! solve flow rate and flow area at downstream end at current time step
    ! ----------
    ! initial guess
-   Qbar   = (Q(0,1) + Q(1,0))/2._dp
    Q(1,1) = (theta*Q(1,0) + alpha1*beta1*Qbar**(beta1-1)*Q(0,1))/(theta + alpha1*beta1*Qbar**(beta1-1))
 
    omega = theta*Q(1,0)+alpha1*Q(0,1)**(beta1)
@@ -325,6 +340,15 @@ CONTAINS
  Q(1,1) = min(rflux%ROUTE(idxKW)%REACH_VOL(1)/dt + Q(1,0)*0.999, Q(1,1))
  rflux%ROUTE(idxKW)%REACH_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(1) + (Q(1,0)-Q(1,1))*dt
 
+ ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
+ if (rflux%ROUTE(idxKW)%REACH_VOL(1) > bankVol) then
+   overFlowVol = rflux%ROUTE(idxKW)%REACH_VOL(1) - bankVol ! overflow volume
+   rflux%ROUTE(idxKW)%FLOOD_VOL(1) = rflux%ROUTE(idxKW)%FLOOD_VOL(1) + overFlowVol  ! new flooded volume
+ else
+   rflux%ROUTE(idxKW)%FLOOD_VOL(1) = 0._dp
+ end if
+
+
  ! add catchment flow
  rflux%ROUTE(idxKW)%REACH_Q = Q(1,1)+Qlat
 
@@ -335,6 +359,8 @@ CONTAINS
  ! update state
  rstate%molecule%Q(1) = Q(1,0)
  rstate%molecule%Q(2) = Q(1,1)
+
+ end associate
 
  END SUBROUTINE kinematic_wave
 
