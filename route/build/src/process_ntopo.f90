@@ -337,11 +337,11 @@ END SUBROUTINE augment_ntopo
   do iSeg = 1,nSeg
     associate(segId => structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1))
     ! Check reach length
-    if (structSEG(iSeg)%var(ixSEG%length)%dat(1) <= 0 )then
-     ierr=10
-     write(message,'(a,i0,a,1PG15.7)') trim(message)//'reach length for reach id ', segId, ' is negative:', structSEG(iSeg)%var(ixSEG%length)%dat(1)
-     return
-    endif
+    if (structSEG(iSeg)%var(ixSEG%length)%dat(1)<=0) then
+      write(iulog,'(a,i0,a,1PG15.7, a)') 'WARNING: length for reach id ',segId,' is ',structSEG(iSeg)%var(ixSEG%length)%dat(1),'<0. Corrected to 100 m'
+      structSEG(iSeg)%var(ixSEG%length)%dat(1)=100._dp
+    end if
+    ! Check reach slope
     end associate
   enddo
 
@@ -520,11 +520,11 @@ END SUBROUTINE augment_ntopo
      NETOPO_in(iSeg)%LakeModelType= structNTOPO(iSeg)%var(ixNTOPO%LakeModelType)%dat(1) ! type of the parameteric lake
      NETOPO_in(iSeg)%LAKINLT      = (structNTOPO(iSeg)%var(ixNTOPO%isLakeInlet)%dat(1)==true)   ! .TRUE. if reach is lake inlet, .FALSE. otherwise
      ! NOT USED: lake parameters
-     NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
-     NETOPO_in(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
-     NETOPO_in(iSeg)%BASULAK = realMissing     ! Area of basin under lake
-     NETOPO_in(iSeg)%RCHULAK = realMissing     ! Length of reach under lake
-     NETOPO_in(iSeg)%USRTAKE = .false.         ! .TRUE. if user takes from reach, .FALSE. otherwise
+!     NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
+!     NETOPO_in(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
+!     NETOPO_in(iSeg)%BASULAK = realMissing     ! Area of basin under lake
+!     NETOPO_in(iSeg)%RCHULAK = realMissing     ! Length of reach under lake
+!     NETOPO_in(iSeg)%USRTAKE = .false.         ! .TRUE. if user takes from reach, .FALSE. otherwise
    end if
 
    ! reach unit hydrograph
