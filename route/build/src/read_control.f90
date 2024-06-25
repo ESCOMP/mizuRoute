@@ -526,12 +526,10 @@ CONTAINS
  end do
 
  if (masterproc) then
+   write(iulog,'(2a)') new_line('a'), '---- mis. routing options --- '
    if (min_length_route>0._dp)then
-     write(iulog,'(2a)') new_line('a'), '---- mis. routing options --- '
      write(iulog,'(a,F6.1,a)') '  pass-through is activated for <', min_length_route, ' m reaches only for IRF, KWE, MC, DW'
    end if
- end if
- if (masterproc) then
    if (hw_drain_point==1)then
      write(iulog,'(a)') '  Lateral flow drains at the top of headwater reaches only for IRF, KWE, MC, DW'
    end if
