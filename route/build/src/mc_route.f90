@@ -344,7 +344,8 @@ CONTAINS
      Q(1,1) = 0._dp
    end if
    else ! length < min_length_route: length is short enough to just pass upstream to downstream
-      Q(1,1) = q_upstream
+     Q(1,0) = q_upstream
+     Q(1,1) = q_upstream
    end if
  else ! if head-water and pour runnof to the bottom of reach
 
