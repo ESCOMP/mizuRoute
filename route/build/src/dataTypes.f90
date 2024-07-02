@@ -272,12 +272,12 @@ implicit none
   character(len=32),dimension(:),allocatable :: pfafCode     ! pfafstetter code
   integer(i4b)                               :: RHORDER      ! Processing sequence
   real(dp)    ,dimension(:),allocatable      :: UH           ! Unit hydrograph for upstream
-  integer(i4b)                               :: LAKE_IX      ! Lake index (1,2,...,nlak)
-  integer(i4b)                               :: LAKE_ID      ! Lake ID (REC code)
-  real(dp)                                   :: BASULAK      ! Area of basin under lake
-  real(dp)                                   :: RCHULAK      ! Length of reach under lake
+!  integer(i4b)                               :: LAKE_IX      ! Lake index (1,2,...,nlak)
+!  integer(i4b)                               :: LAKE_ID      ! Lake ID (REC code)
+!  real(dp)                                   :: BASULAK      ! Area of basin under lake
+!  real(dp)                                   :: RCHULAK      ! Length of reach under lake
+!  logical(lgt)                               :: USRTAKE      ! .TRUE. if user takes from reach, .FALSE. otherwise
   logical(lgt)                               :: LAKINLT      ! .TRUE. if reach is lake inlet, .FALSE. otherwise
-  logical(lgt)                               :: USRTAKE      ! .TRUE. if user takes from reach, .FALSE. otherwise
   logical(lgt)                               :: ISLAKE       ! .TRUE. if the object is a lake
   logical(lgt)                               :: LAKETARGVOL  ! .TRUE. if the lake follow a given target volume
   integer(i4b)                               :: LAKEMODELTYPE! 1=Doll, 2=Hanasaki, 3=HYPE else=non-parameteric

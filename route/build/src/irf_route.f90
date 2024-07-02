@@ -12,6 +12,7 @@ USE public_var,        ONLY: integerMissing    ! missing value for integer numbe
 USE public_var,        ONLY: dt                ! simulation time step [sec]
 USE globalData,        ONLY: idxIRF            ! routing method index for IRF method
 USE public_var,        ONLY: hw_drain_point    ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
+USE public_var,        ONLY: min_length_route  ! minimum reach length for routing to be performed.
 USE water_balance,     ONLY: comp_reach_wb     ! compute water balance error
 USE base_route,        ONLY: base_route_rch    ! base (abstract) reach routing method class
 
@@ -152,7 +153,8 @@ CONTAINS
   endif
 
   ! perform UH convolution
-  call conv_upsbas_qr(NETOPO_in(segIndex)%UH,    &    ! input: reach unit hydrograph
+  call conv_upsbas_qr(RPARAM_in(segIndex),       &    ! input: parameter at segIndex reach
+                      NETOPO_in(segIndex)%UH,    &    ! input: reach unit hydrograph
                       q_upstream_mod,            &    ! input: total discharge from the upstreams
                       Qlat,                      &    ! input: lateral flow [m3/s]
                       RCHFLX_out(iens,segIndex), &    ! inout: updated fluxes at reach
@@ -208,9 +210,10 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: Compute delayed runoff from the upstream segments
  ! *********************************************************************
- SUBROUTINE conv_upsbas_qr(reach_uh,   &    ! input: reach unit hydrograph
+ SUBROUTINE conv_upsbas_qr(rch_param,  &    ! input: river parameter data structure
+                           reach_uh,   &    ! input: reach unit hydrograph
                            q_upstream, &    ! input:
-                           q_lat,      &    ! input:
+                           Qlat,       &    ! input:
                            rflux,      &    ! input: input flux at reach
                            ierr, message)   ! output: error control
  ! ----------------------------------------------------------------------------------------
@@ -219,9 +222,10 @@ CONTAINS
 
  implicit none
  ! Argument variables
+ type(RCHPRP), intent(in)               :: rch_param    ! River reach parameter
  real(dp),     intent(in)               :: reach_uh(:)  ! reach unit hydrograph
  real(dp),     intent(in)               :: q_upstream   ! total discharge at top of the reach being processed
- real(dp),     intent(in)               :: q_lat        ! lataral flow
+ real(dp),     intent(in)               :: Qlat         ! lataral flow
  type(STRFLX), intent(inout)            :: rflux        ! current Reach fluxes
  integer(i4b), intent(out)              :: ierr         ! error code
  character(*), intent(out)              :: message      ! error message
@@ -231,7 +235,7 @@ CONTAINS
 
  ierr=0; message='conv_upsbas_qr/'
 
-
+ if (rch_param%RLENGTH > min_length_route) then
  ! place a fraction of runoff in future time steps
  nTDH = size(reach_uh) ! identify the number of future time steps of UH for a given segment
  do iTDH=1,nTDH
@@ -246,13 +250,20 @@ CONTAINS
  rflux%ROUTE(idxIRF)%REACH_VOL(1) = rflux%ROUTE(idxIRF)%REACH_VOL(1) - (rflux%QFUTURE_IRF(1) - q_upstream)*dt
 
  ! Add local routed flow at the bottom of reach
- rflux%ROUTE(idxIRF)%REACH_Q = rflux%QFUTURE_IRF(1) + q_lat
+ rflux%ROUTE(idxIRF)%REACH_Q = rflux%QFUTURE_IRF(1) + Qlat
 
  ! move array back   use eoshift
  rflux%QFUTURE_IRF=eoshift(rflux%QFUTURE_IRF,shift=1)
 
-
  rflux%QFUTURE_IRF(nTDH) = 0._dp
+ else ! length < min_length_route: length is short enough to just pass upstream to downstream
+   rflux%QFUTURE_IRF(:) = 0._dp
+   rflux%QFUTURE_IRF(1) = q_upstream
+   rflux%ROUTE(idxIRF)%REACH_Q = rflux%QFUTURE_IRF(1) + Qlat
+
+   rflux%ROUTE(idxIRF)%REACH_VOL(0) = 0._dp
+   rflux%ROUTE(idxIRF)%REACH_VOL(1) = 0._dp
+ end if
 
  END SUBROUTINE conv_upsbas_qr
 

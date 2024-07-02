@@ -15,6 +15,7 @@ USE public_var,    ONLY: dt              ! simulation time step [sec]
 USE public_var,    ONLY: is_flux_wm      ! logical water management components fluxes should be read
 USE public_var,    ONLY: qmodOption      ! qmod option (use 1==direct insertion)
 USE public_var,    ONLY: hw_drain_point  ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
+USE public_var,    ONLY: min_length_route! minimum reach length for routing to be performed.
 USE globalData,    ONLY: idxDW           ! routing method index for diffusive wave
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
 USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
@@ -282,6 +283,8 @@ CONTAINS
 
  if (.not. isHW .or. hw_drain_point==top_reach) then
 
+   if (rch_param%RLENGTH > min_length_route) then
+
    allocate(Qprev(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -414,6 +417,14 @@ CONTAINS
      write(iulog,fmt1) ' b= ', b(1:nMolecule%DW_ROUTE)
    end if
 
+   else ! length < min_length_route: length is short enough to just pass upstream to downstream
+     rflux%ROUTE(idxDW)%REACH_Q = q_upstream + Qlat
+     rstate%molecule%Q(1:nMolecule%DW_ROUTE) = 0._dp
+     rstate%molecule%Q(nMolecule%DW_ROUTE)   = rflux%ROUTE(idxDW)%REACH_Q
+
+     rflux%ROUTE(idxDW)%REACH_VOL(0) = 0._dp
+     rflux%ROUTE(idxDW)%REACH_VOL(1) = 0._dp
+   end if
  else ! if head-water and pour runnof to the bottom of reach
 
    rflux%ROUTE(idxDW)%REACH_Q = Qlat

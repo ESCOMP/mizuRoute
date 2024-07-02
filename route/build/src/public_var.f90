@@ -114,6 +114,7 @@ MODULE public_var
   logical(lgt)         ,public    :: is_Ep_upward_negative= .false.         ! set to true when convention of upward evaporation is negative
   real(dp)             ,public    :: scale_factor_prec    = realMissing     ! float scale to scale the precipitation
   real(dp)             ,public    :: offset_value_prec    = realMissing     ! float offset for precipitation
+  real(dp)             ,public    :: min_length_route     = 0.0_dp          ! float; minimum reach length for routing to be performed. pass-through is performed for length less than this threshold
   logical(lgt)         ,public    :: compWB               = .false.         ! logical if entire domain water balance is computed
   real(dp)             ,public    :: dt                   = realMissing     ! simulation time step (seconds)
   ! RIVER NETWORK TOPOLOGY
