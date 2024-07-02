@@ -138,6 +138,7 @@ CONTAINS
    case('<is_Ep_upward_negative>'); read(cData,*,iostat=io_error) is_Ep_upward_negative ! logical; flip evaporation in case upward direction is negative in input values convention
    case('<scale_factor_prec>');    read(cData,*,iostat=io_error) scale_factor_prec     ! float; factor to scale the precipitation values
    case('<offset_value_prec>');    read(cData,*,iostat=io_error) offset_value_prec     ! float; offset for precipitation values
+   case('<min_length_route>');     read(cData,*,iostat=io_error) min_length_route      ! float; minimum reach length for routing to be performed. pass-through is performed for length less than this threshold
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                         ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode       ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -505,6 +506,7 @@ CONTAINS
    end if
  end if
 
+ ! 5. routing options
  ! ---- routing methods
  ! Assign index for each active routing method
  ! Make sure to turn off write option for routines not used
@@ -524,6 +526,16 @@ CONTAINS
        message=trim(message)//'routOpt may include invalid digits; expect digits 1-5 in routOpt'; err=81; return
    end select
  end do
+
+ if (masterproc) then
+   write(iulog,'(2a)') new_line('a'), '---- mis. routing options --- '
+   if (min_length_route>0._dp)then
+     write(iulog,'(a,F6.1,a)') '  pass-through is activated for <', min_length_route, ' m reaches only for IRF, KWE, MC, DW'
+   end if
+   if (hw_drain_point==1)then
+     write(iulog,'(a)') '  Lateral flow drains at the top of headwater reaches only for IRF, KWE, MC, DW'
+   end if
+ end if
 
  ! ---- history Output variables
  if (outputInflow) then

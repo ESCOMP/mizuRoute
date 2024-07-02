@@ -15,6 +15,7 @@ USE public_var,    ONLY: dt              ! simulation time step [sec]
 USE public_var,    ONLY: is_flux_wm      ! logical water management components fluxes should be read
 USE public_var,    ONLY: qmodOption      ! qmod option (use 1==direct insertion)
 USE public_var,    ONLY: hw_drain_point  ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
+USE public_var,    ONLY: min_length_route! minimum reach length for routing to be performed.
 USE globalData,    ONLY: idxKW           ! routing method index for kinematic wwave
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
 USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
@@ -264,6 +265,7 @@ CONTAINS
 
  if (.not. isHW .or. hw_drain_point==top_reach) then
 
+   if (rch_param%RLENGTH > min_length_route) then
    ! compute total flow rate and flow area at upstream end at current time step
    Q(1,0) = q_upstream
    Q(1,1) = realMissing ! current time and outlet 4 (1,1)
@@ -324,7 +326,10 @@ CONTAINS
        if (absErr(imin) < critFactor*omega) exit
      end do
    endif
-
+   else ! length < min_length_route: length is short enough to just pass upstream to downstream
+     Q(1,0) = q_upstream
+     Q(1,1) = q_upstream
+   end if
  else ! if head-water and pour runnof to the bottom of reach
 
    Q(1,0) = 0._dp
@@ -336,9 +341,11 @@ CONTAINS
 
  endif
 
+ if (rch_param%RLENGTH > min_length_route) then
  ! For very low flow condition, outflow - inflow > current storage, so limit outflow and adjust Q(1,1)
  Q(1,1) = min(rflux%ROUTE(idxKW)%REACH_VOL(1)/dt + Q(1,0)*0.999, Q(1,1))
  rflux%ROUTE(idxKW)%REACH_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(1) + (Q(1,0)-Q(1,1))*dt
+ end if
 
  ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
  if (rflux%ROUTE(idxKW)%REACH_VOL(1) > bankVol) then
