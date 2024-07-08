@@ -94,7 +94,6 @@ CONTAINS
 
  ! update volume at previous time step
  RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1)
- RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%FLOOD_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%FLOOD_VOL(1)
 
  if (nUps>0) then ! this hru is not headwater
    isHW = .false.
@@ -250,7 +249,6 @@ CONTAINS
  real(dp)                        :: dx             ! length of segment [m]
  real(dp)                        :: Qbar           ! 3-point average discharge [m3/s]
  real(dp)                        :: depth          ! flow depth [m]
- real(dp)                        :: overFlowVol    ! overflow volume [m]
  real(dp)                        :: ck             ! kinematic wave celerity [m/s]
  real(dp)                        :: dk             ! diffusivity [m2/s]
  real(dp)                        :: Sbc            ! neumann BC slope
@@ -408,8 +406,7 @@ CONTAINS
 
    ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
    if (rflux%ROUTE(idxDW)%REACH_VOL(1) > bankVol) then
-     overFlowVol = rflux%ROUTE(idxDW)%REACH_VOL(1) - bankVol ! overflow volume
-     rflux%ROUTE(idxDW)%FLOOD_VOL(1) = rflux%ROUTE(idxDW)%FLOOD_VOL(1) + overFlowVol  ! new flooded volume
+     rflux%ROUTE(idxDW)%FLOOD_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(1) - bankVol  ! floodplain volume == overflow volume
    else
      rflux%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
    end if
@@ -446,6 +443,7 @@ CONTAINS
 
    rflux%ROUTE(idxDW)%REACH_VOL(0) = 0._dp
    rflux%ROUTE(idxDW)%REACH_VOL(1) = 0._dp
+   rflux%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
 
    rstate%molecule%Q(1:nMolecule%DW_ROUTE) = 0._dp
    rstate%molecule%Q(nMolecule%DW_ROUTE)   = rflux%ROUTE(idxDW)%REACH_Q

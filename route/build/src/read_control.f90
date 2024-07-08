@@ -233,6 +233,9 @@ CONTAINS
    case('<KWvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWvolume         )%varFile  ! default: true (turned off if inactive)
    case('<MCvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCvolume         )%varFile  ! default: true (turned off if inactive)
    case('<DWvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWvolume         )%varFile  ! default: true (turned off if inactive)
+   case('<KWfloodVolume>');        read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWfloodVolume    )%varFile  ! default: true (turned off if floodplain is inactive)
+   case('<MCfloodVolume>');        read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCfloodVolume    )%varFile  ! default: true (turned off if floodplain is inactive)
+   case('<DWfloodVolume>');        read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWfloodVolume    )%varFile  ! default: true (turned off if floodplain is inactive)
    case('<outputInflow>');         read(cData,*,iostat=io_error) outputInflow
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
@@ -538,14 +541,19 @@ CONTAINS
  end if
 
  ! ---- history Output variables
- if (outputInflow) then
+ if (outputInflow) then ! if outputInflow is active, turn on all the routing methdos for now
    meta_rflx(ixRFLX%KWTinflow)%varFile=.true.
    meta_rflx(ixRFLX%IRFinflow)%varFile=.true.
    meta_rflx(ixRFLX%MCinflow)%varFile=.true.
    meta_rflx(ixRFLX%KWinflow)%varFile=.true.
    meta_rflx(ixRFLX%DWinflow)%varFile=.true.
  end if
- ! Make sure turned off if the corresponding routing is not running
+ if (.not. floodplain) then ! if floodplain is inactive, turn off history file writing
+   meta_rflx(ixRFLX%MCfloodVolume)%varFile=.false.
+   meta_rflx(ixRFLX%KWfloodVolume)%varFile=.false.
+   meta_rflx(ixRFLX%DWfloodVolume)%varFile=.false.
+ end if
+ ! Make sure turned off if the corresponding routing is inactive
  do iRoute = 0, nRouteMethods-1
    select case(iRoute)
      case(accumRunoff)
@@ -568,18 +576,21 @@ CONTAINS
        if (.not. onRoute(iRoute)) then
          meta_rflx(ixRFLX%MCroutedRunoff)%varFile=.false.
          meta_rflx(ixRFLX%MCvolume)%varFile=.false.
+         meta_rflx(ixRFLX%MCfloodVolume)%varFile=.false.
          meta_rflx(ixRFLX%MCinflow)%varFile=.false.
        end if
      case(kinematicWave)
        if (.not. onRoute(iRoute)) then
          meta_rflx(ixRFLX%KWroutedRunoff)%varFile=.false.
          meta_rflx(ixRFLX%KWvolume)%varFile=.false.
+         meta_rflx(ixRFLX%KWfloodVolume)%varFile=.false.
          meta_rflx(ixRFLX%KWinflow)%varFile=.false.
        end if
      case(diffusiveWave)
        if (.not. onRoute(iRoute)) then
          meta_rflx(ixRFLX%DWroutedRunoff)%varFile=.false.
          meta_rflx(ixRFLX%DWvolume)%varFile=.false.
+         meta_rflx(ixRFLX%DWfloodVolume)%varFile=.false.
          meta_rflx(ixRFLX%DWinflow)%varFile=.false.
        end if
      case default; message=trim(message)//'expect digits from 0 and 5'; err=81; return
