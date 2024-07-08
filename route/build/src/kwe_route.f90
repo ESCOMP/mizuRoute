@@ -92,7 +92,6 @@ CONTAINS
 
  ! update volume at previous time step
  RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(1)
- RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%FLOOD_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%FLOOD_VOL(1)
 
  if (nUps>0) then
    isHW = .false.
@@ -231,7 +230,6 @@ CONTAINS
  character(*), intent(out)                :: message      ! error message
  ! Local variables
  real(dp)                                 :: depth        ! flow depth [m]
- real(dp)                                 :: overFlowVol  ! overflow volume [m3]
  real(dp)                                 :: p            ! wetness perimeter [m]
  real(dp)                                 :: alpha        ! sqrt(slope)(/mannings N* width)
  real(dp)                                 :: beta         ! constant, 5/3
@@ -349,8 +347,7 @@ CONTAINS
 
  ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
  if (rflux%ROUTE(idxKW)%REACH_VOL(1) > bankVol) then
-   overFlowVol = rflux%ROUTE(idxKW)%REACH_VOL(1) - bankVol ! overflow volume
-   rflux%ROUTE(idxKW)%FLOOD_VOL(1) = rflux%ROUTE(idxKW)%FLOOD_VOL(1) + overFlowVol  ! new flooded volume
+   rflux%ROUTE(idxKW)%FLOOD_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(1) - bankVol  ! floodplain volume == overflow volume
  else
    rflux%ROUTE(idxKW)%FLOOD_VOL(1) = 0._dp
  end if
