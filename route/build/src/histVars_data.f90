@@ -57,7 +57,7 @@ MODULE histVars_data
     real(dp), allocatable    :: dlayRunoff(:)      ! lateral inflow into river or lake [m3/s] for each reach [nRch]
     real(dp), allocatable    :: discharge(:,:)     ! river/lake discharge [m3/s] for each reach/lake and routing method [nRch,nMethod]
     real(dp), allocatable    :: inflow(:,:)        ! inflow from upstream rivers/lakes [m3/s] for each reach/lake and routing method [nRch,nMethod]
-    real(dp), allocatable    :: elev(:,:)          ! river/lake surface water elevation [m] for each reach/lake and routing method [nRch,nMethod]
+    real(dp), allocatable    :: waterHeight(:,:)   ! river/lake surface water elevation [m] for each reach/lake and routing method [nRch,nMethod]
     real(dp), allocatable    :: floodVolume(:,:)   ! river/lake volume [m3] for each reach/lake and routing method [nRch,nMethod]
     real(dp), allocatable    :: volume(:,:)        ! river/lake volume [m3] for each reach/lake and routing method [nRch,nMethod]
 
@@ -122,6 +122,9 @@ MODULE histVars_data
 
         if (floodplain) then
           allocate(instHistVar%floodVolume(nRch_local, nRoutes), source=0._dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%floodVolume]'; return; endif
+
+          allocate(instHistVar%waterHeight(nRch_local, nRoutes), source=0._dp, stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%floodVolume]'; return; endif
         end if
 
@@ -216,6 +219,7 @@ MODULE histVars_data
           this%volume(ix,iRoute)    = this%volume(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_VOL(1)
           if (floodplain) then
             this%floodVolume(ix,iRoute)    = this%floodVolume(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%FLOOD_VOL(1)
+            this%waterHeight(ix,iRoute)    = this%waterHeight(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_ELE
           end if
           if (outputInflow) then
             this%inflow(ix,iRoute)  = this%inflow(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_INFLOW
@@ -261,11 +265,16 @@ MODULE histVars_data
       end if
 
       ! 6. volume
+      if (allocated(this%waterHeight)) then
+        this%waterHeight = this%waterHeight/real(this%nt, kind=dp)
+      end if
+
+      ! 7. volume
       if (allocated(this%floodVolume)) then
         this%floodVolume = this%floodVolume/real(this%nt, kind=dp)
       end if
 
-      ! 7. inflow
+      ! 8. inflow
       if (allocated(this%inflow)) then
         this%inflow = this%inflow/real(this%nt, kind=dp)
       end if
@@ -288,6 +297,7 @@ MODULE histVars_data
       if (allocated(this%dlayRunoff))  this%dlayRunoff = 0._dp
       if (allocated(this%discharge))   this%discharge = 0._dp
       if (allocated(this%volume))      this%volume = 0._dp
+      if (allocated(this%waterHeight)) this%waterHeight = 0._dp
       if (allocated(this%floodVolume)) this%floodVolume = 0._dp
       if (allocated(this%inflow))      this%inflow = 0._dp
 
@@ -307,6 +317,7 @@ MODULE histVars_data
       if (allocated(this%dlayRunoff))  deallocate(this%dlayRunoff)
       if (allocated(this%discharge))   deallocate(this%discharge)
       if (allocated(this%volume))      deallocate(this%volume)
+      if (allocated(this%waterHeight)) deallocate(this%waterHeight)
       if (allocated(this%floodVolume)) deallocate(this%floodVolume)
       if (allocated(this%inflow))      deallocate(this%inflow)
 
@@ -328,6 +339,7 @@ MODULE histVars_data
       real(dp), allocatable              :: array_tmp(:)          ! temp array
       integer(i4b)                       :: ixRoute               ! loop index
       integer(i4b)                       :: ixFlow, ixVol         ! temporal discharge, volume variable indices
+      integer(i4b)                       :: ixWaterH              ! temporal water height variable index
       integer(i4b)                       :: ixFloodV              ! temporal flood volume variable index
       integer(i4b)                       :: ixInflow              ! temporal inflow variable index
       logical(lgt)                       :: FileStatus            ! file open or close
@@ -407,7 +419,10 @@ MODULE histVars_data
 
         if (floodplain) then
           allocate(this%floodVolume(this%nRch, nRoutes), source=0.0_dp, stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%volume]'; return; endif
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%floodVolume]'; return; endif
+
+          allocate(this%waterHeight(this%nRch, nRoutes), source=0.0_dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%waterHeight]'; return; endif
         end if
 
         if (outputInflow) then
@@ -430,16 +445,19 @@ MODULE histVars_data
             case(kinematicWave)
               ixFlow=ixRFLX%KWroutedRunoff
               ixVol=ixRFLX%KWvolume
+              ixWaterH=ixRFLX%KWheight
               ixFloodV=ixRFLX%KWfloodVolume
               ixInflow=ixRFLX%KWinflow
             case(muskingumCunge)
               ixFlow=ixRFLX%MCroutedRunoff
               ixVol=ixRFLX%MCvolume
+              ixWaterH=ixRFLX%MCheight
               ixFloodV=ixRFLX%MCfloodVolume
               ixInflow=ixRFLX%MCinflow
             case(diffusiveWave)
               ixFlow=ixRFLX%DWroutedRunoff
               ixVol=ixRFLX%DWvolume
+              ixWaterH=ixRFLX%DWheight
               ixFloodV=ixRFLX%DWfloodVolume
               ixInflow=ixRFLX%DWinflow
             case default
@@ -482,6 +500,18 @@ MODULE histVars_data
               this%floodVolume(nRch_mainstem+nTribOutlet+1:this%nRch, ixRoute) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
             else
               this%floodVolume(:,ixRoute) = array_tmp
+            end if
+          end if
+
+          if (meta_rflx(ixWaterH)%varFile) then
+            call read_dist_array(pioFileDesc, meta_rflx(ixWaterH)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+            ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
+            if (masterproc) then
+              this%waterHeight(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
+              this%waterHeight(nRch_mainstem+nTribOutlet+1:this%nRch, ixRoute) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
+            else
+              this%waterHeight(:,ixRoute) = array_tmp
             end if
           end if
 
