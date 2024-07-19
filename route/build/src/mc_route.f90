@@ -19,9 +19,10 @@ USE public_var,    ONLY: min_length_route! minimum reach length for routing to b
 USE globalData,    ONLY: idxMC           ! routing method index for muskingum method
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
 USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
-USE hydraulic,     ONLY: flow_depth
-USE hydraulic,     ONLY: celerity
-USE hydraulic,     ONLY: Btop
+USE hydraulic,     ONLY: flow_depth      ! function to compute Normal flow depth based on manning equation [m]
+USE hydraulic,     ONLY: water_height    ! function to compute water height bsed on flow area [m]
+USE hydraulic,     ONLY: celerity        ! function to compute celerity [m/s2]
+USE hydraulic,     ONLY: Btop            ! function to compute flow top width [m]
 
 implicit none
 
@@ -375,6 +376,8 @@ CONTAINS
  else
    rflux%ROUTE(idxMC)%FLOOD_VOL(1) = 0._dp
  end if
+ ! compute surface water height [m]
+ rflux%ROUTE(idxMC)%REACH_ELE = water_height(rflux%ROUTE(idxMC)%REACH_VOL(1)/L, bt, zc, zf=zf, bankDepth=bankDepth)
 
  ! add catchment flow
  rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+ Qlat

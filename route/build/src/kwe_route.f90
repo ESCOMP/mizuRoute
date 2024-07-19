@@ -20,6 +20,7 @@ USE globalData,    ONLY: idxKW           ! routing method index for kinematic ww
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
 USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
 USE hydraulic,     ONLY: flow_depth
+USE hydraulic,     ONLY: water_height
 USE hydraulic,     ONLY: Pwet
 
 implicit none
@@ -351,7 +352,8 @@ CONTAINS
  else
    rflux%ROUTE(idxKW)%FLOOD_VOL(1) = 0._dp
  end if
-
+ ! compute surface water height [m]
+ rflux%ROUTE(idxKW)%REACH_ELE = water_height(rflux%ROUTE(idxKW)%REACH_VOL(1)/L, bt, zc, zf=zf, bankDepth=bankDepth)
 
  ! add catchment flow
  rflux%ROUTE(idxKW)%REACH_Q = Q(1,1)+Qlat

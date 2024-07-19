@@ -20,7 +20,7 @@ USE globalData,    ONLY: idxDW           ! routing method index for diffusive wa
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
 USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
 USE hydraulic,     ONLY: flow_depth
-USE hydraulic,     ONLY: flow_area
+USE hydraulic,     ONLY: water_height
 USE hydraulic,     ONLY: celerity
 USE hydraulic,     ONLY: diffusivity
 
@@ -410,6 +410,8 @@ CONTAINS
    else
      rflux%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
    end if
+   ! compute surface water height [m]
+   rflux%ROUTE(idxDW)%REACH_ELE = water_height(rflux%ROUTE(idxDW)%REACH_VOL(1)/L, bt, zc, zf=zf, bankDepth=bankDepth)
 
    ! store final outflow in data structure
    rflux%ROUTE(idxDW)%REACH_Q = Qlocal(nMolecule%DW_ROUTE-1,1) + Qlat
@@ -436,6 +438,8 @@ CONTAINS
 
      rflux%ROUTE(idxDW)%REACH_VOL(0) = 0._dp
      rflux%ROUTE(idxDW)%REACH_VOL(1) = 0._dp
+     rflux%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+     rflux%ROUTE(idxDW)%REACH_ELE    = 0._dp
    end if
  else ! if head-water and pour runnof to the bottom of reach
 
@@ -444,6 +448,7 @@ CONTAINS
    rflux%ROUTE(idxDW)%REACH_VOL(0) = 0._dp
    rflux%ROUTE(idxDW)%REACH_VOL(1) = 0._dp
    rflux%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+   rflux%ROUTE(idxDW)%REACH_ELE    = 0._dp
 
    rstate%molecule%Q(1:nMolecule%DW_ROUTE) = 0._dp
    rstate%molecule%Q(nMolecule%DW_ROUTE)   = rflux%ROUTE(idxDW)%REACH_Q
