@@ -236,8 +236,7 @@ CONTAINS
   do iFile=1,nFile
 
     ! set forcing file name
-    read(dataLines(iFile),*,iostat=ierr) inputFileInfo(iFile)%infilename
-    if(ierr/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infilename)//']'; return; end if
+    inputFileInfo(iFile)%infilename = dataLines(iFile)
 
     ! get the time units. if not exsit in netcdfs, provided from the control file
     existAttr = check_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), time_var_name, 'units')
