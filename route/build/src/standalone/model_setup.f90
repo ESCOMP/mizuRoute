@@ -444,7 +444,7 @@ CONTAINS
   ! datetime of runoff time at front of the 1st time step:  roBegDatetime (global data)
   ! datetime of runoff time at end of last time step: roDatetime_end (local data)
   select case(trim(ro_time_stamp))
-    case('front')
+    case('start')
       roBegDatetime  = roCal(1)
       roDatetime_end = roCal(nTime)%add_sec(dt_ro, ierr, cmessage)
     case('end')

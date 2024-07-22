@@ -134,7 +134,7 @@ CONTAINS
    USE public_var, ONLY: outputAtGage                 ! ascii containing last restart and history files
    USE public_var, ONLY: nOutFreq                     ! integer output frequency, i.e, written at every "nOutFreq" of simulation step
    USE public_var, ONLY: outputFrequency              ! writing frequency
-   USE public_var, ONLY: time_stamp => ro_time_stamp  !
+   USE public_var, ONLY: histTimeStamp_offset         ! history time stamp offset from the start of time step [sec]
    USE globalData, ONLY: simDatetime                  ! previous,current and next model datetime
    USE globalData, ONLY: timeVar                      ! current simulation time variable
    USE globalData, ONLY: sec2tunit                    ! seconds per time unit
@@ -204,7 +204,7 @@ CONTAINS
      end if
 
      ! write time variables (time and time bounds)
-     call hist_all_network%write_time(hVars, time_stamp, ierr, cmessage)
+     call hist_all_network%write_time(hVars, histTimeStamp_offset, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! write out output variables in history files
@@ -221,7 +221,7 @@ CONTAINS
 
      if (outputAtGage) then
        ! write time variables (time and time bounds)
-       call hist_gage%write_time(hVars, time_stamp, ierr, cmessage)
+       call hist_gage%write_time(hVars, histTimeStamp_offset, ierr, cmessage)
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
        call hist_gage%write_flux_rch(hVars, ioDesc_gauge_float, index_write_gage, ierr, cmessage)
