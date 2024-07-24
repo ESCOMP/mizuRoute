@@ -160,7 +160,7 @@ CONTAINS
    case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue       ! fillvalue used for input variable
    case('<ro_calendar>');          ro_calendar  = trim(cData)                          ! name of calendar used in runoff input netcdfs
    case('<ro_time_units>');        ro_time_units = trim(cData)                         ! time units used in runoff input netcdfs
-   case('<ro_time_stamp>');        ro_time_stamp = trim(cData)                         ! time stamp used input - front, middle, or end, otherwise error
+   case('<ro_time_stamp>');        ro_time_stamp = trim(cData)                         ! time stamp used input - start, middle, or end, otherwise error
    ! Water-management input netCDF - water abstraction/infjection or lake target volume
    case('<fname_wm>');             fname_wm        = trim(cData)                       ! name of text file containing ordered nc file names
    case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                       ! name of varibale for fluxes to and from seg (reachs/lakes)
@@ -218,6 +218,7 @@ CONTAINS
    case('<time_units>');           time_units = trim(cData)                            ! time units used in history file output. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
    case('<newFileFrequency>');     newFileFrequency = trim(cData)                      ! frequency for new history files (daily, monthly, yearly, single)
    case('<outputFrequency>');      outputFrequency  = trim(cData)                      ! output frequency (integer for multiple of simulation time step or daily, monthly or yearly)
+   case('<histTimeStamp_offset>'); read(cData,*,iostat=io_error) histTimeStamp_offset  ! time stamp offset [second] from a start of time step
    case('<basRunoff>');            read(cData,*,iostat=io_error) meta_hflx(ixHFLX%basRunoff        )%varFile  ! default: true
    case('<instRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%instRunoff       )%varFile  ! default: false
    case('<dlayRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%dlayRunoff       )%varFile  ! default: false
@@ -442,10 +443,10 @@ CONTAINS
  if (masterproc) then
    write(iulog,'(2a)') new_line('a'), '---- input time stamp --- '
    write(iulog,'(2A)')      '  Input time stamp <ro_time_stamp>:  ', trim(ro_time_stamp)
-   if (trim(ro_time_stamp)=='front' .or. trim(ro_time_stamp)=='end' .or. trim(ro_time_stamp)=='middle') then
+   if (trim(ro_time_stamp)=='start' .or. trim(ro_time_stamp)=='end' .or. trim(ro_time_stamp)=='middle') then
      write(iulog,'(2A)')      '  The same time stamp is used for history output'
    else
-     write(message, '(2A)') trim(message), 'ERROR: Input time stamp <ro_time_stamp> must be front, end, or middle'
+     write(message, '(2A)') trim(message), 'ERROR: Input time stamp <ro_time_stamp> must be start, end, or middle'
      err=81; return
    end if
  end if

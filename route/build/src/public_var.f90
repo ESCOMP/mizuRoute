@@ -139,7 +139,7 @@ MODULE public_var
   real(dp)             ,public    :: input_fillvalue      = realMissing     ! fillvalue used for input variables (runoff, precipitation, evaporation)
   character(len=strLen),public    :: ro_time_units        = charMissing     ! time units used in ro netcdf. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
   character(len=strLen),public    :: ro_calendar          = charMissing     ! calendar used in ro netcdf
-  character(len=strLen),public    :: ro_time_stamp        = 'front'         ! time stamp used for I/O - front (default), middle, or end, otherwise error
+  character(len=strLen),public    :: ro_time_stamp        = 'start'         ! time stamp used in runoff input - start (default), middle, or end, otherwise error
   ! Water-management input netCDF - water abstraction/infjection or lake target volume
   character(len=strLen),public    :: fname_wm             = ''              ! the txt file name that includes nc files holesing the abstraction, injection, target volume values
   character(len=strLen),public    :: vname_flux_wm        = ''              ! variable name for abstraction or injection from or to a river segment
@@ -180,6 +180,7 @@ MODULE public_var
   character(len=strLen),public    :: dname_gageTime       = ''              ! dimension name for time
   integer(i4b)         ,public    :: strlen_gageSite      = 30              ! maximum character length for site name
   ! OUTPUT OPTIONS
+  real(dp)             ,public    :: histTimeStamp_offset = 0._dp           ! time stamp offset [second] from a start of time step
   logical(lgt)         ,public    :: outputInflow         = .false.         ! logical; T-> write upstream inflow in history file output
   ! USER OPTIONS
   integer(i4b)         ,public    :: qmodOption           = 0               ! option for streamflow modification
