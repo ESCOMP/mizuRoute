@@ -196,11 +196,11 @@ contains
  meta_SEG    (ixSEG%H06_D_Oct        ) = var_info('H06_D_Oct'      , 'Hanasaki 2006; Average September demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
  meta_SEG    (ixSEG%H06_D_Nov        ) = var_info('H06_D_Nov'      , 'Hanasaki 2006; Average November  demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
  meta_SEG    (ixSEG%H06_D_Dec        ) = var_info('H06_D_Dec'      , 'Hanasaki 2006; Average December  demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
- meta_SEG    (ixSEG%H06_purpose      ) = var_info('H06intP1'       , 'Hanasaki 2006; reservoir purpose; (0= non-irrigation, 1=irrigation)'                     ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%H06_I_mem_F      ) = var_info('H06intP2'       , 'Hanasaki 2006; Flag to transition to modelled inflow'                                    ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%H06_D_mem_F      ) = var_info('H06intP3'       , 'Hanasaki 2006; Flag to transition to modelled/provided demand'                           ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%H06_I_mem_L      ) = var_info('H06intP4'       , 'Hanasaki 2006; Memory length in years for inflow'                                        ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%H06_D_mem_L      ) = var_info('H06intP5'       , 'Hanasaki 2006; Memory length in years for demand'                                        ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_purpose      ) = var_info('H06_purpose'    , 'Hanasaki 2006; reservoir purpose; (0= non-irrigation, 1=irrigation)'                     ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_mem_F      ) = var_info('H06_I_mem_F'    , 'Hanasaki 2006; Flag to transition to modelled inflow'                                    ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_mem_F      ) = var_info('H06_D_mem_F'    , 'Hanasaki 2006; Flag to transition to modelled/provided demand'                           ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_mem_L      ) = var_info('H06_I_mem_L'    , 'Hanasaki 2006; Memory length in years for inflow'                                        ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_mem_L      ) = var_info('H06_D_mem_L'    , 'Hanasaki 2006; Memory length in years for demand'                                        ,'-'     ,ixDims%seg   , .false.)
 
  ! NTOPO                                         varName        varDesc                                                varUnit, varType, varFile
  meta_NTOPO  (ixNTOPO%nHRU           ) = var_info('nHRU'           , 'number of HRUs contributing flow to each segment'   ,'-'    ,ixDims%seg   , .false.)
