@@ -102,24 +102,45 @@ CONTAINS
       end do
     endif
 
-    ! perform lake routing based on a fixed storage discharge relationship Q=kS
     ! no runoff input is added to the lake; the input are only precipitation and evaporation to the lake
-
-    ! if(NETOPO_in(segIndex)%REACHIX == ixDesire)then   ! uncommnet when the ixDesire is fixed and not -9999
-    !print*, '------lake-simulation-------- '
-    !print*, 'node id that is lake .......= ', NETOPO_in(segIndex)%REACHID ! to check the reach id of lake
-    !print*, 'lake param D03_MaxStorage ..= ', RPARAM_in(segIndex)%D03_MaxStorage
-    !print*, 'lake param D03_Coefficient .= ', RPARAM_in(segIndex)%D03_Coefficient
-    !print*, 'lake param D03_Power .......= ', RPARAM_in(segIndex)%D03_Power
-    !print*, 'lake param H06_Smax ........= ', RPARAM_in(segIndex)%H06_Smax
-    !print*, 'lake param H06_alpha .......= ', RPARAM_in(segIndex)%H06_alpha
-    !print*, 'lake param H06_S_ini .......= ', RPARAM_in(segIndex)%H06_S_ini
-    !print*, 'lake target volum ..........= ', NETOPO_in(segIndex)%LakeTargVol
-    !print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
-    !print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q
-    !print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
-    !print*, 'upstream evaporation m3/s ..= ', RCHFLX_out(iens,segIndex)%basinevapo
-    !print*, 'paraemters', RPARAM_in(segIndex)%D03_MaxStorage, RPARAM_in(segIndex)%D03_Coefficient, RPARAM_in(segIndex)%D03_Power, NETOPO_in(segIndex)%LakeTargVol, NETOPO_in(segIndex)%islake, NETOPO_in(segIndex)%LakeModelType
+    if (verbose) then
+      write(iulog, '(A,1X,I15)') 'lake id=', NETOPO_in(segIndex)%REACHID ! to check the reach id of lake
+      select case(NETOPO_in(segIndex)%LakeModelType)
+        case(endorheic)
+          write(iulog, '(A)') 'Lake type: Endorheic'
+        case(doll03)
+          write(iulog, '(A)') 'Lake type: Natural lake with Doll scheme'
+          write(iulog, '(A,1X,G12.5)') 'D03_MaxStorage  = ', RPARAM_in(segIndex)%D03_MaxStorage
+          write(iulog, '(A,1X,G12.5)') 'D03_Coefficient = ', RPARAM_in(segIndex)%D03_Coefficient
+          write(iulog, '(A,1X,G12.5)') 'D03_Power       = ', RPARAM_in(segIndex)%D03_Power
+        case(hanasaki06)
+          write(iulog, '(A)') 'Lake type: Managed lake with Hanasaki scheme'
+          write(iulog, '(A,1X,G12.5)') 'H06_Smax     =', RPARAM_in(segIndex)%H06_Smax
+          write(iulog, '(A,1X,G12.5)') 'H06_alpha    =', RPARAM_in(segIndex)%H06_alpha
+          write(iulog, '(A,1X,G12.5)') 'H06_envfact  =', RPARAM_in(segIndex)%H06_envfact
+          write(iulog, '(A,1X,G12.5)') 'H06_S_ini    =', RPARAM_in(segIndex)%H06_S_ini
+          write(iulog, '(A,1X,G12.5)') 'H06_c1       =', RPARAM_in(segIndex)%H06_c1
+          write(iulog, '(A,1X,G12.5)') 'H06_c2       =', RPARAM_in(segIndex)%H06_c2
+          write(iulog, '(A,1X,G12.5)') 'H06_exponent =', RPARAM_in(segIndex)%H06_exponent
+        case(hype)
+          write(iulog, '(A)') 'Lake type: Managed lake with Hype scheme'
+          write(iulog, '(A,1X,G12.5)') 'HYP_E_emr .......= ', RPARAM_in(segIndex)%HYP_E_emr
+          write(iulog, '(A,1X,G12.5)') 'HYP_E_lim .......= ', RPARAM_in(segIndex)%HYP_E_lim
+          write(iulog, '(A,1X,G12.5)') 'HYP_E_min .......= ', RPARAM_in(segIndex)%HYP_E_min
+          write(iulog, '(A,1X,G12.5)') 'HYP_E_zero ......= ', RPARAM_in(segIndex)%HYP_E_zero
+          write(iulog, '(A,1X,G12.5)') 'HYP_Qrate_emr ...= ', RPARAM_in(segIndex)%HYP_Qrate_emr
+          write(iulog, '(A,1X,G12.5)') 'HYP_Erate_emr ...= ', RPARAM_in(segIndex)%HYP_Erate_emr
+          write(iulog, '(A,1X,G12.5)') 'HYP_Qrate_prim ..= ', RPARAM_in(segIndex)%HYP_Qrate_prim
+          write(iulog, '(A,1X,G12.5)') 'HYP_Qrate_amp ...= ', RPARAM_in(segIndex)%HYP_Qrate_amp
+          write(iulog, '(A,1X,G12.5)') 'HYP_Qrate_phs ...= ', RPARAM_in(segIndex)%HYP_Qrate_phs
+          write(iulog, '(A,1X,G12.5)') 'HYP_prim_F ......= ', RPARAM_in(segIndex)%HYP_prim_F
+          write(iulog, '(A,1X,G12.5)') 'HYP_A_avg .......= ', RPARAM_in(segIndex)%HYP_A_avg
+        case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
+      end select
+      write(iulog,'(A,1X,G12.5)') 'total inflow [m3/s]  = ', q_upstream
+      write(iulog,'(A,1X,G12.5)') 'precipitation [m3/s] = ', RCHFLX_out(iens,segIndex)%basinprecip
+      write(iulog,'(A,1X,G12.5)') 'evaporation [m3/s]   = ', RCHFLX_out(iens,segIndex)%basinevapo
+    end if
 
     ! jump start the lake volume to the target volume if provided for the first time step
     if (iTime==1) then
@@ -210,9 +231,6 @@ CONTAINS
           ! updating the storage
           RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q * dt
 
-!          if (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) < 0) then; ! set the lake volume as 0 if it goes negative
-!            RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)=0
-!          endif
         case(hanasaki06)
           ! preserving the past upstrem discharge for lake models
           ! create memory of upstream inflow for Hanasaki formulation if memory flag is active for this lake
@@ -260,7 +278,7 @@ CONTAINS
             end select
             RPARAM_in(segIndex)%H06_I_Feb = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 2,1:past_length_I))/past_length_I
           endif
-          !print*, RCHFLX_out(iens,segIndex)%QPASTUP_IRF
+
           ! create array with monthly inflow
           I_months = (/ RPARAM_in(segIndex)%H06_I_Jan, RPARAM_in(segIndex)%H06_I_Feb, &
                         RPARAM_in(segIndex)%H06_I_Mar, RPARAM_in(segIndex)%H06_I_Apr, &
@@ -380,10 +398,6 @@ CONTAINS
           ! update the storage
           RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q * dt
 
-          ! print*, simDatetime(1)%month() ! month of the simulations
-          ! print*, 'Hanasaki parameters'
-          print*, RPARAM_in(segIndex)%H06_Smax, RPARAM_in(segIndex)%H06_alpha, RPARAM_in(segIndex)%H06_envfact, RPARAM_in(segIndex)%H06_S_ini, RPARAM_in(segIndex)%H06_c1, RPARAM_in(segIndex)%H06_c2, RPARAM_in(segIndex)%H06_exponent, RPARAM_in(segIndex)%H06_I_Feb, RPARAM_in(segIndex)%H06_D_Feb
-
         case(hype)
           ! update reach elevation
           RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_ELE = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) / RPARAM_in(segIndex)%HYP_A_avg &
@@ -402,22 +416,6 @@ CONTAINS
             F_prim = 1
           end if
 
-          print*, 'HYP_E_emr .......= ', RPARAM_in(segIndex)%HYP_E_emr
-          print*, 'HYP_E_lim .......= ', RPARAM_in(segIndex)%HYP_E_lim
-          print*, 'HYP_E_min .......= ', RPARAM_in(segIndex)%HYP_E_min
-          print*, 'HYP_E_zero ......= ', RPARAM_in(segIndex)%HYP_E_zero
-          print*, 'HYP_Qrate_emr ...= ', RPARAM_in(segIndex)%HYP_Qrate_emr
-          print*, 'HYP_Erate_emr ...= ', RPARAM_in(segIndex)%HYP_Erate_emr
-          print*, 'HYP_Qrate_prim ..= ', RPARAM_in(segIndex)%HYP_Qrate_prim
-          print*, 'HYP_Qrate_amp ...= ', RPARAM_in(segIndex)%HYP_Qrate_amp
-          print*, 'HYP_Qrate_phs ...= ', RPARAM_in(segIndex)%HYP_Qrate_phs
-          print*, 'HYP_prim_F ......= ', RPARAM_in(segIndex)%HYP_prim_F
-          print*, 'HYP_A_avg .......= ', RPARAM_in(segIndex)%HYP_A_avg
-
-          print*, 'F_sin ...........= ', F_sin
-          print*, 'F_lin ...........= ', F_lin
-          print*, 'F_prim ..........= ', F_prim
-
           ! Q_main
           Q_prim = F_sin * F_lin * F_prim * RPARAM_in(segIndex)%HYP_Qrate_prim
           ! Q_spill
@@ -430,9 +428,6 @@ CONTAINS
           Q_sim = Q_prim + Q_spill
           !! original implementation picks the maximume value of output from primary spillway and emergency spillway
           Q_sim = max(Q_prim, Q_spill)
-
-          print*, 'Q_prim  ..= ', Q_prim
-          print*, 'Q_spill ..= ', Q_spill
 
           ! check if the output is not more than the existing stored water
           RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q = min(Q_sim, max(0._dp,(RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)*RPARAM_in(segIndex)%HYP_A_avg)/dt)
