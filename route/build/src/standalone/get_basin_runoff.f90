@@ -20,7 +20,6 @@ CONTAINS
 
  ! get forcing data at current step at all the hrus
 
-  USE public_var,           ONLY: input_dir           ! directory containing input data
   USE public_var,           ONLY: vname_qsim          ! varibale runoff in netCDF file
   USE public_var,           ONLY: vname_evapo         ! varibale actual evaporation in netCDF file
   USE public_var,           ONLY: vname_precip        ! varibale precipitation in netCDF file
@@ -74,8 +73,7 @@ CONTAINS
     if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
 
     ! get the simulated runoff for the current time step - runoff_data%sim(:) or %sim2D(:,:)
-    call read_forcing_data(input_dir,             & ! input: directory
-                          inFileInfo_ro,          & ! input: meta for forcing input files
+    call read_forcing_data(inFileInfo_ro,          & ! input: meta for forcing input files
                           vname_qsim,             & ! input: varname
                           tmap_sim_ro,            & ! input: ro-sim time mapping at current simulation step
                           runoff_data,            & ! inout: forcing data structure
@@ -113,8 +111,7 @@ CONTAINS
       runoff_data%basinEvapo  = 0._dp ! set evaporation to zero
     else
       ! get the actual evaporation - runoff_data%sim(:) or %sim2D(:,:)
-      call read_forcing_data(input_dir,              & ! input: directory
-                             inFileInfo_ro,          & ! input: meta for forcing input files
+      call read_forcing_data(inFileInfo_ro,          & ! input: meta for forcing input files
                              vname_evapo,            & ! input: varname
                              tmap_sim_ro,            & ! input: ro-sim time mapping at current simulation step
                              runoff_data,            & ! inout: forcing data structure
@@ -149,8 +146,7 @@ CONTAINS
       runoff_data%basinPrecip  = 0._dp ! set precipitation to zero
     else
       ! get the precepitation - runoff_data%sim(:) or %sim2D(:,:)
-      call read_forcing_data(input_dir,              & ! input: directory
-                             inFileInfo_ro,          & ! input: meta for forcing input files
+      call read_forcing_data(inFileInfo_ro,          & ! input: meta for forcing input files
                              vname_precip,           & ! input: varname
                              tmap_sim_ro,            & ! input: ro-sim time mapping at current simulation step
                              runoff_data,            & ! inout: forcing data structure
@@ -180,8 +176,7 @@ CONTAINS
     if (is_vol_wm) then
 
       ! get the added or subtracted discharge from river segments
-      call read_forcing_data(input_dir,          & ! input: input directory
-                             inFileInfo_wm,      & ! input: meta for water-management input files
+      call read_forcing_data(inFileInfo_wm,      & ! input: meta for water-management input files
                              vname_vol_wm,       & ! input: varname
                              tmap_sim_wm,        & ! input: wm-sim time mapping at current simulation step
                              wm_data,            & ! inout: water management data structure
@@ -203,8 +198,7 @@ CONTAINS
   ! Optional: reading water abstraction and subtraction
   if (is_flux_wm) then
     ! get the added or subtracted discharge from river segments
-    call read_forcing_data(input_dir,             & ! input: input directory
-                           inFileInfo_wm,         & ! input: meta for water-management input files
+    call read_forcing_data(inFileInfo_wm,         & ! input: meta for water-management input files
                            vname_flux_wm,         & ! input: varname
                            tmap_sim_wm,           & ! input: wm-sim time mapping at current simulation step
                            wm_data,               & ! inout: water management data structure

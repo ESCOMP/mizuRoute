@@ -230,15 +230,13 @@ CONTAINS
 ! *********************************************************************
 ! public subroutine: main interface for forcing data reading
 ! *********************************************************************
-  SUBROUTINE read_forcing_data(indir,            &  ! input: forcing input directory
-                               inFileInfo_in,    &  ! input: forcing input file metadata
+  SUBROUTINE read_forcing_data(inFileInfo_in,    &  ! input: forcing input file metadata
                                var_name,         &  ! input: varibale name
                                tmap_sim_forc_in, &  ! input: time-step mapping between model and forcing
                                forcing_data_in,  &  ! inout: forcing data structure
                                ierr, message)       ! output: error control
   implicit none
   ! argument variables
-  character(*),     intent(in)      :: indir              ! forcing input directory
   type(inFileInfo), intent(in)      :: inFileInfo_in(:)   ! input file (forcing or water-management) metadata
   character(*),     intent(in)      :: var_name           ! variable name
   type(map_time),   intent(in)      :: tmap_sim_forc_in   ! time-step mapping between model and forcing
@@ -251,10 +249,10 @@ CONTAINS
   ierr=0; message='read_forcing_data/'
 
   if (forcing_data_in%nSpace(2) == integerMissing) then
-   call read_1D_forcing(indir, inFileInfo_in, var_name, tmap_sim_forc_in, forcing_data_in%nSpace(1), forcing_data_in, ierr, cmessage)
+   call read_1D_forcing(inFileInfo_in, var_name, tmap_sim_forc_in, forcing_data_in%nSpace(1), forcing_data_in, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   else
-   call read_2D_forcing(indir, inFileInfo_in, var_name, tmap_sim_forc_in, forcing_data_in%nSpace, forcing_data_in, ierr, cmessage)
+   call read_2D_forcing(inFileInfo_in, var_name, tmap_sim_forc_in, forcing_data_in%nSpace, forcing_data_in, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
@@ -263,8 +261,7 @@ CONTAINS
  ! *********************************************************************
  ! private subroutine: read 1D forcing data
  ! *********************************************************************
- SUBROUTINE read_1D_forcing(indir,            &  ! input: forcing input directory
-                            inFileInfo_in,    &  ! input: forcing input file metadata
+ SUBROUTINE read_1D_forcing(inFileInfo_in,    &  ! input: forcing input file metadata
                             var_name,         &  ! input: variable name
                             tmap_sim_forc_in, &  ! input: time-step mapping between model and forcing
                             nSpace,           &  ! input: size of spatial elements (e.g., HRU or reach)
@@ -275,7 +272,6 @@ CONTAINS
 
  implicit none
  ! Argument variables
- character(*),       intent(in)    :: indir             ! input directory
  type(inFileInfo),   intent(in)    :: inFileInfo_in(:)  ! input file (forcing or water-management) metadata
  character(*),       intent(in)    :: var_name          ! variable name
  type(map_time),     intent(in)    :: tmap_sim_forc_in  ! time-step mapping between model and forcing
@@ -303,7 +299,7 @@ CONTAINS
  ! get the forcing data
  forc_data_in%sim(1:nSpace) = 0._dp
  do it = 1, nTime
-   fname = trim(indir)//trim(inFileInfo_in(tmap_sim_forc_in%iFile(it))%infilename)
+   fname = trim(inFileInfo_in(tmap_sim_forc_in%iFile(it))%infilename)
 
    iStart = [1, tmap_sim_forc_in%iTime(it)]
    iCount = [nSpace,1]
@@ -333,8 +329,7 @@ CONTAINS
  ! *********************************************************************
  ! private subroutine: read 2D forcing data
  ! *********************************************************************
- SUBROUTINE read_2D_forcing(indir,            &  ! input: input directory
-                            inFileInfo_in,    &  ! input: meta for input file
+ SUBROUTINE read_2D_forcing(inFileInfo_in,    &  ! input: meta for input file
                             var_name,         &  ! input: variable name
                             tmap_sim_forc_in, &  ! input: time-step mapping between model and forcing
                             nSpace,           &  ! input: size of HRUs
@@ -345,7 +340,6 @@ CONTAINS
 
  implicit none
  ! Argument variables
- character(*),       intent(in)      :: indir             ! input directory
  type(inFileInfo),   intent(in)      :: inFileInfo_in(:)  ! input file (forcing or water-management) meta data
  character(*),       intent(in)      :: var_name          ! variable name
  type(map_time),     intent(in)      :: tmap_sim_forc_in  ! time-step mapping between model and forcing
@@ -372,7 +366,7 @@ CONTAINS
 
  ! get the forcing data
  do it = 1, nTime
-   fname = trim(indir)//trim(inFileInfo_in(tmap_sim_forc_in%iFile(it))%infilename)
+   fname = trim(inFileInfo_in(tmap_sim_forc_in%iFile(it))%infilename)
 
    iStart = [1,1,tmap_sim_forc_in%iTime(it)]
    iCount = [nSpace(2),nSpace(1),1]
