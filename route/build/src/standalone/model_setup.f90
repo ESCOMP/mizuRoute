@@ -122,7 +122,7 @@ CONTAINS
  SUBROUTINE init_inFile_pop(ierr, message)
 
   USE public_var, ONLY: input_dir               ! directory containing the text files of fname_qsim and fname_wm
-  USE public_var, ONLY: fname_qsim              ! simulated runoff txt file that includes the NetCDF file names
+  USE public_var, ONLY: fname_qsim              ! runoff netcdf file name. multiple files can be expressed with wildcard
   USE public_var, ONLY: vname_time              ! variable name for time
   USE public_var, ONLY: dname_time              ! dimension name for time
   USE public_var, ONLY: fname_wm                ! simulated runoff txt file that includes the NetCDF file names
@@ -205,6 +205,7 @@ CONTAINS
   character(*),          intent(out)                :: message          ! error message
   ! local varibales
   integer(i4b)                                      :: funit            ! file unit (free unit output from file_open)
+  character(len=strLen)                             :: tmp_file_list    ! temporal text listing all the input netcdf(s)
   character(len=7)                                  :: t_unit           ! time units. "<time_step> since yyyy-MM-dd hh:mm:ss"
   integer(i4b)                                      :: iFile            ! counter for forcing files
   integer(i4b)                                      :: nFile            ! number of nc files identified in the text file
@@ -219,8 +220,10 @@ CONTAINS
 
   ! build filename and its path containing list of NetCDF files
   infilename = trim(dir_name)//trim(file_name)
+  tmp_file_list = trim(dir_name)//'tmp'
+  call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
 
-  call file_open(infilename,funit,ierr,cmessage) ! open the text file
+  call file_open(tmp_file_list,funit,ierr,cmessage) ! open the text file
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
 
   ! get a list of character strings from non-commented lines
@@ -239,9 +242,9 @@ CONTAINS
     inputFileInfo(iFile)%infilename = dataLines(iFile)
 
     ! get the time units. if not exsit in netcdfs, provided from the control file
-    existAttr = check_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), time_var_name, 'units')
+    existAttr = check_attr(trim(inputFileInfo(iFile)%infilename), time_var_name, 'units')
     if (existAttr) then
-      call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
+      call get_var_attr(trim(inputFileInfo(iFile)%infilename), &
                         time_var_name, 'units', inputFileInfo(iFile)%unit, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     else
@@ -253,9 +256,9 @@ CONTAINS
     end if
 
     ! get the calendar. if not exsit in netcdfs, provided from the control file
-    existAttr = check_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), time_var_name, 'calendar')
+    existAttr = check_attr(trim(inputFileInfo(iFile)%infilename), time_var_name, 'calendar')
     if (existAttr) then
-      call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
+      call get_var_attr(trim(inputFileInfo(iFile)%infilename), &
                         time_var_name, 'calendar', inputFileInfo(iFile)%calendar, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     else
@@ -267,7 +270,7 @@ CONTAINS
     end if
 
     ! get the dimension of the time to populate nTime and pass it to the get_nc file
-    call get_nc_dim_len(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
+    call get_nc_dim_len(trim(inputFileInfo(iFile)%infilename), &
                         time_dim_name, inputFileInfo(iFile)%nTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -278,7 +281,7 @@ CONTAINS
     if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for inputFileInfo(:)%timeVar'; return; end if
 
     ! get the time varibale
-    call get_nc(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
+    call get_nc(trim(inputFileInfo(iFile)%infilename), &
                 time_var_name, inputFileInfo(iFile)%timeVar, 1, nTime, ierr, cmessage) ! does it needs timeVar(:)
 
     ! get the time multiplier needed to convert time to units of days for each nc file
@@ -311,6 +314,8 @@ CONTAINS
 
   close(unit=funit,iostat=ierr) ! close ascii file
   if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
+
+  call execute_command_line("rm -r "//trim(tmp_file_list))
 
  END SUBROUTINE inFile_pop
 
@@ -662,7 +667,7 @@ CONTAINS
    ierr=0; message='init_forc_data/'
 
    ! passing the first nc file as global file name to read
-   fname = trim(input_dir)//trim(inFileInfo_ro(1)%infilename)
+   fname = trim(inFileInfo_ro(1)%infilename)
 
    if (trim(vname_hruid)==charMissing) then
      ! get runoff metadata for simulated runoff, evaporation and precipitation
@@ -774,7 +779,7 @@ CONTAINS
    if ((is_flux_wm).or.((is_vol_wm).and.(is_lake_sim))) then
 
      ! passing the first netCDF as global file meta to read
-     fname = trim(input_dir)//trim(inFileInfo_wm(1)%infilename)
+     fname = trim(inFileInfo_wm(1)%infilename)
 
      call read_forcing_metadata(fname,                         & ! input: filename
                                vname_flux_wm,                 & ! input: varibale name for simulated runoff
