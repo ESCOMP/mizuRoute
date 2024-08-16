@@ -221,7 +221,7 @@ CONTAINS
   ! build filename and its path containing list of NetCDF files
   infilename = trim(dir_name)//trim(file_name)
   tmp_file_list = trim(dir_name)//'tmp'
-  call system("ls "//infilename//" > "//trim(tmp_file_list))
+  call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
 
   call file_open(tmp_file_list,funit,ierr,cmessage) ! open the text file
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -315,7 +315,7 @@ CONTAINS
   close(unit=funit,iostat=ierr) ! close ascii file
   if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
 
-  call system("rm -r "//trim(tmp_file_list))
+  call execute_command_line("rm -r "//trim(tmp_file_list))
 
  END SUBROUTINE inFile_pop
 
