@@ -315,7 +315,7 @@ CONTAINS
   close(unit=funit,iostat=ierr) ! close ascii file
   if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
 
-  call execute_command_line("rm -r "//trim(tmp_file_list))
+  call execute_command_line("rm -f "//trim(tmp_file_list))
 
  END SUBROUTINE inFile_pop
 
