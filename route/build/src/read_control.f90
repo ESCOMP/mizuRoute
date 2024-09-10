@@ -218,6 +218,7 @@ CONTAINS
    case('<time_units>');           time_units = trim(cData)                            ! time units used in history file output. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
    case('<newFileFrequency>');     newFileFrequency = trim(cData)                      ! frequency for new history files (daily, monthly, yearly, single)
    case('<outputFrequency>');      outputFrequency  = trim(cData)                      ! output frequency (integer for multiple of simulation time step or daily, monthly or yearly)
+   case('<outputNameOption>');     outputNameOption = trim(cData)                      ! option for routing method dependent output names (e.g., routedRunoff) - generic or specific (default)
    case('<histTimeStamp_offset>'); read(cData,*,iostat=io_error) histTimeStamp_offset  ! time stamp offset [second] from a start of time step
    case('<basRunoff>');            read(cData,*,iostat=io_error) meta_hflx(ixHFLX%basRunoff        )%varFile  ! default: true
    case('<instRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%instRunoff       )%varFile  ! default: false
@@ -509,7 +510,7 @@ CONTAINS
  ! ---- routing methods
  ! Assign index for each active routing method
  ! Make sure to turn off write option for routines not used
- if (trim(routOpt)=='0')then; write(iulog,'(a)') 'WARNING: routOpt=0 is accumRunoff option now. 12 is previous 0 now'; endif
+ if (trim(routOpt)=='0')then; write(iulog,'(a)') 'WARNING: routOpt=0 is accumRunoff option now.'; endif
  call char2int(trim(routOpt), routeMethods, invalid_value=0)
  nRoutes = size(routeMethods)
  onRoute = .false.
@@ -584,6 +585,38 @@ CONTAINS
      case default; message=trim(message)//'expect digits from 0 and 5'; err=81; return
    end select
  end do
+
+ ! Control routing method dependent variable name - routedRunoff, volume, elevation etc.
+ if ((nRoutes<=2 .and. (routeMethods(1)==0 .or. routeMethods(2)==0)) .and. trim(lower(outputNameOption))=='generic') then
+   do iRoute = 1, nRoutes
+     select case(routeMethods(iRoute))
+       case(accumRunoff)
+         ! nothing to do
+       case(kinematicWaveTracking)
+         meta_rflx(ixRFLX%KWTroutedRunoff)%varName='RoutedRunoff'
+         meta_rflx(ixRFLX%KWTvolume)%varName='volume'
+         meta_rflx(ixRFLX%KWTinflow)%varName='inflow'
+       case(impulseResponseFunc)
+         meta_rflx(ixRFLX%IRFroutedRunoff)%varName='RoutedRunoff'
+         meta_rflx(ixRFLX%IRFroutedRunoff)%varName='volume'
+         meta_rflx(ixRFLX%IRFinflow)%varName='inflow'
+       case(muskingumCunge)
+         meta_rflx(ixRFLX%MCroutedRunoff)%varName='RoutedRunoff'
+         meta_rflx(ixRFLX%MCvolume)%varName='volume'
+         meta_rflx(ixRFLX%MCinflow)%varName='inflow'
+       case(kinematicWave)
+         meta_rflx(ixRFLX%KWroutedRunoff)%varName='RoutedRunoff'
+         meta_rflx(ixRFLX%KWvolume)%varName='volume'
+         meta_rflx(ixRFLX%KWinflow)%varName='inflow'
+       case(diffusiveWave)
+         meta_rflx(ixRFLX%DWroutedRunoff)%varName='RoutedRunoff'
+         meta_rflx(ixRFLX%DWvolume)%varName='volume'
+         meta_rflx(ixRFLX%DWinflow)%varName='inflow'
+       case default
+         message=trim(message)//'routOpt may include invalid digits; expect digits 0-5 in routOpt'; err=81; return
+     end select
+   end do
+ end if
 
  ! basin runoff routing option
  if (doesBasinRoute==0) meta_rflx(ixRFLX%instRunoff)%varFile = .false.
