@@ -7,15 +7,18 @@
 !       lines starting with <xxx> are read till "!"
 !       Do not inclue empty line without !
 !
-!       Followings are example of control options.  if valid variables are inserted, they are default values.
+!       Please see route/build/src/read_control.f90 for complete options 
+!
+!       Any control variables not in this example use default values defined in public_var.f90.
 !
 ! ****************************************************************************************************************************
 ! RUN CONTROL 
 ! --------------------------------------------
 <case_name>             CASE_NAME                  ! name of simulation
-<route_opt>             1                          ! option for routing schemes (only one-option allowed) 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW 
+<route_opt>             5                          ! option for routing schemes (only one-option allowed) 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW 
 <doesBasinRoute>        1                          ! basin routing options   0-> no, 1->IRF, otherwise error
 <is_flux_wm>            T                          ! switch for water abstraction/injection
+<hw_drain_point>        2                          ! how lateral flow is put into a headwater reach 1-> top of headwater, 2-> bottom of headwater
 <fname_state_in>        STATE_IN_NC                ! input restart netCDF name. remove for run without any particular initial channel states
 <newFileFrequency>      monthly                    ! frequency for new output files (daily, monthly, yearly, single)
 <outputFrequency>       monthly                    ! time frequency used for temporal aggregation of output variables - numeric or daily, monthyly, or yearly
@@ -70,6 +73,7 @@
 ! NOTE:  discharge and volume output options
 !        Routing options not chosen (see <route_opt>) will be ignored.
 ! ---------------------------
+<outputNameOption>      generic                    ! "generic": routing method dependet output does not include routing schem name
 <basRunoff>             T                          ! HRU average runoff depth at HRU [L/T]
 <instRunoff>            F                          ! intantaneou runoff volume from Local HRUs at reach [L3/T]
 <dlayRunoff>            F                          ! delayed runoff voluem (discharge) from local HRUsi at reach [L3/T] 
@@ -79,11 +83,11 @@
 <MCroutedRunoff>        T                          ! kinematic wave routed discharge at reach [L3/T]
 <KWroutedRunoff>        T                          ! muskingum-cunge routed discharge at reach [L3/T]
 <DWroutedRunoff>        T                          ! diffusive wave routed discharge at reach [L3/T]
-<KWTvolume>             F                          ! kinematic wave tracking volume at the end of time step at reach [L3]
-<IRFvolume>             F                          ! impulse response function volume at the end of time step at reach [L3]
-<KWvolume>              F                          ! Euler kinematic wave volume at the end of time step at reach [L3]
-<MCvolume>              F                          ! muskingum-cunge volume at the end of time step at reach [L3]
-<DWvolume>              F                          ! diffusive wave volume at the end of time step at reach [L3]
+<KWTvolume>             T                          ! kinematic wave tracking volume at the end of time step at reach [L3]
+<IRFvolume>             T                          ! impulse response function volume at the end of time step at reach [L3]
+<KWvolume>              T                          ! Euler kinematic wave volume at the end of time step at reach [L3]
+<MCvolume>              T                          ! muskingum-cunge volume at the end of time step at reach [L3]
+<DWvolume>              T                          ! diffusive wave volume at the end of time step at reach [L3]
 ! ****************************************************************************************************************************
 ! cesm-coupler: negative flow (qgwl and excess irrigation demand) handling option
 ! ---------------------------
