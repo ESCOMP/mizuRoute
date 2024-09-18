@@ -58,6 +58,7 @@ CONTAINS
  character(len=strLen),allocatable :: cLines(:)               ! vector of character strings
  character(len=strLen)             :: cName,cData             ! name and data from cLines(iLine)
  character(len=strLen)             :: cLength,cTime           ! length and time units
+ logical(lgt)                      :: isGeneric               ! temporal logical scalar
  integer(i4b)                      :: ipos                    ! index of character string
  integer(i4b)                      :: ibeg_name               ! start index of variable name in string cLines(iLine)
  integer(i4b)                      :: iend_name               ! end index of variable name in string cLines(iLine)
@@ -587,7 +588,9 @@ CONTAINS
  end do
 
  ! Control routing method dependent variable name - routedRunoff, volume, elevation etc.
- if ((nRoutes<=2 .and. (routeMethods(1)==0 .or. routeMethods(2)==0)) .and. trim(lower(outputNameOption))=='generic') then
+ ! use generic name if outputNameOption is set to 'generic' AND only one routing method is activated w or w/o accumRunoff
+ isGeneric = trim(lower(outputNameOption))=='generic'
+ if ((nRoutes<=2 .and. any(routeMethods==accumRunoff)) .and. isGeneric) then
    do iRoute = 1, nRoutes
      select case(routeMethods(iRoute))
        case(accumRunoff)
