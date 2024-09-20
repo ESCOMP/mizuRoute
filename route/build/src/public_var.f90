@@ -96,6 +96,7 @@ MODULE public_var
   character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
   character(len=strLen),public    :: newFileFrequency     = 'yearly'        ! frequency for new output files (daily, monthly, yearly, single)
   character(len=strLen),public    :: outputFrequency      = '1'             ! output frequency (integer for multiple of simulation time step or daily, monthly or yearly)
+  character(len=strLen),public    :: outputNameOption     = 'specific'      ! option for routing method dependent output names (e.g., routedRunoff) - generic or specific (default)
   integer(i4b)         ,public    :: nOutFreq             = integerMissing  ! integer output frequency
   character(len=10)    ,public    :: routOpt              = '0'             ! routing scheme options  0: accum runoff, 1:IRF, 2:KWT, 3:KW, 4:MC, 5:DW
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error

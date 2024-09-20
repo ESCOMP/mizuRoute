@@ -1235,85 +1235,91 @@ CONTAINS
 
     if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
       array_dp = hVars%discharge(index_write, idxKWT)
-      call write_pnetcdf(pioFileDesc, 'KWTroutedRunoff', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%KWTroutedRunoff)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
       array_dp = hVars%discharge(index_write, idxIRF)
-      call write_pnetcdf(pioFileDesc, 'IRFroutedRunoff', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%IRFroutedRunoff)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
       array_dp = hVars%discharge(index_write, idxKW)
-      call write_pnetcdf(pioFileDesc, 'KWroutedRunoff', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%KWroutedRunoff)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
       array_dp = hVars%discharge(index_write, idxMC)
-      call write_pnetcdf(pioFileDesc, 'MCroutedRunoff', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%MCroutedRunoff)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
       array_dp = hVars%discharge(index_write, idxDW)
-      call write_pnetcdf(pioFileDesc, 'DWroutedRunoff', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%DWroutedRunoff)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    if (meta_rflx(ixRFLX%KWTvolume)%varFile) then
+      array_dp = hVars%volume(index_write, idxKWT)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%KWTvolume)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%IRFvolume)%varFile) then
       array_dp = hVars%volume(index_write, idxIRF)
-      call write_pnetcdf(pioFileDesc, 'IRFvolume', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%IRFvolume)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%KWvolume)%varFile) then
       array_dp = hVars%volume(index_write, idxKW)
-      call write_pnetcdf(pioFileDesc, 'KWvolume', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%KWvolume)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%MCvolume)%varFile) then
       array_dp = hVars%volume(index_write, idxMC)
-      call write_pnetcdf(pioFileDesc, 'MCvolume', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%MCvolume)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%DWvolume)%varFile) then
       array_dp = hVars%volume(index_write, idxDW)
-      call write_pnetcdf(pioFileDesc, 'DWvolume', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%DWvolume)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%KWTinflow)%varFile) then
       array_dp = hVars%inflow(index_write, idxKWT)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      call write_pnetcdf(pioFileDesc, 'KWTinflow', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%KWTinflow)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
     endif
 
     if (meta_rflx(ixRFLX%IRFinflow)%varFile) then
       array_dp = hVars%inflow(index_write, idxIRF)
-      call write_pnetcdf(pioFileDesc, 'IRFinflow', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%IRFinflow)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%KWinflow)%varFile) then
       array_dp = hVars%inflow(index_write, idxKW)
-      call write_pnetcdf(pioFileDesc, 'KWinflow', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%KWinflow)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%MCinflow)%varFile) then
       array_dp = hVars%inflow(index_write, idxMC)
-      call write_pnetcdf(pioFileDesc, 'MCinflow', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%MCinflow)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%DWinflow)%varFile) then
       array_dp = hVars%inflow(index_write, idxDW)
-      call write_pnetcdf(pioFileDesc, 'DWinflow', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%DWinflow)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 

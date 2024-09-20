@@ -7,9 +7,9 @@
 !       lines starting with <xxx> are read till "!"
 !       Do not inclue empty line without !
 !
-!       Followings are example of control options.  if valid variables are inserted, they are default values.
-!       
 !       Please see route/build/src/read_control.f90 for complete options 
+!       
+!       Any control variables not in this example use default values defined in public_var.f90.
 !
 ! ****************************************************************************************************************************
 ! RUN CONTROL 
@@ -17,14 +17,17 @@
 <case_name>               CASE_NAME                  ! name of simulation
 <sim_start>               yyyy-mm-dd hh:mm:ss        ! time of simulation start. hh:mm:ss can be omitted
 <sim_end>                 yyyy-mm-dd hh:mm:ss        ! time of simulation end. hh:mm:ss can be omitted
-<route_opt>               1                          ! options for routing schemes (multiple options allowed): 1->IRF 2->KWT 3->KW 4->MC 5->DW
+!-- routing control
+<route_opt>               5                          ! options for routing schemes (multiple options allowed - e.g, 12345-no spaces/commas between routing ids): 1->IRF 2->KWT 3->KW 4->MC 5->DW
 <doesBasinRoute>          1                          ! basin routing options: 0-> no, 1->IRF, otherwise error
+<dt_qsim>                 86400                      ! simulation time interval [sec] e.g., 86400 sec for daily step
+<hw_drain_point>          2                          ! how to add lateral runoff to headwater reaches. 1->top of reach, 2->bottom of reach 
+
+!-- restart controls
 <restart_write>           last                       ! restart write options: never, daily, monthly, yearly, last, specified
 <restart_date>            yyyy-mm-dd hh:mm:ss        ! restart date.  activated only if <restart_write> is "specified"
 <fname_state_in>          INPUT_RESTART_NC           ! input restart netCDF name. remove or 'coldstart' for run without any particular restart file
-<newFileFrequency>        monthly                    ! output netcdf frequency: single, daily, monthly, yearly
-<dt_qsim>                 86400                      ! simulation time interval [sec] e.g., 86400 sec for daily step
-! lake and water management (wm) mode
+!-- lake and water management (wm) mode
 <is_lake_sim>             T                          ! switch on (T) or off (F) lake simulation
 <is_flux_wm>              T                          ! switch on (T) or off (F) abstraction from or injection to seg/lakes
 <is_vol_wm>               T                          ! switch on (T) or off (F) target volume (threshold lake volume where water release is trigerred)
@@ -122,13 +125,31 @@
 ! ****************************************************************************************************************************
 ! output options
 ! ---------------------------
+! NOTE:  discharge and volume output options
+!        Routing options not chosen (see <route_opt>) will be ignored.
+! ---------------------------
+!-- histrory file controls
+<newFileFrequency>        monthly                    ! output netcdf frequency: single, daily, monthly, yearly
+<outputFrequency>         daily                      ! output frequency (integer for multiple of simulation time step or daily, monthly or yearly)
+<histTimeStamp_offset>    0                          ! time stamp offset [second] from a start of time step
+! -- non routing option specific variables 
 <basRunoff>               T                          ! HRU average runoff depth at HRU [L/T]
 <instRunoff>              T                          ! intantaneou runoff volume from Local HRUs at reach [L3/T]
 <dlayRunoff>              T                          ! delayed runoff voluem (discharge) from local HRUsi at reach [L3/T]
 <sumUpstreamRunoff>       T                          ! accumulated total upstream discharge at reach [L3/T]
+!-- routing option specific variables
 <KWTroutedRunoff>         T                          ! kinematic wave tracking routed discharge at reach [L3/T]
 <IRFroutedRunoff>         T                          ! impulse response function routed discharge at reach [L3/T]
 <MCroutedRunoff>          T                          ! kinematic wave routed discharge at reach [L3/T]
 <KWroutedRunoff>          T                          ! muskingum-cunge routed discharge at reach [L3/T]
 <DWroutedRunoff>          T                          ! diffusive wave routed discharge at reach [L3/T]
-<volume>                  F                          ! volume at the end of time step at reach [L3] - currently only IRF
+<KWTvolume>               F                          ! volume at the end of time step at reach [L3] - kinematic wave tracking
+<IRFvolume>               F                          ! volume at the end of time step at reach [L3] - impulse response function
+<KWvolume>                F                          ! volume at the end of time step at reach [L3] - kinematic wave
+<MCvolume>                F                          ! volume at the end of time step at reach [L3] - muskingum-cunge
+<DWvolume>                F                          ! volume at the end of time step at reach [L3] - diffusive wave 
+<KWTinflow>               F                          ! inflow into reach [L3] - kinematic wave tracking
+<IRFinflow>               F                          ! inflow into reach [L3] - impulse response function
+<KWinflow>                F                          ! inflow into reach [L3] - kinematic wave 
+<MCinflow>                F                          ! inflow into reach [L3] - muskingum-cunge 
+<DWinflow>                F                          ! inflow into reach [L3] - diffusive wave 
