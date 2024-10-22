@@ -181,6 +181,8 @@ CONTAINS
                        inputFileInfo,    & ! output: input file information
                        ierr, message)      ! output: error control
 
+  USE globalData,          ONLY: masterproc, &
+                                 mpicom_route
   USE dataTypes,           ONLY: inFileInfo     ! the data type for storing the infromation of the nc files and its attributes
   USE datetime_data,       ONLY: datetime       ! datetime data
   USE ascii_utils,         ONLY: file_open      ! open file (performs a few checks as well)
@@ -192,6 +194,7 @@ CONTAINS
   USE public_var,          ONLY: secprmin,  &   ! time conversion factor (min->sec)
                                  secprhour, &   ! time conversion factor (hour->sec)
                                  secprday       ! time conversion factor (day->sec)
+  USE mpi_utils,           ONLY: shr_mpi_barrier
 
   ! Argument variables
   character(len=strLen), intent(in)                 :: dir_name         ! the name of the directory that the txt file located
@@ -222,6 +225,8 @@ CONTAINS
   infilename = trim(dir_name)//trim(file_name)
   tmp_file_list = trim(dir_name)//'tmp'
   call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
+
+  call shr_mpi_barrier(mpicom_route, message)
 
   call file_open(tmp_file_list,funit,ierr,cmessage) ! open the text file
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
