@@ -2,45 +2,52 @@ Obtaining optional external libraries that can be used with mizuRoute
 =====================================================================
 
 mizuRoute is obtained via github. And optionally there are some external libraries
-that can be used with it. These libraries are obtained by r
+that can be used with it. These libraries are obtained by git-fleximod utility
 
 
 To obtain the mizuRoute code and the optional externals you need to do the following:
 
 #. Clone the repository. ::
 
-      git clone https://github.com/NCAR/mizuRoute.git my_mizuRoute_sandbox
+      git clone https://github.com/ESCOMP/mizuRoute.git my_mizuRoute_sandbox
 
    This will create a directory ``my_mizuRoute_sandbox/`` in your current working directory.
 
-#. Run the script **manage_externals/checkout_externals**. ::
+#. Run **git-fleximod**. ::
 
-      ./manage_externals/checkout_externals
+      ./bin/git-fleximod -g .gitmodules update 
 
-   The **checkout_externals** script is a package manager that will
-   populate the mizuRoute directory with the CIME infrastructure code that can
-   then be used. 
+   **./bin/git-fleximod** is a python wrapper script that calls actual git-fleximod located under .lib/git-fleximod. 
+   The git-fleximod ulitity downloads source codes of external libraries specified in **.gitmodules**. mizuRoute now uses 
+   only one external library (parallel-io).
 
-   NOTE: This second step is only required if you are going to use
-   one of the external libraries in the mizuRoute build (currently either mpi-serial, or pio).
+   NOTE: 
+
+   This second step is only required if you are going to use
+   one of the external libraries in the mizuRoute build (currently pio).
+
+   If this is the first time to download external libraries, you may need to create a directory under libraries 
+   before run **git-fleximod**. e.g.,::
+
+     mkdir -p libraries/parallelio
 
 At this point you have a working version of the full mizuRoute and all optional libraries.
 
 More details on checkout_externals
 ----------------------------------
 
-The file **Externals.cfg** in your top-level mizuRoute directory tells
-**checkout_externals** which tag/branch of cime (and possibly other externals)
+The file **.gitmodules** in your top-level mizuRoute directory tells
+**git-fleximod** which tag/branch of external libraries
 that should be brought in to generate your sandbox.
 
-NOTE: checkout_externals will always attempt to make the working copy 
+NOTE: git-fleximod will always attempt to make the working copy 
 exactly match the externals description. If
-you manually modify an external without updating Externals.cfg, e.g. switch
+you manually modify an external without updating .gitmodules, e.g. switch
 to a different tag, then rerunning checkout_externals will switch you
-back to the external described in Externals.cfg. See below
+back to the external described in .gitmodules. See below
 documentation `Customizing your mizuRoute sandbox`_ for more details.
 
-**You need to rerun checkout_externals whenever Externals.cfg has
+**You need to rerun ./bin/git-fleximod whenever .gitmodules has
 changed** (unless you have already manually updated the relevant
 external(s) to have the correct branch/tag checked out). Common times
 when this is needed are:
@@ -53,14 +60,14 @@ when this is needed are:
 **checkout_externals** must be run from the root of the source
 tree. For example, if you cloned mizuRoute with::
 
-  git clone https://github.com/NCAR/mizuRoute.git my_mizuRoute_sandbox
+  git clone https://github.com/ESCOMP/mizuRoute.git my_mizuRoute_sandbox
 
 then you must run **checkout_externals** from
 ``/path/to/my_mizuRoute_sandbox``.
 
-To see more details of **checkout_externals**, issue ::
+To see more details of **git-fleximod**, issue ::
 
-  ./manage_externals/checkout_externals --help
+  ./bin/git-fleximod --help
 
 Customizing your mizuRoute sandbox
 ==================================
@@ -72,11 +79,11 @@ Switching to a different mizuRoute branch or tag
 
 If you have already checked out a branch or tag and **HAVE NOT MADE ANY
 MODIFICATIONS** it is simple to change your sandbox. Say that you
-checked out v1.0.1 but really wanted to have v1.0.2;
+checked out cesm-coupling.n02_v2.1.2 but really wanted to have cesm-coupling.n02_v2.1.3;
 you would simply do the following::
 
-  git checkout v1.0.2
-  ./manage_externals/checkout_externals
+  git checkout cesm-coupling.n02_v2.1.3
+  ./bin/git-fleximod -g .gitmodules update
 
 You should **not** use this method if you have made any source code
 changes, or if you have any ongoing mizuRoute simulations that you want
@@ -86,24 +93,24 @@ easiest to do a second **git clone**.
 Pointing to a different version of an external
 ----------------------------------------------
 
-Each entry in **Externals.cfg** has the following form
+Each entry in **.gitmodules** has the following form
 ::
+  [submodule "parallelio"]
+  path = libraries/parallelio
+  url = https://github.com/NCAR/ParallelIO
+  fxtag = pio2_6_2
+  fxrequired = ToplevelRequired
+  # Standard Fork to compare to with "git fleximod test" to ensure personal forks aren't committed
+  fxDONOTUSEurl = https://github.com/NCAR/ParallelIO
 
-  [cime]
-  local_path = cime
-  protocol = git
-  repo_url = https://github.com/ESMCI/cime
-  tag = cime5.8.2
-  required = True
+**fxtag** entry specifies either a tag or a branch. To point to a new tag:
 
-Each entry specifies either a tag or a branch. To point to a new tag:
+#. Modify **fxtag** in **.gitmodules** (e.g., changing
+   ``pio2_6_2`` to ``pio2_6_3`` above)
 
-#. Modify the relevant entry/entries in **Externals.cfg** (e.g., changing
-   ``cime5.8.0`` to ``cime5.8.2`` above)
+#. Update a tag of the library::
 
-#. Checkout the new component(s)::
-
-     ./manage_externals/checkout_externals
+     ./bin/git-fleximod -g .gitmodules update
 
 Keep in mind that randomly changing individual externals from a tag may result
 in an invalid model (won't compile or won't run).
@@ -111,15 +118,15 @@ However, since the external components being used are robust changing
 them is unlikely to have an effect outside of possibly interfering with
 the ability to build with the externals.
 
-Committing your change to Externals.cfg
+Committing your change to .gitmodules
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-After making this change, it's a good idea to commit the change in your
-local CTSM git repository. First create a branch in your local
+After making this change, it may be a good idea to commit the change in your
+local mizuRoute git repository. First create a branch in your local
 repository, then commit it. For example::
 
   git checkout -b my_mizuRoutebranch
-  git add Externals.cfg
-  git commit -m "Update CIME to cime5.8.2"
+  git add .gitmodules
+  git commit -m "Update PIO to pio2_6_3"
 
 
