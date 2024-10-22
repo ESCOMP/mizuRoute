@@ -150,9 +150,11 @@ MODULE historyFile
 
       ! ---- basinID and hru flux variables
       if (nHRU_local>0) then
-        call def_var(this%pioFileDesc, 'basinID', ncd_int, ierr, cmessage, &
-                     pioDimId=[meta_qDims(ixQdims%hru)%dimId], vdesc='basin ID', vunit='-')
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        if (any(meta_hflx(:)%varFile)) then
+          call def_var(this%pioFileDesc, 'basinID', ncd_int, ierr, cmessage, &
+                       pioDimId=[meta_qDims(ixQdims%hru)%dimId], vdesc='basin ID', vunit='-')
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        end if
 
         do iVar=1,nVarsHFLX
           if (.not.meta_hflx(iVar)%varFile) cycle
@@ -276,7 +278,7 @@ MODULE historyFile
 
       ierr=0; message='write_loc_rch_hru/'
 
-      if (meta_hflx(ixHFLX%basRunoff)%varFile) then
+      if (any(meta_hflx(:)%varFile)) then
         nElem = size(basin_id)
         call write_netcdf(this%pioFileDesc, 'basinID', basin_id, [1], [nElem], ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -459,6 +461,18 @@ MODULE historyFile
               array_temp(1:nRch_write) = hVars_local%volume(index_write, idxMC)
             case(ixRFLX%DWvolume)
               array_temp(1:nRch_write) = hVars_local%volume(index_write, idxDW)
+            case(ixRFLX%KWheight)
+              array_temp(1:nRch_write) = hVars_local%waterHeight(index_write, idxKW)
+            case(ixRFLX%MCheight)
+              array_temp(1:nRch_write) = hVars_local%waterHeight(index_write, idxMC)
+            case(ixRFLX%DWheight)
+              array_temp(1:nRch_write) = hVars_local%waterHeight(index_write, idxDW)
+            case(ixRFLX%KWfloodVolume)
+              array_temp(1:nRch_write) = hVars_local%floodVolume(index_write, idxKW)
+            case(ixRFLX%MCfloodVolume)
+              array_temp(1:nRch_write) = hVars_local%floodVolume(index_write, idxMC)
+            case(ixRFLX%DWfloodVolume)
+              array_temp(1:nRch_write) = hVars_local%floodVolume(index_write, idxDW)
             case(ixRFLX%KWTinflow)
               array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxKWT)
             case(ixRFLX%IRFinflow)

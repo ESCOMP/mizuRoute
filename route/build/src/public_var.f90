@@ -12,8 +12,6 @@ MODULE public_var
 
   save
 
-  ! ---------- common constants ---------------------------------------------------------------------
-
   ! physical constants
   real(dp),    parameter,public   :: pi=3.14159265359_dp    ! pi
 
@@ -100,6 +98,7 @@ MODULE public_var
   integer(i4b)         ,public    :: nOutFreq             = integerMissing  ! integer output frequency
   character(len=10)    ,public    :: routOpt              = '0'             ! routing scheme options  0: accum runoff, 1:IRF, 2:KWT, 3:KW, 4:MC, 5:DW
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
+  logical(lgt)         ,public    :: floodplain           = .false.         ! logical if flood water is computed or not (floodplain is added)
   integer(i4b)         ,public    :: hw_drain_point       = 2               ! how to add inst. runoff in reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)
   logical(lgt)         ,public    :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
   logical(lgt)         ,public    :: lake_model_D03       = .false.         ! logical if Doll 2003 model is used, specify as 1 in lake_model_type in network topology
@@ -185,7 +184,7 @@ MODULE public_var
   logical(lgt)         ,public    :: outputInflow         = .false.         ! logical; T-> write upstream inflow in history file output
   ! USER OPTIONS
   integer(i4b)         ,public    :: qmodOption           = 0               ! option for streamflow modification
-  integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
+  integer(i4b)         ,public    :: hydGeometryOption    = readFromFile    ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)
   ! TIME

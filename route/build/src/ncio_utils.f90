@@ -12,6 +12,7 @@ public::get_var_dims
 public::get_nc_dim_len
 public::get_var_attr
 public::check_attr
+public::check_variable
 public::put_global_attr
 public::def_nc
 public::def_dim
@@ -197,6 +198,25 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine
+
+ ! *********************************************************************
+ ! subroutine: check if variable exists
+ ! *********************************************************************
+ function check_variable(ncid, vname)
+   implicit none
+   ! input
+   integer(i4b), intent(in)        :: ncid         ! NetCDF file ID
+   character(*), intent(in)        :: vname        ! variable name
+   logical(lgt)                    :: check_variable
+   ! local
+   integer(i4b)                    :: ierr         ! error code
+   integer(i4b)                    :: iVarID       ! variable ID
+
+   ! get the ID of the variable
+   ierr = nf90_inq_varid(ncid, trim(vname), iVarID)
+   check_variable = (ierr == nf90_noerr)
+
+ end function check_variable
 
  ! *********************************************************************
  ! subroutine: check if attribute exists
@@ -883,7 +903,7 @@ CONTAINS
    ierr=0; message='close_nc/'
 
    ierr = nf90_close(ncid)
-   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); endif
 
  END SUBROUTINE close_nc
 

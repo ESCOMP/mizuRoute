@@ -513,6 +513,7 @@ CONTAINS
         end if
         if (onRoute(kinematicWave)) then
           do ix = 1, size(RCHSTA_trib(iens,:))
+            RCHFLX_trib(iens,ix)%ROUTE(idxKW)%FLOOD_VOL(0:1) = 0._dp
             RCHFLX_trib(iens,ix)%ROUTE(idxKW)%REACH_VOL(0:1) = 0._dp
             RCHFLX_trib(iens,ix)%ROUTE(idxKW)%REACH_Q        = 0._dp
             allocate(RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage)
@@ -522,6 +523,7 @@ CONTAINS
         end if
         if (onRoute(muskingumCunge)) then
           do ix = 1, size(RCHSTA_trib(iens,:))
+            RCHFLX_trib(iens,ix)%ROUTE(idxMC)%FLOOD_VOL(0:1) = 0._dp
             RCHFLX_trib(iens,ix)%ROUTE(idxMC)%REACH_VOL(0:1) = 0._dp
             RCHFLX_trib(iens,ix)%ROUTE(idxMC)%REACH_Q        = 0._dp
             allocate(RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage)
@@ -531,6 +533,7 @@ CONTAINS
         end if
         if (onRoute(diffusiveWave)) then
           do ix = 1, size(RCHSTA_trib(iens,:))
+            RCHFLX_trib(iens,ix)%ROUTE(idxDW)%FLOOD_VOL(0:1) = 0._dp
             RCHFLX_trib(iens,ix)%ROUTE(idxDW)%REACH_VOL(0:1) = 0._dp
             RCHFLX_trib(iens,ix)%ROUTE(idxDW)%REACH_Q        = 0._dp
             allocate(RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
@@ -614,7 +617,7 @@ CONTAINS
   integer(i4b),      allocatable              :: ixHRU_desired(:)         ! indices of desired hrus
   integer(i4b),      allocatable              :: ixSeg_desired(:)         ! indices of desired reaches
   integer(i4b)                                :: dummy(2)                 ! dummy variable to hold dimension length for 2D variables in netCDF
-  integer(i4b)   , parameter                  :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
+  integer(i4b)   , parameter                  :: maxUpstreamFile=90000000 ! 90 million: maximum number of upstream reaches to enable writing
   character(len=strLen)                       :: cmessage                 ! error message of downwind routine
 
   ierr=0; message='init_ntopo/'

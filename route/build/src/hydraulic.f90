@@ -22,6 +22,7 @@ public::Pwet
 public::flow_area
 public::uniformFlow
 public::flow_depth
+public::water_height
 public::storage
 public::celerity
 public::diffusivity
@@ -153,6 +154,50 @@ CONTAINS
    end if
 
  END FUNCTION flow_area
+
+ ! *********************************************************************
+ ! public function: water height if you know flow area [m]
+ ! *********************************************************************
+ elemental FUNCTION water_height(flowArea, b, zc, zf, bankDepth)
+   implicit none
+   ! Argument variables
+   real(dp), intent(in)              :: flowArea     ! flow area [m2]
+   real(dp), intent(in)              :: b            ! channel bottom width [m2] 0-> triangular channel
+   real(dp), intent(in)              :: zc           ! main channel side slope: horizontal:vertcal=zc:1 [-] 0-> rectangular channel
+   real(dp), optional, intent(in)    :: zf           ! floodplain slope: horizontal:vertcal=1:zf [-]
+   real(dp), optional, intent(in)    :: bankDepth    ! bankfull depth [m]
+   real(dp)                          :: water_height ! water height based on flow area [m]
+   ! Local variables
+   real(dp)                          :: Bt_bank      ! channel width at bankfull depth [m]
+   real(dp)                          :: A_bank       ! channel bankful area [m2]
+   real(dp)                          :: zf1          ! floodplain slope: horizontal:vertcal=1:zf [-]
+   real(dp)                          :: bankDepth1   ! bankfull depth [m]
+
+   if (present(bankDepth)) then
+     bankDepth1 = bankDepth
+   else
+     bankDepth1 = bankDepth0
+   end if
+
+   if (present(zf)) then
+     zf1 = zf
+   else
+     zf1 = zf0
+   end if
+
+   A_bank = flow_area(bankDepth1, b, zc, zf=zf1, bankDepth=bankDepth1)
+   if (flowArea>A_bank) then
+     Bt_bank = Btop(bankDepth1, b, zc, zf=zf1, bankDepth=bankDepth1)
+     water_height = bankDepth1 + (sqrt(Bt_bank*Bt_bank/zf1/zf1 + 4._dp*flowArea/zf1 - 4._dp*bankDepth1*(b+bankDepth1*zc)/zf1)-Bt_bank/zf1)/2._dp
+   else
+     if (zc==0) then
+       water_height = flowArea/b
+     else
+       water_height = (sqrt(b*b + 4._dp*flowArea*zc)-b)/2._dp/zc
+     end if
+   end if
+
+ END FUNCTION water_height
 
  ! *********************************************************************
  ! public function: channel storage [m3]
