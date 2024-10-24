@@ -811,29 +811,41 @@ CONTAINS
     USE RtmFileUtils, ONLY: relavu, getavu, opnfil
     USE RtmVar,       ONLY: inst_suffix
     USE public_var,   ONLY: rpntfil
+    USE globalData,   ONLY: simDatetime
 
     implicit none
     ! Arguments:
     character(len=*), intent(out) :: pnamer ! full path of restart file
     ! Local variables:
-    integer :: i                  ! indices
-    integer :: nio                ! restart unit
-    integer :: status             ! substring check status
-    character(len=256) :: locfn   ! Restart pointer file name
+    integer :: i                    ! indices
+    integer :: nio                  ! restart unit
+    integer :: sec_in_day           ! time in second
+    character(len=17) :: timestamp  ! datetime string in yyyy-mm-dd-sssss
+    integer :: status               ! substring check status
+    character(len=256) :: locfn     ! Restart pointer file name
     !--------------------------------------------------------
 
     if (masterproc) then
       write(iulog,*) 'Reading restart pointer file....'
     endif
 
-    nio = getavu()
-    locfn = './'// trim(rpntfil)//trim(inst_suffix)
+    nio = getavu() ! get available unit number
+
+    ! construct rpoint file name with datetime - simDatetime has three datetime at previous(0), current(1) and next(2) time stamp
+    sec_in_day = simDatetime(1)%hour()*60*60+simDatetime(1)%minute()*60+nint(simDatetime(1)%sec())
+    write(timestamp,'(".",I4.4,"-",I2.2,"-",I2.2,"-",I5.5)') &
+          simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),sec_in_day
+    locfn = './'// trim(rpntfil)//trim(inst_suffix)//timestamp
+    inquire (file=locfn,exist=lexist)
+    if (.not. lexist) then ! backward compatibility - rpointer file w/o datetime
+      locfn = './'// trim(rpntfil)//trim(inst_suffix)
+    end if
     call opnfil (locfn, nio, 'f')
     read (nio,'(a256)') pnamer
     call relavu (nio)
 
     if (masterproc) then
-      write(iulog,*) 'Reading restart data.....'
+      write(iulog,*) 'Reading restart data: ', trim(pnamer)
       write(iulog,'(72a1)') ("-",i=1,60)
     end if
 
