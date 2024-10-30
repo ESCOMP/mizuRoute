@@ -4,6 +4,7 @@ USE nrtype
 USE public_var,  ONLY: outputAtGage             ! ascii containing last restart and history files
 USE public_var,  ONLY: restart_dir              ! restart directory
 USE public_var,  ONLY: rpntfil                  !
+USE public_var,  ONLY: secprmin, secprhour
 USE globalData,  ONLY: masterproc
 USE globalData,  ONLY: hfileout, hfileout_gage
 USE globalData,  ONLY: rfileout
@@ -34,7 +35,7 @@ CONTAINS
     ierr=0; message='io_rpfile/'
 
     if (present(curDatetime)) then
-      sec_in_day = curDatetime%hour()*60*60+curDatetime%minute()*60+nint(curDatetime%sec())
+      sec_in_day = curDatetime%hour()*nint(secprhour)+curDatetime%minute()*nint(secprmin)+nint(curDatetime%sec())
       write(timestamp,'(".",I4.4,"-",I2.2,"-",I2.2,"-",I5.5)') &
             curDatetime%year(),curDatetime%month(),curDatetime%day(),sec_in_day
       rpntfil_path = trim(restart_dir)//trim(rpntfil)//timestamp
