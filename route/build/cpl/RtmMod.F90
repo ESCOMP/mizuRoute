@@ -811,6 +811,7 @@ CONTAINS
     USE RtmFileUtils, ONLY: relavu, getavu, opnfil
     USE RtmVar,       ONLY: inst_suffix
     USE public_var,   ONLY: rpntfil
+    USE public_var,   ONLY: secprmin, secprhour
     USE globalData,   ONLY: simDatetime
 
     implicit none
@@ -831,8 +832,8 @@ CONTAINS
 
     nio = getavu() ! get available unit number
 
-    ! construct rpoint file name with datetime - simDatetime has three datetime at previous(0), current(1) and next(2) time stamp
-    sec_in_day = simDatetime(1)%hour()*60*60+simDatetime(1)%minute()*60+nint(simDatetime(1)%sec())
+    ! construct rpointer file name with datetime - simDatetime has three datetime at previous(0), current(1) and next(2) time stamp
+    sec_in_day = simDatetime(1)%hour()*nint(secprhour)+simDatetime(1)%minute()*nint(secprmin)+nint(simDatetime(1)%sec())
     write(timestamp,'(".",I4.4,"-",I2.2,"-",I2.2,"-",I5.5)') &
           simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),sec_in_day
     locfn = './'// trim(rpntfil)//trim(inst_suffix)//timestamp
