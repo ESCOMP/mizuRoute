@@ -167,6 +167,8 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE restart_output(ierr, message)
 
+  USE globalData,    ONLY: simDatetime    ! previous and current model time
+  USE globalData,    ONLY: runMode        ! run options: standalone or cesm-coupling
   USE io_rpointfile, ONLY: io_rpfile
 
   implicit none
@@ -188,7 +190,11 @@ CONTAINS
   call write_state_nc(rfileout, pioFileDescState, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  call io_rpfile('w', ierr, cmessage)
+  if (trim(runMode)=='cesm-coupling') then
+    call io_rpfile('w', ierr, cmessage, curDatetime=simDatetime(1))
+  else
+    call io_rpfile('w', ierr, cmessage)
+  end if
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  END SUBROUTINE restart_output
