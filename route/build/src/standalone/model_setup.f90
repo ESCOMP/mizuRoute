@@ -181,8 +181,7 @@ CONTAINS
                        inputFileInfo,    & ! output: input file information
                        ierr, message)      ! output: error control
 
-  USE globalData,          ONLY: masterproc, &
-                                 mpicom_route
+  USE globalData,          ONLY: masterproc
   USE dataTypes,           ONLY: inFileInfo     ! the data type for storing the infromation of the nc files and its attributes
   USE datetime_data,       ONLY: datetime       ! datetime data
   USE ascii_utils,         ONLY: file_open      ! open file (performs a few checks as well)
@@ -194,7 +193,7 @@ CONTAINS
   USE public_var,          ONLY: secprmin,  &   ! time conversion factor (min->sec)
                                  secprhour, &   ! time conversion factor (hour->sec)
                                  secprday       ! time conversion factor (day->sec)
-  USE mpi_utils,           ONLY: shr_mpi_barrier
+  USE mpi_utils,           ONLY: shr_mpi_bcast
 
   ! Argument variables
   character(len=strLen), intent(in)                 :: dir_name         ! the name of the directory that the txt file located
@@ -222,18 +221,25 @@ CONTAINS
   ierr=0; message='inFile_pop/'
 
   ! build filename and its path containing list of NetCDF files
-  infilename = trim(dir_name)//trim(file_name)
-  tmp_file_list = trim(dir_name)//'tmp'
-  call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
+  ! then construct a character array including the file paths
+  if (masterproc) then
+    infilename = trim(dir_name)//trim(file_name)
+    tmp_file_list = trim(dir_name)//'tmp'
+    call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
 
-  call shr_mpi_barrier(mpicom_route, message)
+    call file_open(tmp_file_list,funit,ierr,cmessage) ! open the text file
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
 
-  call file_open(tmp_file_list,funit,ierr,cmessage) ! open the text file
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
+    ! get a list of character strings from non-commented lines
+    call get_vlines(funit,dataLines,ierr,cmessage)
+    if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
 
-  ! get a list of character strings from non-commented lines
-  call get_vlines(funit,dataLines,ierr,cmessage)
+    call execute_command_line("rm -f "//trim(tmp_file_list))
+  end if
+
+  call shr_mpi_bcast(dataLines, ierr, cmessage)
   if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
+
   nFile = size(dataLines) ! get the name of the lines in the file
 
   ! allocate space for forcing information
@@ -319,8 +325,6 @@ CONTAINS
 
   close(unit=funit,iostat=ierr) ! close ascii file
   if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
-
-  call execute_command_line("rm -f "//trim(tmp_file_list))
 
  END SUBROUTINE inFile_pop
 
