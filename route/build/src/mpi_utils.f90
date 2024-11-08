@@ -38,6 +38,7 @@ MODULE mpi_utils
     shr_mpi_bcastInt,         &
     shr_mpi_bcastLong,        &
     shr_mpi_bcastReal,        &
+    shr_mpi_bcastChar,        &
     shr_mpi_bcastLogical
   END INTERFACE
 
@@ -333,6 +334,58 @@ CONTAINS
     endif
 
   END SUBROUTINE shr_mpi_bcastLogical
+
+  ! ----------------------------------
+  ! BROADCAST - character allocatable array (fixed character length)
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_bcastChar(allocArray,    & ! inout: array to be broadcasted to each proc
+                               ierr, message)   ! output: error handling
+    implicit none
+    ! Argument variables:
+    character(strLen), allocatable, intent(inout) :: allocArray(:) ! inout: array to be sent to proc
+    integer(i4b),                   intent(out)   :: ierr
+    character(strLen),              intent(out)   :: message       ! error message
+    ! local variable
+    character(len=:), allocatable                 :: flat_str
+    integer(i4b)                                  :: flat_size
+    integer(i4b)                                  :: idx
+    integer(i4b)                                  :: num_elements
+
+    ierr=0; message='shr_mpi_bcastChar/'
+
+    if (masterproc) then
+      num_elements = size(allocArray)
+      ! Flatten the array into a single character string
+      flat_size = num_elements * strLen
+      allocate(character(len=flat_size) :: flat_str)
+      do idx = 1, num_elements
+        flat_str((idx-1)*strLen+1:idx*strLen) = allocArray(idx)
+      end do
+    else
+      num_elements = 0 ! Initialize variables in other ranks
+    end if
+
+    ! Broadcast the number of elements to all processes
+    call MPI_BCAST(num_elements, 1, MPI_INTEGER, root, mpicom_route, ierr)
+
+    ! Allocate allocArray in other ranks after receiving num_elements
+    if (.not. masterproc) then
+        allocate(allocArray(num_elements))
+        flat_size = num_elements * strLen
+        allocate(character(len=flat_size) :: flat_str)
+    end if
+
+    ! Broadcast the flattened character array
+    call MPI_BCAST(flat_str, flat_size, MPI_CHARACTER, root, mpicom_route, ierr)
+
+    ! Unpack the received data back into allocArray
+    if (.not. masterproc) then
+      do idx = 1, num_elements
+        allocArray(idx) = flat_str((idx-1)*strLen+1:idx*strLen)
+      end do
+    end if
+
+  END SUBROUTINE shr_mpi_bcastChar
 
   ! ----------------------------------
   ! SCATTERV - 1D integer array
