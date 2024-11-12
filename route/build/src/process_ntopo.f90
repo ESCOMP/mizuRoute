@@ -231,7 +231,7 @@ CONTAINS
  ! replace depth with large values e.g., 10,000 [m] if floodplain mode is off
  if (.not.floodplain) then
    do iSeg=1,nSeg
-     structSEG(iSeg)%var(ixSEG%depth)%dat(1) = 10000._dp ! [meter]
+     structSEG(iSeg)%var(ixSEG%depth)%dat(1) = huge(1.0_dp) ! huge value [meter], so river water never top out.
    end do
  end if
 
