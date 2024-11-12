@@ -13,6 +13,7 @@ MODULE hydraulic
 ! channel is assumed to be unlimited bank depth.
 
 USE nrtype
+USE globalData, ONLY: bankDepth0 => high_depth
 
 implicit none
 
@@ -36,7 +37,6 @@ real(dp),     parameter :: const53=5._dp/3._dp          ! constant
 real(dp),     parameter :: const103=10._dp/3._dp        ! constant
 real(dp),     parameter :: err_thresh=0.005_dp          ! newton method convergence threshold
 real(dp),     parameter :: zf0=1000._dp                 ! default floodplain slope: horizontal:vertcal=zf:1 [-]
-real(dp),     parameter :: bankDepth0=huge(1.0_dp)      ! unlimited bankfull height
 
 CONTAINS
 

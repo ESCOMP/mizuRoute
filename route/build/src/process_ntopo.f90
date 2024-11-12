@@ -72,6 +72,7 @@ CONTAINS
  USE globalData,   ONLY: wscale, dscale        ! spatial constant channel parameters for width and bankful depth
  USE globalData,   ONLY: floodplainSlope       ! spatial constant floodplain slope
  USE globalData,   ONLY: velo, diff            ! IRF routing parameters (Transfer function parameters)
+ USE globalData,   ONLY: high_depth            ! high bankful depth for no floodplain river geometry (just setting high bankful depth)
  USE public_var,   ONLY: floodplain            ! floodplain mode. F->only channel T-> channel with bankful depth and floodplain
  USE public_var,   ONLY: dt                    ! simulation time step [sec]
  USE hydraulic,    ONLY: storage               ! compute channel storage
@@ -231,7 +232,7 @@ CONTAINS
  ! replace depth with large values e.g., 10,000 [m] if floodplain mode is off
  if (.not.floodplain) then
    do iSeg=1,nSeg
-     structSEG(iSeg)%var(ixSEG%depth)%dat(1) = huge(1.0_dp) ! huge value [meter], so river water never top out.
+     structSEG(iSeg)%var(ixSEG%depth)%dat(1) = high_depth ! huge value [meter], so river water never top out.
    end do
  end if
 

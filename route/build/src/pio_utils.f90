@@ -334,8 +334,6 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     inquire(file=trim(fname), exist=lexist)
-    write(iulog,*) ' opening file: ', trim(fname)
-    flush(iulog)
     if ( .not. lexist )then
        ierr = 10
        message=trim(message)//'file does NOT exist'//trim(fname)

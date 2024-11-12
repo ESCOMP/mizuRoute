@@ -178,6 +178,7 @@ MODULE globalData
   real(dp),                        public :: wscale                     ! scaling factor for river width [-]
   real(dp),                        public :: dscale=0.000045            ! scaling factor for river bankful depth [-]
   real(dp),                        public :: floodplainSlope=1000       ! floodplain down slope h:v=slope:1 [-]
+  real(dp),                        public :: high_depth=100000._dp      ! very high river bankful depth [m]
 
   ! ---------- general structure information --------------------------------------------------------
 
