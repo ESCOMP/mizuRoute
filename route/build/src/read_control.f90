@@ -127,6 +127,7 @@ CONTAINS
    case('<route_opt>');            routOpt     = trim(cData)                           ! routing scheme options  0-> accumRunoff, 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
+   case('<floodplain>');           read(cData,*,iostat=io_error) floodplain            ! logical: floodwater is computed, otherwise, channel is unlimited bank depth
    case('<hw_drain_point>');       read(cData,*,iostat=io_error) hw_drain_point        ! integer: how to add inst. runoff in reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm            ! logical; provided fluxes to or from seg/lakes should be considered
@@ -236,6 +237,12 @@ CONTAINS
    case('<KWvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWvolume         )%varFile  ! default: true (turned off if inactive)
    case('<MCvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCvolume         )%varFile  ! default: true (turned off if inactive)
    case('<DWvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWvolume         )%varFile  ! default: true (turned off if inactive)
+   case('<KWfloodVolume>');        read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWheight         )%varFile  ! default: true (turned off if floodplain is inactive)
+   case('<MCfloodVolume>');        read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCheight         )%varFile  ! default: true (turned off if floodplain is inactive)
+   case('<DWfloodVolume>');        read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWheight         )%varFile  ! default: true (turned off if floodplain is inactive)
+   case('<KWheight>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWheight         )%varFile  ! default: true (turned off if floodplain is inactive)
+   case('<MCheight>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCheight         )%varFile  ! default: true (turned off if floodplain is inactive)
+   case('<DWheight>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWheight         )%varFile  ! default: true (turned off if floodplain is inactive)
    case('<outputInflow>');         read(cData,*,iostat=io_error) outputInflow
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
@@ -250,6 +257,7 @@ CONTAINS
    case('<varname_length>'         ); meta_SEG    (ixSEG%length          )%varName =trim(cData)   ! length of segment  (m)
    case('<varname_slope>'          ); meta_SEG    (ixSEG%slope           )%varName =trim(cData)   ! slope of segment   (-)
    case('<varname_width>'          ); meta_SEG    (ixSEG%width           )%varName =trim(cData)   ! width of segment   (m)
+   case('<varname_depth>'          ); meta_SEG    (ixSEG%depth           )%varName =trim(cData)   ! bankful depth of segment   (m)
    case('<varname_man_n>'          ); meta_SEG    (ixSEG%man_n           )%varName =trim(cData)   ! Manning's n        (weird units)
    case('<varname_hruArea>'        ); meta_SEG    (ixSEG%hruArea         )%varName =trim(cData)   ! local basin area (m2)
    case('<varname_weight>'         ); meta_SEG    (ixSEG%weight          )%varName =trim(cData)   ! HRU weight
@@ -540,14 +548,22 @@ CONTAINS
  end if
 
  ! ---- history Output variables
- if (outputInflow) then
+ if (outputInflow) then ! if outputInflow is active, turn on all the routing methdos for now
    meta_rflx(ixRFLX%KWTinflow)%varFile=.true.
    meta_rflx(ixRFLX%IRFinflow)%varFile=.true.
    meta_rflx(ixRFLX%MCinflow)%varFile=.true.
    meta_rflx(ixRFLX%KWinflow)%varFile=.true.
    meta_rflx(ixRFLX%DWinflow)%varFile=.true.
  end if
- ! Make sure turned off if the corresponding routing is not running
+ if (.not. floodplain) then ! if floodplain is inactive, turn off history file writing
+   meta_rflx(ixRFLX%MCfloodVolume)%varFile=.false.
+   meta_rflx(ixRFLX%KWfloodVolume)%varFile=.false.
+   meta_rflx(ixRFLX%DWfloodVolume)%varFile=.false.
+   meta_rflx(ixRFLX%MCheight)%varFile=.false.
+   meta_rflx(ixRFLX%KWheight)%varFile=.false.
+   meta_rflx(ixRFLX%DWheight)%varFile=.false.
+ end if
+ ! Make sure turned off if the corresponding routing is inactive
  do iRoute = 0, nRouteMethods-1
    select case(iRoute)
      case(accumRunoff)
@@ -570,18 +586,24 @@ CONTAINS
        if (.not. onRoute(iRoute)) then
          meta_rflx(ixRFLX%MCroutedRunoff)%varFile=.false.
          meta_rflx(ixRFLX%MCvolume)%varFile=.false.
+         meta_rflx(ixRFLX%MCfloodVolume)%varFile=.false.
+         meta_rflx(ixRFLX%MCheight)%varFile=.false.
          meta_rflx(ixRFLX%MCinflow)%varFile=.false.
        end if
      case(kinematicWave)
        if (.not. onRoute(iRoute)) then
          meta_rflx(ixRFLX%KWroutedRunoff)%varFile=.false.
          meta_rflx(ixRFLX%KWvolume)%varFile=.false.
+         meta_rflx(ixRFLX%KWfloodVolume)%varFile=.false.
+         meta_rflx(ixRFLX%KWheight)%varFile=.false.
          meta_rflx(ixRFLX%KWinflow)%varFile=.false.
        end if
      case(diffusiveWave)
        if (.not. onRoute(iRoute)) then
          meta_rflx(ixRFLX%DWroutedRunoff)%varFile=.false.
          meta_rflx(ixRFLX%DWvolume)%varFile=.false.
+         meta_rflx(ixRFLX%DWfloodVolume)%varFile=.false.
+         meta_rflx(ixRFLX%DWheight)%varFile=.false.
          meta_rflx(ixRFLX%DWinflow)%varFile=.false.
        end if
      case default; message=trim(message)//'expect digits from 0 and 5'; err=81; return

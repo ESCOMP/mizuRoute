@@ -176,8 +176,8 @@ MODULE globalData
   real(dp),                        public :: diff                       ! diffusivity [m2/s] for Saint-Venant equation
   real(dp),                        public :: mann_n                     ! manning's roughness coefficient [-]
   real(dp),                        public :: wscale                     ! scaling factor for river width [-]
-  real(dp),                        public :: channelDepth=10.           ! channel bankfull depth [m]
-  real(dp),                        public :: floodplainSlope=0.001      ! floodplain down slope [-]
+  real(dp),                        public :: dscale=0.000045            ! scaling factor for river bankful depth [-]
+  real(dp),                        public :: floodplainSlope=1000       ! floodplain down slope h:v=slope:1 [-]
 
   ! ---------- general structure information --------------------------------------------------------
 

@@ -19,6 +19,10 @@ USE public_var,    ONLY: min_length_route! minimum reach length for routing to b
 USE globalData,    ONLY: idxDW           ! routing method index for diffusive wave
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
 USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
+USE hydraulic,     ONLY: flow_depth
+USE hydraulic,     ONLY: water_height
+USE hydraulic,     ONLY: celerity
+USE hydraulic,     ONLY: diffusivity
 
 implicit none
 
@@ -240,14 +244,11 @@ CONTAINS
  integer(i4b), intent(out)       :: ierr           ! error code
  character(*), intent(out)       :: message        ! error message
  ! Local variables
- real(dp)                        :: alpha          ! sqrt(slope)(/mannings N* width)
- real(dp)                        :: beta           ! constant, 5/3
  real(dp)                        :: Cd             ! Fourier number
  real(dp)                        :: Ca             ! Courant number
  real(dp)                        :: dx             ! length of segment [m]
  real(dp)                        :: Qbar           ! 3-point average discharge [m3/s]
- real(dp)                        :: Abar           ! 3-point average flow area [m2]
- real(dp)                        :: Vbar           ! 3-point average velocity [m/s]
+ real(dp)                        :: depth          ! flow depth [m]
  real(dp)                        :: ck             ! kinematic wave celerity [m/s]
  real(dp)                        :: dk             ! diffusivity [m2/s]
  real(dp)                        :: Sbc            ! neumann BC slope
@@ -281,6 +282,15 @@ CONTAINS
 
  Nx = nMolecule%DW_ROUTE - 1  ! Nx: number of internal reach segments
 
+ associate(S         => rch_param%R_SLOPE,    & ! channel slope
+           n         => rch_param%R_MAN_N,    & ! manning n
+           bt        => rch_param%R_WIDTH,    & ! channel bottom width
+           bankDepth => rch_param%R_DEPTH,    & ! bankfull depth
+           zc        => rch_param%SIDE_SLOPE, & ! channel side slope
+           zf        => rch_param%FLDP_SLOPE, & ! floodplain slope
+           bankVol   => rch_param%R_STORAGE,  & ! bankful volume
+           L         => rch_param%RLENGTH)      ! channel length
+
  if (.not. isHW .or. hw_drain_point==top_reach) then
 
    if (rch_param%RLENGTH > min_length_route) then
@@ -298,17 +308,13 @@ CONTAINS
    Qprev(1:nMolecule%DW_ROUTE) = rstate%molecule%Q     ! flow state at previous time step
 
    ! Get the reach parameters
-   ! A = (Q/alpha)**(1/beta)
-   ! Q = alpha*A**beta
-   alpha = sqrt(rch_param%R_SLOPE)/(rch_param%R_MAN_N*rch_param%R_WIDTH**(2._dp/3._dp))
-   beta  = 5._dp/3._dp
-   dx = rch_param%RLENGTH/(Nx-1) ! one extra sub-segment beyond outlet
+   dx = L/(Nx-1) ! one extra sub-segment beyond outlet
 
    if (verbose) then
-     write(iulog,'(A,1X,G12.5)') ' length [m]        =',rch_param%RLENGTH
-     write(iulog,'(A,1X,G12.5)') ' slope [-]         =',rch_param%R_SLOPE
-     write(iulog,'(A,1X,G12.5)') ' channel width [m] =',rch_param%R_WIDTH
-     write(iulog,'(A,1X,G12.5)') ' manning coef [-]  =',rch_param%R_MAN_N
+     write(iulog,'(A,1X,G12.5)') ' length [m]        =',L
+     write(iulog,'(A,1X,G12.5)') ' slope [-]         =',S
+     write(iulog,'(A,1X,G12.5)') ' channel width [m] =',b
+     write(iulog,'(A,1X,G12.5)') ' manning coef [-]  =',n
    end if
 
    ! time-step adjustment so Courant number is less than 1
@@ -331,11 +337,10 @@ CONTAINS
    do it = 1, nTsub
 
      Qbar = (Qlocal(1,1)+Qlocal(1,0)+Qlocal(nMolecule%DW_ROUTE-1,0))/3.0 ! 3 point average discharge [m3/s]
-     Abar = (abs(Qbar)/alpha)**(1/beta)                            ! flow area [m2] (manning equation)
-     Vbar = 0._dp
-     if (Abar>0._dp) Vbar = Qbar/Abar                     ! average velocity [m/s]
-     ck   = beta*Vbar                                     ! kinematic wave celerity [m/s]
-     dk   = Qbar/(2*rch_param%R_WIDTH*rch_param%R_SLOPE)  ! diffusivity [m2/s]
+     depth = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
+
+     ck    = celerity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
+     dk    = diffusivity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
 
      Cd = dk*dTsub/dx**2
      Ca = ck*dTsub/dx
@@ -397,7 +402,16 @@ CONTAINS
      Qlocal(2:nMolecule%DW_ROUTE,1) = Qlocal(2:nMolecule%DW_ROUTE,1)*pcntReduc
    end if
 
-   rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(1) + (Qlocal(1,1) - Qlocal(nMolecule%DW_ROUTE-1,1))*dt
+   rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(1) + (q_upstream - Qlocal(nMolecule%DW_ROUTE-1,1))*dt
+
+   ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
+   if (rflux%ROUTE(idxDW)%REACH_VOL(1) > bankVol) then
+     rflux%ROUTE(idxDW)%FLOOD_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(1) - bankVol  ! floodplain volume == overflow volume
+   else
+     rflux%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+   end if
+   ! compute surface water height [m]
+   rflux%ROUTE(idxDW)%REACH_ELE = water_height(rflux%ROUTE(idxDW)%REACH_VOL(1)/L, bt, zc, zf=zf, bankDepth=bankDepth)
 
    ! store final outflow in data structure
    rflux%ROUTE(idxDW)%REACH_Q = Qlocal(nMolecule%DW_ROUTE-1,1) + Qlat
@@ -409,7 +423,7 @@ CONTAINS
      write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,G15.4))'
      write(iulog,'(A,1X,G12.5)') ' rflux%REACH_Q= ', rflux%ROUTE(idxDW)%REACH_Q
      write(iulog,fmt1) ' Qprev(1:nMolecule)= ', Qprev(1:nMolecule%DW_ROUTE)
-     write(iulog,'(A,5(1X,G12.5))') ' Qbar, Abar, Vbar, ck, dk= ',Qbar, Abar, Vbar, ck, dk
+     write(iulog,'(A,3(1X,G12.5))') ' Qbar, ck, dk= ',Qbar, ck, dk
      write(iulog,'(A,2(1X,G12.5))') ' Cd, Ca= ', Cd, Ca
      write(iulog,fmt1) ' diagonal(:,1)= ', diagonal(:,1)
      write(iulog,fmt1) ' diagonal(:,2)= ', diagonal(:,2)
@@ -424,6 +438,8 @@ CONTAINS
 
      rflux%ROUTE(idxDW)%REACH_VOL(0) = 0._dp
      rflux%ROUTE(idxDW)%REACH_VOL(1) = 0._dp
+     rflux%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+     rflux%ROUTE(idxDW)%REACH_ELE    = 0._dp
    end if
  else ! if head-water and pour runnof to the bottom of reach
 
@@ -431,6 +447,8 @@ CONTAINS
 
    rflux%ROUTE(idxDW)%REACH_VOL(0) = 0._dp
    rflux%ROUTE(idxDW)%REACH_VOL(1) = 0._dp
+   rflux%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+   rflux%ROUTE(idxDW)%REACH_ELE    = 0._dp
 
    rstate%molecule%Q(1:nMolecule%DW_ROUTE) = 0._dp
    rstate%molecule%Q(nMolecule%DW_ROUTE)   = rflux%ROUTE(idxDW)%REACH_Q
@@ -440,6 +458,8 @@ CONTAINS
    endif
 
  endif
+
+ end associate
 
  END SUBROUTINE diffusive_wave
 
