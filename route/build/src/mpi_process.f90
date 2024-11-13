@@ -329,8 +329,6 @@ CONTAINS
 
   endif  ! ( masterproc )
 
-  call shr_mpi_barrier(comm, cmessage)
-
   ! sends the number of reaches/hrus per proc to all processors
   call shr_mpi_bcast(rch_per_proc, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -805,8 +803,6 @@ CONTAINS
     end if ! (masterproc)
   end if ! (nRch_mainstem > 0)
 
-  call shr_mpi_barrier(comm, cmessage)
-
  END SUBROUTINE comm_ntopo_data
 
 
@@ -1274,9 +1270,6 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call t_stopf ('route/tributary-route')
 
-  ! make sure that routing at all the procs finished
-  call shr_mpi_barrier(comm, cmessage)
-
   ! --------------------------------
   ! If mainstem(s) do exist, proceed the followings
   ! --------------------------------
@@ -1324,8 +1317,6 @@ CONTAINS
 
     call t_stopf('route/gather-state-flux')
 
-    call shr_mpi_barrier(comm, cmessage)
-
     ! --------------------------------
     ! perform mainstem routing (only in main processor)
     ! --------------------------------
@@ -1361,8 +1352,6 @@ CONTAINS
       call t_stopf ('route/mainstem_route')
     endif ! end of root proc
 
-    call shr_mpi_barrier(comm, cmessage)
-
     ! --------------------------------
     ! Distribute updated tributary states (only tributary reaches flowing into mainstem) to processors to update states upstream reaches
     ! --------------------------------
@@ -1380,8 +1369,6 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       call t_stopf ('route/scatter-kwt-state')
     endif
-
-    call shr_mpi_barrier(comm, cmessage)
 
   endif !(nRch_mainstem==0)
 
@@ -1462,8 +1449,6 @@ CONTAINS
     end if
 
   end if ! (masterproc)
-
-  call shr_mpi_barrier(comm, cmessage)
 
   ! Distribute the basin runoff to each process
   call shr_mpi_scatterV(basinRunoff_local(nHRU_mainstem+1:nHRU), &
@@ -1550,8 +1535,6 @@ CONTAINS
 
   end if !(masterproc)
 
-  call shr_mpi_barrier(comm, cmessage)
-
   ! Distribute the read flux to each process
   if (is_flux_wm) then
     call shr_mpi_scatterV(Rch_flux_local(nRch_mainstem+1:nRch),  &
@@ -1622,8 +1605,6 @@ CONTAINS
       enddo
 
     end if ! end of root processor operation
-
-    call shr_mpi_barrier(comm, message)
 
     ! Distribute global flux data to each process
     allocate(flux_local_tmp(nReach(pid)), stat=ierr)
@@ -1724,8 +1705,6 @@ CONTAINS
         flux(iSeg,3) = RCHFLX_dist(iens,jSeg)%BASIN_QI     ! HRU non-routed flow
       enddo
     end if ! end of root processor operation
-
-    call shr_mpi_barrier(comm, cmessage)
 
     ! Distribute global flux data to each process
     allocate(flux_local(nReach(pid),nFluxes), stat=ierr)
@@ -1855,8 +1834,6 @@ CONTAINS
         end do
       end do
     end if ! end of root processor operation
-
-    call shr_mpi_barrier(comm, cmessage)
 
     ! Distribute global flux data to each process
     allocate(flux_local(nReach(pid),nRoutes), stat=ierr)
@@ -2019,8 +1996,6 @@ CONTAINS
                            ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif ! end of root process
-
-    call shr_mpi_barrier(comm, cmessage)
 
     ! will have to broadcast updated ntdh to all proc
     call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
@@ -2204,8 +2179,6 @@ CONTAINS
                            ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif ! end of root process
-
-    call shr_mpi_barrier(comm, message)
 
     ! will have to broadcast updated ntdh to all proc
     call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
@@ -2400,8 +2373,6 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif ! end of root process
 
-    call shr_mpi_barrier(comm, cmessage)
-
     ! total waves from all the tributary reaches in each proc
     do myid = 0, nNodes-1
       totMesh(myid) = nMoles*nReach(myid)
@@ -2413,8 +2384,6 @@ CONTAINS
       allocate(Q(totMeshAll), stat=ierr)
       if(ierr/=0)then; message=trim(message)//'problem allocating array for [Q]'; return; endif
     endif
-
-    call shr_mpi_barrier(comm, cmessage)
 
     ! Distribute modified molecule%Q data to each process
     call shr_mpi_scatterV(Q, totMesh(0:nNodes-1), Q_trib, ierr, cmessage)
@@ -2533,8 +2502,6 @@ CONTAINS
 
     endif ! end of root process
 
-    call shr_mpi_barrier(comm, cmessage)
-
     ! will have to broadcast updated nWave to all proc
     call MPI_BCAST(nWave, nSeg, MPI_INTEGER, root, comm, ierr)
 
@@ -2552,7 +2519,6 @@ CONTAINS
      allocate(QF(totWaveAll), QM(totWaveAll), TI(totWaveAll), TR(totWaveAll), RF(totWaveAll), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF,..,RF]'; return; endif
     endif
-    call shr_mpi_barrier(comm, cmessage)
 
     call shr_mpi_scatterV(nWave, nReach(0:nNodes-1), nWave_trib, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
