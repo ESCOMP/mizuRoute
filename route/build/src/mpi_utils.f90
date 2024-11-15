@@ -346,44 +346,29 @@ CONTAINS
     integer(i4b),                   intent(out)   :: ierr
     character(strLen),              intent(out)   :: message       ! error message
     ! local variable
-    character(len=:), allocatable                 :: flat_str
     integer(i4b)                                  :: flat_size
-    integer(i4b)                                  :: idx
     integer(i4b)                                  :: num_elements
 
     ierr=0; message='shr_mpi_bcastChar/'
 
     if (masterproc) then
       num_elements = size(allocArray)
-      ! Flatten the array into a single character string
-      flat_size = num_elements * strLen
-      allocate(character(len=flat_size) :: flat_str)
-      do idx = 1, num_elements
-        flat_str((idx-1)*strLen+1:idx*strLen) = allocArray(idx)
-      end do
-    else
-      num_elements = 0 ! Initialize variables in other ranks
     end if
-
-    ! Broadcast the number of elements to all processes
     call MPI_BCAST(num_elements, 1, MPI_INTEGER, root, mpicom_route, ierr)
+    flat_size = num_elements*strLen
 
     ! Allocate allocArray in other ranks after receiving num_elements
     if (.not. masterproc) then
-        allocate(allocArray(num_elements))
-        flat_size = num_elements * strLen
-        allocate(character(len=flat_size) :: flat_str)
+      if (allocated(allocArray)) then
+        deallocate(allocArray, stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'probleml de-allocating array for [allocArray]'; return; endif
+      endif
+      allocate(allocArray(num_elements), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
     end if
 
     ! Broadcast the flattened character array
-    call MPI_BCAST(flat_str, flat_size, MPI_CHARACTER, root, mpicom_route, ierr)
-
-    ! Unpack the received data back into allocArray
-    if (.not. masterproc) then
-      do idx = 1, num_elements
-        allocArray(idx) = flat_str((idx-1)*strLen+1:idx*strLen)
-      end do
-    end if
+    call MPI_BCAST(allocArray, flat_size, MPI_CHARACTER, root, mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_bcastChar
 
