@@ -76,11 +76,8 @@ CONTAINS
    message=trim(message)//"FileIsAlreadyOpen[file='"//trim(infile)//"']"
    err=20; return
  endif
- ! get spare file unit
- call getSpareUnit(unt,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! open file
- open(unt,file=trim(infile),status="old",action="read",iostat=err)
+ open(newunit=unt,file=trim(infile),status="old",action="read",iostat=err)
  if(err/=0)then
    message=trim(message)//"OpenError['"//trim(infile)//"']"
    err=30; return

@@ -5,7 +5,7 @@ module RtmFileUtils
 !
 ! !USES:
   USE shr_sys_mod , ONLY : shr_sys_abort, shr_sys_flush
-  USE shr_file_mod, ONLY : shr_file_get, shr_file_getUnit, shr_file_freeUnit
+  USE shr_file_mod, ONLY : shr_file_get
   USE globalData  , ONLY : masterproc
   USE public_var  , ONLY : iulog
 !
@@ -17,8 +17,6 @@ module RtmFileUtils
   public :: get_filename  !Returns filename given full pathname
   public :: opnfil        !Open local unformatted or formatted file
   public :: getfil        !Obtain local copy of file
-  public :: relavu        !Close and release Fortran unit no longer in use
-  public :: getavu        !Get next available Fortran unit number
 !
 ! !REVISION HISTORY:
 ! Created by Mariana Vertenstein
@@ -169,7 +167,7 @@ contains
      else
         ft = 'formatted  '
      end if
-     open (unit=iun,file=locfn,status='unknown',form=ft,iostat=ioe)
+     open (newunit=iun,file=locfn,status='unknown',form=ft,iostat=ioe)
      if (ioe /= 0) then
         write(iulog,*)'(OPNFIL): failed to open file ',trim(locfn),        &
              &     ' on unit ',iun,' ierr=',ioe
@@ -181,34 +179,5 @@ contains
      end if
 
    end subroutine opnfil
-
-!------------------------------------------------------------------------
-
-  integer function getavu()
-
-    ! !DESCRIPTION:
-    ! Get next available Fortran unit number.
-    implicit none
-
-    getavu = shr_file_getunit()
-
-  end function getavu
-
-!------------------------------------------------------------------------
-
-  subroutine relavu (iunit)
-
-    ! !DESCRIPTION:
-    ! Close and release Fortran unit no longer in use!
-
-    ! !ARGUMENTS:
-    implicit none
-    integer, intent(in) :: iunit    !Fortran unit number
-    !----------------------------------------------------
-
-    close(iunit)
-    call shr_file_freeUnit(iunit)
-
-  end subroutine relavu
 
 end module RtmFileUtils

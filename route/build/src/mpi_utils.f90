@@ -38,6 +38,7 @@ MODULE mpi_utils
     shr_mpi_bcastInt,         &
     shr_mpi_bcastLong,        &
     shr_mpi_bcastReal,        &
+    shr_mpi_bcastChar,        &
     shr_mpi_bcastLogical
   END INTERFACE
 
@@ -333,6 +334,43 @@ CONTAINS
     endif
 
   END SUBROUTINE shr_mpi_bcastLogical
+
+  ! ----------------------------------
+  ! BROADCAST - character allocatable array (fixed character length)
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_bcastChar(allocArray,    & ! inout: array to be broadcasted to each proc
+                               ierr, message)   ! output: error handling
+    implicit none
+    ! Argument variables:
+    character(strLen), allocatable, intent(inout) :: allocArray(:) ! inout: array to be sent to proc
+    integer(i4b),                   intent(out)   :: ierr
+    character(strLen),              intent(out)   :: message       ! error message
+    ! local variable
+    integer(i4b)                                  :: flat_size
+    integer(i4b)                                  :: num_elements
+
+    ierr=0; message='shr_mpi_bcastChar/'
+
+    if (masterproc) then
+      num_elements = size(allocArray)
+    end if
+    call MPI_BCAST(num_elements, 1, MPI_INTEGER, root, mpicom_route, ierr)
+    flat_size = num_elements*strLen
+
+    ! Allocate allocArray in other ranks after receiving num_elements
+    if (.not. masterproc) then
+      if (allocated(allocArray)) then
+        deallocate(allocArray, stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'probleml de-allocating array for [allocArray]'; return; endif
+      endif
+      allocate(allocArray(num_elements), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
+    end if
+
+    ! Broadcast the flattened character array
+    call MPI_BCAST(allocArray, flat_size, MPI_CHARACTER, root, mpicom_route, ierr)
+
+  END SUBROUTINE shr_mpi_bcastChar
 
   ! ----------------------------------
   ! SCATTERV - 1D integer array

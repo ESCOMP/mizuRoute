@@ -808,7 +808,7 @@ CONTAINS
     ! [fname_state_in] contains the restart file name and restart file must be stored in output_dir.
     ! New history files are always created for branch runs.
 
-    USE RtmFileUtils, ONLY: relavu, getavu, opnfil
+    USE RtmFileUtils, ONLY: opnfil
     USE RtmVar,       ONLY: inst_suffix
     USE public_var,   ONLY: rpntfil
     USE public_var,   ONLY: secprmin, secprhour
@@ -830,8 +830,6 @@ CONTAINS
       write(iulog,*) 'Reading restart pointer file....'
     endif
 
-    nio = getavu() ! get available unit number
-
     ! construct rpointer file name with datetime - simDatetime has three datetime at previous(0), current(1) and next(2) time stamp
     sec_in_day = simDatetime(1)%hour()*nint(secprhour)+simDatetime(1)%minute()*nint(secprmin)+nint(simDatetime(1)%sec())
     write(timestamp,'(".",I4.4,"-",I2.2,"-",I2.2,"-",I5.5)') &
@@ -843,7 +841,7 @@ CONTAINS
     end if
     call opnfil (locfn, nio, 'f')
     read (nio,'(a256)') pnamer
-    call relavu (nio)
+    close(nio)
 
     if (masterproc) then
       write(iulog,*) 'Reading restart data: ', trim(pnamer)
