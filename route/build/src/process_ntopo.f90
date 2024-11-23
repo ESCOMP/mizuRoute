@@ -380,6 +380,7 @@ END SUBROUTINE augment_ntopo
   USE public_var,    ONLY: min_slope          ! minimum slope
   USE public_var,    ONLY: dt                 ! simulation time step [sec]
   USE public_var,    ONLY: is_lake_sim        ! lake simulation option
+  USE public_var,    ONLY: lakeRegulate       ! lake type option: T-> lake type defined at lake indiviually, F-> all natural (use Doll)
   ! external subroutines
   USE process_param, ONLY: basinUH            ! construct basin unit hydrograph
 
@@ -396,6 +397,7 @@ END SUBROUTINE augment_ntopo
   character(len=strLen)                          :: cmessage         ! error message of downwind routine
   integer(i4b)                                   :: nUps             ! number of upstream segments for a segment
   integer(i4b)                                   :: iSeg,iUps        ! loop indices
+  integer(i4b), parameter                        :: doll=1
 
   ierr=0; message='put_data_struct/'
 
@@ -535,7 +537,11 @@ END SUBROUTINE augment_ntopo
    if (is_lake_sim) then
      NETOPO_in(iSeg)%isLake       = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
      NETOPO_in(iSeg)%LakeTargVol  = (structNTOPO(iSeg)%var(ixNTOPO%LakeTargVol)%dat(1)==true)
-     NETOPO_in(iSeg)%LakeModelType= structNTOPO(iSeg)%var(ixNTOPO%LakeModelType)%dat(1) ! type of the parameteric lake
+     if (.not. lakeRegulate) then ! if all lakes need to be natural
+       NETOPO_in(iSeg)%LakeModelType=doll
+     else
+       NETOPO_in(iSeg)%LakeModelType= structNTOPO(iSeg)%var(ixNTOPO%LakeModelType)%dat(1) ! type of the parameteric lake
+     endif
      NETOPO_in(iSeg)%LAKINLT      = (structNTOPO(iSeg)%var(ixNTOPO%isLakeInlet)%dat(1)==true)   ! .TRUE. if reach is lake inlet, .FALSE. otherwise
      ! NOT USED: lake parameters
 !     NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)

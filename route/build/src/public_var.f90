@@ -101,9 +101,7 @@ MODULE public_var
   logical(lgt)         ,public    :: floodplain           = .false.         ! logical if flood water is computed or not (floodplain is added)
   integer(i4b)         ,public    :: hw_drain_point       = 2               ! how to add inst. runoff in reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)
   logical(lgt)         ,public    :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
-  logical(lgt)         ,public    :: lake_model_D03       = .false.         ! logical if Doll 2003 model is used, specify as 1 in lake_model_type in network topology
-  logical(lgt)         ,public    :: lake_model_H06       = .false.         ! logical if Hanasaki 2006 model is used, specify as 2 in lake_model_type in network topology
-  logical(lgt)         ,public    :: lake_model_HYPE      = .false.         ! logical if HYPE model is used, specify as 3 in lake_model_type in network topology
+  logical(lgt)         ,public    :: lakeRegulate         = .true.          ! logical: F -> turn all the lakes into natural (lakeType=1) regardless of lakeModelType defined individually
   logical(lgt)         ,public    :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
   logical(lgt)         ,public    :: is_vol_wm            = .false.         ! logical if target volume is considered for a lake
   logical(lgt)         ,public    :: is_vol_wm_jumpstart  = .false.         ! logical if true the volume is reset to target volume for the first time step of modeling
