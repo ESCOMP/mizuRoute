@@ -413,19 +413,19 @@ SUBROUTINE mod_meta_varFile(ierr, message)
             end select
           else
             select case(LakeModelType_local(i))
-              case(0);                              number_Endorheic = number_Endorheic + 1; ! add number of Endorheic lakes
-              case(1); lake_model_D03     = .true.; number_Doll      = number_Doll      + 1; ! add number of Doll lakes
-              case(2); lake_model_H06     = .true.; number_Hanasaki  = number_Hanasaki  + 1; ! add number of Hanasaki lakes
-              case(3); lake_model_HYPE    = .true.; number_HYPE      = number_HYPE      + 1; ! add number of HYPE lakes
+              case(0); number_Endorheic = number_Endorheic + 1; ! add number of Endorheic lakes
+              case(1); number_Doll      = number_Doll      + 1; ! add number of Doll lakes
+              case(2); number_Hanasaki  = number_Hanasaki  + 1; ! add number of Hanasaki lakes
+              case(3); number_HYPE      = number_HYPE      + 1; ! add number of HYPE lakes
               case default; ierr=20; message=trim(message)//'unable to identify the lake model type'; return
             end select
           endif
         else
           select case(LakeModelType_local(i))
-            case(0);                              number_Endorheic = number_Endorheic + 1; ! add number of Endorheic lakes
-            case(1); lake_model_D03     = .true.; number_Doll      = number_Doll      + 1; ! add number of Doll lakes
-            case(2); lake_model_H06     = .true.; number_Hanasaki  = number_Hanasaki  + 1; ! add number of Hanasaki lakes
-            case(3); lake_model_HYPE    = .true.; number_HYPE      = number_HYPE      + 1; ! add number of HYPE lakes
+            case(0); number_Endorheic = number_Endorheic + 1; ! add number of Endorheic lakes
+            case(1); number_Doll      = number_Doll      + 1; ! add number of Doll lakes
+            case(2); number_Hanasaki  = number_Hanasaki  + 1; ! add number of Hanasaki lakes
+            case(3); number_HYPE      = number_HYPE      + 1; ! add number of HYPE lakes
             case default; ierr=20; message=trim(message)//'unable to identify the lake model type'; return
           end select
         endif
@@ -467,14 +467,14 @@ SUBROUTINE mod_meta_varFile(ierr, message)
       end if
     endif
 
-    if (lake_model_D03) then
+    if (number_Doll>0) then
       meta_SEG(ixSEG%D03_MaxStorage)%varFile    = .true.    ! Doll parameter
       meta_SEG(ixSEG%D03_coefficient)%varFile   = .true.    ! Doll parameter
       meta_SEG(ixSEG%D03_power)%varFile         = .true.    ! Doll parameter
       meta_SEG(ixSEG%D03_S0)%varFile            = .true.    ! Doll parameter
     endif
 
-    if (lake_model_HYPE) then
+    if (number_HYPE>0) then
       meta_SEG(ixSEG%HYP_E_emr)%varFile         = .true.    ! HYPE parameter
       meta_SEG(ixSEG%HYP_E_lim)%varFile         = .true.    ! HYPE parameter
       meta_SEG(ixSEG%HYP_E_min)%varFile         = .true.    ! HYPE parameter
@@ -488,7 +488,7 @@ SUBROUTINE mod_meta_varFile(ierr, message)
       meta_SEG(ixSEG%HYP_A_avg)%varFile         = .true.    ! HYPE parameter
     endif
 
-    if (lake_model_H06) then
+    if (number_Hanasaki>0) then
       meta_SEG(ixSEG%H06_Smax)%varFile          = .true.    ! Hanasaki parameter
       meta_SEG(ixSEG%H06_alpha)%varFile         = .true.    ! Hanasaki parameter
       meta_SEG(ixSEG%H06_envfact)%varFile       = .true.    ! Hanasaki parameter
