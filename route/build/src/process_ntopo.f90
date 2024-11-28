@@ -397,7 +397,7 @@ END SUBROUTINE augment_ntopo
   character(len=strLen)                          :: cmessage         ! error message of downwind routine
   integer(i4b)                                   :: nUps             ! number of upstream segments for a segment
   integer(i4b)                                   :: iSeg,iUps        ! loop indices
-  integer(i4b), parameter                        :: doll=1
+  integer(i4b), parameter                        :: doll=1           ! lake model name and id for a natural lake
 
   ierr=0; message='put_data_struct/'
 
@@ -538,7 +538,7 @@ END SUBROUTINE augment_ntopo
      NETOPO_in(iSeg)%isLake       = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
      NETOPO_in(iSeg)%LakeTargVol  = (structNTOPO(iSeg)%var(ixNTOPO%LakeTargVol)%dat(1)==true)
      if (.not. lakeRegulate) then ! if all lakes need to be natural
-       NETOPO_in(iSeg)%LakeModelType=doll
+       NETOPO_in(iSeg)%LakeModelType=doll  ! set a doll model for all the lakes
      else
        NETOPO_in(iSeg)%LakeModelType= structNTOPO(iSeg)%var(ixNTOPO%LakeModelType)%dat(1) ! type of the parameteric lake
      endif
