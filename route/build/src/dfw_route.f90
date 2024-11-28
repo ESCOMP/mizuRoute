@@ -369,7 +369,7 @@ CONTAINS
        diagonal(nMolecule%DW_ROUTE-1,3)     = -1._dp
      end if
 
-     ! populate left-hand side
+     ! populate right-hand side
      ! upstream boundary condition
      b(1)             = Qlocal(1,1)
      ! downstream boundary condition
@@ -380,9 +380,9 @@ CONTAINS
        b(nMolecule%DW_ROUTE)     = Sbc
      end if
      ! internal node points
-     b(2:nMolecule%DW_ROUTE-1) = ((1._dp-wck)*Ca+2._dp*(1._dp-wdk))*Cd*Qlocal(1:nMolecule%DW_ROUTE-2,0)  &
+     b(2:nMolecule%DW_ROUTE-1) = ((1._dp-wck)*Ca+2._dp*(1._dp-wdk)*Cd)*Qlocal(1:nMolecule%DW_ROUTE-2,0)  &
                       + (2._dp-4._dp*(1._dp-wdk)*Cd)*Qlocal(2:nMolecule%DW_ROUTE-1,0)           &
-                      - ((1._dp-wck)*Ca - (1._dp-wdk)*Cd)*Qlocal(3:nMolecule%DW_ROUTE,0)
+                      - ((1._dp-wck)*Ca - 2._dp*(1._dp-wdk)*Cd)*Qlocal(3:nMolecule%DW_ROUTE,0)
 
      ! solve matrix equation - get updated Qlocal
      call TDMA(nMolecule%DW_ROUTE, diagonal, b, Qsolved)
