@@ -14,6 +14,8 @@ MODULE public_var
 
   ! physical constants
   real(dp),    parameter,public   :: pi=3.14159265359_dp    ! pi
+  real(dp),    parameter,public   :: Cw=4190.0_dp           ! heat capacity of water [J/kg/K]
+  real(dp),    parameter,public   :: RoW=0.99975_dp         ! density of water [kg/m³] at 10 C-degree
 
   ! some common constant variables (not likely to change value)
   real(dp),    parameter,public   :: secprmin=60._dp        ! number of seconds in a minute
