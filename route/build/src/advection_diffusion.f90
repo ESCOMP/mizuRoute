@@ -18,7 +18,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: solve advection-diffuision equation (ade)
  ! *********************************************************************
- SUBROUTINE solve_ade(rch_param,     & ! input: river parameter data structure
+ SUBROUTINE solve_ade(reach_length,  & ! input: Reach length [m]
                       nMolecule,     & ! input: number of sub-segments
                       dt_local,      & ! input: time_step [sec]
                       Qupstream,     & ! input: quantity from upstream [unit of quantity]
@@ -53,11 +53,11 @@ CONTAINS
  !  Since A is a tridiagonal matrix, the code stores only three diagnoal elements - upper, diagonal, and lower
  !  solving the matrix equation use thomas algorithm
  !
- !  if dk = 0, this equation becomes advection equation and solved with central difference for advection term 
+ !  if dk = 0, this equation becomes advection equation and solved with central difference for advection term
  ! ----------------------------------------------------------------------------------------
  implicit none
  ! Argument variables
- type(RCHPRP), intent(in)      :: rch_param                 ! River reach parameter
+ real(dp),     intent(in)      :: reach_length              ! River reach length [m]
  integer(i4b), intent(in)      :: nMolecule                 ! number of sub-segments
  real(dp),     intent(in)      :: dt_local                  ! time inteval for time-step [sec]
  real(dp),     intent(in)      :: Qupstream                 ! quantity at top of the reach being processed
@@ -97,13 +97,11 @@ CONTAINS
 
  Nx = nMolecule - 1  ! Nx: number of internal reach segments
 
- associate(L => rch_param%RLENGTH)      ! channel length
-
  ! Get the reach parameters
-  dx = L/(Nx-1) ! one extra sub-segment beyond outlet
+  dx = reach_length/(Nx-1) ! one extra sub-segment beyond outlet
 
   if (verbose) then
-    write(iulog,'(A,1X,G12.5)') ' length [m]     =',L
+    write(iulog,'(A,1X,G12.5)') ' length [m]     =',reach_length
     write(iulog,'(A,1X,G12.5)') ' time-step [sec]=',dt_local
   end if
 
@@ -174,8 +172,6 @@ CONTAINS
    write(iulog,fmt1) ' diagonal(:,3)= ', diagonal(:,3)
    write(iulog,fmt1) ' b= ', b(1:nMolecule)
  end if
-
- end associate
 
  END SUBROUTINE solve_ade
 
