@@ -3,7 +3,6 @@ module example_netcdf_module
 USE netcdf                                  ! use netCDF libraries
 contains
 
-
 subroutine example_netcdf()
 
 ! error code
@@ -56,7 +55,6 @@ ierr = nf90_create(trim(filename),nf90_clobber,ncid); call handle_err(ierr)
 ierr = nf90_enddef(ncid); call handle_err(ierr)
 ierr = nf90_close(ncid); call handle_err(ierr)
 
-
 end subroutine example_netcdf
 
 subroutine handle_err(err)
@@ -70,7 +68,5 @@ if (err/=nf90_noerr) then
  stop '[fatal error in netcdf]'
 endif
 end subroutine handle_err
-
-
 
 end module example_netcdf_module

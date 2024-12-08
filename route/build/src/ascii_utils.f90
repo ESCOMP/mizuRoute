@@ -61,7 +61,6 @@ CONTAINS
  ! declare local variables
  logical(lgt)                         :: xist        ! .TRUE. if the file exists
  logical(lgt)                         :: xopn        ! .TRUE. if the file is already open
- character(len=256)                   :: cmessage    ! error message of downwind routine
  ! initialize errors
  err=0; message="f-file_open/"
  ! check if the file exists

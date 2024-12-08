@@ -1,0 +1,31 @@
+# Objective: to test for netcdf library being correctly recognized
+# 
+# Please try compiling using Make to create the executable 
+# if successful, you will see test_netcdf.exe, then please try running this exe to see if you can generate a netcdf. if you can, you are good to go.
+#
+# Note on compiling
+# Though the below is for NCAR HPC, the same buiding process is likely to be used for other machines with environmental variable names specific to the machine
+#
+# For gnu 
+module purge
+module load gcc
+module load netcdf
+module load ncarcompilers
+
+gmake FC=gnu FC_EXE=gfortran NCDF_PATH=$NETCDF MODE=fast
+
+# For intel oneAPI 
+module purge
+module load intel-oneapi
+module load netcdf
+module load ncarcompilers
+
+gmake FC=intel FC_EXE=ifx NCDF_PATH=$NETCDF MODE=fast
+
+# For nvida  
+module purge
+module load nvhpc
+module load netcdf
+module load ncarcompilers
+
+gmake FC=nvidia FC_EXE=nvfortran NCDF_PATH=$NETCDF MODE=fast
