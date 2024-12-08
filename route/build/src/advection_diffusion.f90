@@ -81,7 +81,6 @@ CONTAINS
   integer(i4b)                  :: Nx                        ! number of internal reach segments
   integer(i4b)                  :: downstreamBC              ! method of B.C condition - absorbing or Neumann
   character(len=strLen)         :: fmt1                      ! format string
-  character(len=strLen)         :: cmessage                  ! error message from subroutine
   ! Local parameters
   integer(i4b), parameter       :: absorbingBC=1             ! downstream B.C.
   integer(i4b), parameter       :: neumannBC=2               ! downstream B.C. flux derivative w.r.t. distance at downstream boundary

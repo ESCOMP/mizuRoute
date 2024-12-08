@@ -235,9 +235,8 @@ CONTAINS
  real(dp), allocatable           :: Qprev(:)       ! sub-reach discharge at previous time step [m3/s]
  real(dp)                        :: dTsub          ! time inteval for sub time-step [sec]
  real(dp)                        :: pcntReduc      ! flow profile adjustment based on storage [-]
- integer(i4b)                    :: ix,it          ! loop index
+ integer(i4b)                    :: it             ! loop index
  integer(i4b)                    :: ntSub          ! number of sub time-step
- character(len=strLen)           :: fmt1           ! format string
  character(len=strLen)           :: cmessage       ! error message from subroutine
 
  ierr=0; message='diffusive_wave/'
