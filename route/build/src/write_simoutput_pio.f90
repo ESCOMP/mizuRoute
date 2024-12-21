@@ -203,6 +203,7 @@ CONTAINS
        index_write_all = arth(1,1,nRch_local)
      end if
 
+     ! For cesm coupling mode, the timestamp of the average history output is the midpoint of time bounds
      if (trim(runMode)=='cesm-coupling') then
        histTimeStamp_offset = (hVars%timeVar(2) - hVars%timeVar(1))*sec2tunit/2
      end if
