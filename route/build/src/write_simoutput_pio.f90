@@ -203,6 +203,11 @@ CONTAINS
        index_write_all = arth(1,1,nRch_local)
      end if
 
+     ! For cesm coupling mode, the timestamp of the average history output is the midpoint of time bounds
+     if (trim(runMode)=='cesm-coupling') then
+       histTimeStamp_offset = (hVars%timeVar(2) - hVars%timeVar(1))*sec2tunit/2
+     end if
+
      ! write time variables (time and time bounds)
      call hist_all_network%write_time(hVars, histTimeStamp_offset, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
