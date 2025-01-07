@@ -6,42 +6,57 @@
 # Change library path HDF, NCDF, LOCAL, SZIP, ZLIB
 
 # Define the Fortran Compiler
+FC=
 
-CC=pgf90
+FC_EXE=
 
-ifeq "$(CC)" "gfortran"
-NCDF_PATH=/opt/netcdf4-gcc
-LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
+MODE=debug
+
+ifeq "$(FC)" "gnu"
+  NCDF_PATH=
+  LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
             -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-INCNETCDF = -I$(NCDF_PATH)/include
+  INCNETCDF = -I$(NCDF_PATH)/include
 endif
 
-ifeq "$(CC)" "ifort"
-NCDF_PATH = /opt/netcdf4-intel
-LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
- 	-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-INCNETCDF = -I$(NCDF_PATH)/include
+ifeq "$(FC)" "intel"
+  NCDF_PATH =
+  LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
+  INCNETCDF = -I$(NCDF_PATH)/include
 endif
 
-ifeq "$(CC)" "pgf90"
- NCDF_PATH = /opt/netcdf4-pgi
+ifeq "$(FC)" "nvidia"
+ NCDF_PATH =
  LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
  INCNETCDF = -I$(NCDF_PATH)/include
 endif
- 
+
 # define flags
-ifeq "$(CC)" "gfortran"
- FLAGS = -Wall -g -ffree-line-length-none
+ifeq "$(FC)" "gnu"
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none
+  endif
 endif
 
-ifeq "$(CC)" "ifort"
-  FLAGS = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+ifeq "$(FC)" "intel"
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O3 -FR -auto -fltconsistency -fpe0
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -debug all -warn all -check all,nouninit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency
+  endif
 endif
 
-ifeq "$(CC)" "pgf90"
- FLAGS1 = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
- #FLAGS = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
- FLAGS = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
+ifeq "$(FC)" "nvidia"
+  ifeq "$(MODE)" "fast"
+    FLAGS = -fast -O3 -Mdclchk $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -Mbounds -Mlist -Minfo -Mdclchk
+  endif
 endif
 
 # define program
@@ -51,8 +66,6 @@ PROGRAM = test_netcdf.f90
 # define executable
 EX = test_netcdf.exe
 
-#FLAGS = -O3 -W -v
-
 #.SUFFIXES: .f .o .f90
 
 # Compile
@@ -60,11 +73,11 @@ all: compile link clean
 
 # compile
 compile:
-	$(CC) $(FLAGS) -c $(SUBROUTINE) $(PROGRAM) $(INCNETCDF)
+	$(FC_EXE) $(FLAGS) -c $(SUBROUTINE) $(PROGRAM) $(INCNETCDF)
 
 # link routines
 link:
-	$(CC) *.o $(LIBNETCDF) -o $(EX)
+	$(FC_EXE) *.o $(LIBNETCDF) -o $(EX)
 
 # Remove object files
 clean:
