@@ -27,7 +27,6 @@ MODULE base_route
   ABSTRACT INTERFACE
 
     SUBROUTINE sub_route_rch(this,          & ! object to bound the procedure
-                             iEns,          & ! input: ensemble index
                              segIndex,      & ! input: reach indice
                              ixDesire,      & ! input: index of verbose reach
                              T0, T1,        & ! input: start and end of simulation time step since start [sec]
@@ -52,14 +51,13 @@ MODULE base_route
       import base_route_rch
       ! Arguments
       class(base_route_rch)                     :: this             ! object to bound the procedure
-      integer(i4b),  intent(in)                 :: iEns             ! ensemble member
-      integer(i4b),  intent(in)                 :: segIndex         ! ensemble member
+      integer(i4b),  intent(in)                 :: segIndex         ! segment index
       integer(i4b),  intent(in)                 :: ixDesire         ! index of the reach for verbose output
       real(dp),      intent(in)                 :: T0, T1           ! start and end of the time step (seconds)
       type(RCHTOPO), intent(in),    allocatable :: NETOPO_in(:)     ! River Network topology
       type(RCHPRP),  intent(inout), allocatable :: RPARAM_in(:)     ! River reach parameter
-      type(STRSTA),  intent(inout)              :: RCHSTA_out(:,:)  ! reach state data
-      type(STRFLX),  intent(inout)              :: RCHFLX_out(:,:)  ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+      type(STRSTA),  intent(inout)              :: RCHSTA_out(:)    ! reach state data
+      type(STRFLX),  intent(inout)              :: RCHFLX_out(:)    ! Reach fluxes (space [reaches]) for decomposed domains
       integer(i4b),  intent(out)                :: ierr             ! error code
       character(*),  intent(out)                :: message          ! error message
 

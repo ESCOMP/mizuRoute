@@ -43,7 +43,7 @@ CONTAINS
  ! subroutine: perform muskingum-cunge routing for one segment
  ! *********************************************************************
  SUBROUTINE mc_rch(this,           & ! mc_route_rch object to bound this procedure
-                   iEns, segIndex, & ! input: index of runoff ensemble to be processed
+                   segIndex,       & ! input: index of runoff reach to be processed
                    ixDesire,       & ! input: reachID to be checked by on-screen pringing
                    T0,T1,          & ! input: start and end of the time step
                    NETOPO_in,      & ! input: reach topology data structure
@@ -55,14 +55,13 @@ CONTAINS
  implicit none
  ! Argument variables
  class(mc_route_rch)                       :: this              ! mc_route_rch object to bound this procedure
- integer(i4b),  intent(in)                 :: iEns              ! runoff ensemble to be routed
  integer(i4b),  intent(in)                 :: segIndex          ! segment where routing is performed
  integer(i4b),  intent(in)                 :: ixDesire          ! index of the reach for verbose output
  real(dp),      intent(in)                 :: T0,T1             ! start and end of the time step (seconds)
  type(RCHTOPO), intent(in),    allocatable :: NETOPO_in(:)      ! River Network topology
  type(RCHPRP),  intent(inout), allocatable :: RPARAM_in(:)      ! River reach parameter
- type(STRSTA),  intent(inout)              :: RCHSTA_out(:,:)   ! reach state data
- type(STRFLX),  intent(inout)              :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ type(STRSTA),  intent(inout)              :: RCHSTA_out(:)     ! reach state data
+ type(STRFLX),  intent(inout)              :: RCHFLX_out(:)     ! Reach fluxes (space [reaches]) for decomposed domains
  integer(i4b),  intent(out)                :: ierr              ! error code
  character(*),  intent(out)                :: message           ! error message
  ! Local variables
@@ -89,50 +88,50 @@ CONTAINS
  isHW = .true.
  q_upstream = 0.0_dp
 
- Qabs = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
- RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
+ Qabs = RCHFLX_out(segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
+ RCHFLX_out(segIndex)%ROUTE(idxMC)%REACH_WM_FLUX_actual = RCHFLX_out(segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
 
  ! update volume at previous time step
- RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1)
+ RCHFLX_out(segIndex)%ROUTE(idxMC)%REACH_VOL(0) = RCHFLX_out(segIndex)%ROUTE(idxMC)%REACH_VOL(1)
 
  if (nUps>0) then ! this hru is not headwater
    isHW = .false.
    do iUps = 1,nUps
      if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach which does not any flow due to zero total contributory areas
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     if (qmodOption==1 .and. RCHFLX_out(iens,iRch_ups)%Qobs/=realMissing) then
-       RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q = RCHFLX_out(iens,iRch_ups)%Qobs
+     if (qmodOption==1 .and. RCHFLX_out(iRch_ups)%Qobs/=realMissing) then
+       RCHFLX_out(iRch_ups)%ROUTE(idxMC)%REACH_Q = RCHFLX_out(iRch_ups)%Qobs
      end if
-     q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q
+     q_upstream = q_upstream + RCHFLX_out(iRch_ups)%ROUTE(idxMC)%REACH_Q
    end do
    q_upstream_mod  = q_upstream
-   Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+   Qlat = RCHFLX_out(segIndex)%BASIN_QR(1)
  else ! headwater
    if (verbose) then
      write(iulog,'(A)')            ' This is headwater '
    endif
    if (hw_drain_point==top_reach) then ! lateral flow is poured in a reach at the top
-     q_upstream = q_upstream + RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+     q_upstream = q_upstream + RCHFLX_out(segIndex)%BASIN_QR(1)
      q_upstream_mod = q_upstream
      Qlat = 0._dp
    else if (hw_drain_point==bottom_reach) then ! lateral flow is poured in a reach at the top
      q_upstream_mod = q_upstream
-     Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+     Qlat = RCHFLX_out(segIndex)%BASIN_QR(1)
    end if
  endif
 
- RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_INFLOW = q_upstream ! total inflow from the upstream reaches
+ RCHFLX_out(segIndex)%ROUTE(idxMC)%REACH_INFLOW = q_upstream ! total inflow from the upstream reaches
 
  ! Water management - water injection or abstraction (irrigation or industrial/domestic water usage)
  ! For water abstraction, water is extracted from the following priorities:
  ! 1. existing storage(REACH_VOL(0), 2. upstream inflow , 3 lateral flow (BASIN_QR)
- if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
+ if((RCHFLX_out(segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
    if (Qabs > 0) then ! positive == abstraction
-     if (RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1)/dt > Qabs) then ! take out all abstraction from strorage
-       RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1) - Qabs*dt
+     if (RCHFLX_out(segIndex)%ROUTE(idxMC)%REACH_VOL(1)/dt > Qabs) then ! take out all abstraction from strorage
+       RCHFLX_out(segIndex)%ROUTE(idxMC)%REACH_VOL(1) = RCHFLX_out(segIndex)%ROUTE(idxMC)%REACH_VOL(1) - Qabs*dt
      else ! if inital abstraction is greater than volume
-       Qabs = Qabs - RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1)/dt ! get residual Qabs after extracting from strorage
-       RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1) = 0._dp ! voluem gets 0
+       Qabs = Qabs - RCHFLX_out(segIndex)%ROUTE(idxMC)%REACH_VOL(1)/dt ! get residual Qabs after extracting from strorage
+       RCHFLX_out(segIndex)%ROUTE(idxMC)%REACH_VOL(1) = 0._dp ! voluem gets 0
        if (q_upstream > Qabs) then ! then take out all residual abstraction from upstream inflow
          q_upstream_mod = q_upstream - Qabs
        else ! if residual abstraction is still greater than lateral flow
@@ -143,7 +142,7 @@ CONTAINS
          else ! if residual abstraction is greater than upstream inflow
            Qabs = Qabs - Qlat ! take out residual abstraction from lateral flow
            Qlat = 0._dp ! lateral flow gets 0 (all are gone to abstraction)
-           RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX - Qabs
+           RCHFLX_out(segIndex)%ROUTE(idxMC)%REACH_WM_FLUX_actual = RCHFLX_out(segIndex)%REACH_WM_FLUX - Qabs
          end if
        end if
      end if
@@ -158,10 +157,10 @@ CONTAINS
      do iUps = 1,nUps
        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
        write(iulog,'(A,1X,I12,1X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps), &
-             RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q
+             RCHFLX_out(iRch_ups)%ROUTE(idxMC)%REACH_Q
      enddo
    end if
-   write(iulog,'(A,1X,G12.5)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(iulog,'(A,1X,G12.5)') ' RCHFLX_out(segIndex)%BASIN_QR(1)=',RCHFLX_out(segIndex)%BASIN_QR(1)
  endif
 
  ! solve muskingum-cunge alogorithm
@@ -170,8 +169,8 @@ CONTAINS
                       q_upstream_mod,                          & ! input: total discharge at top of the reach being processed
                       Qlat,                                    & ! input: lateral flow [m3/s]
                       isHW,                                    & ! input: is this headwater basin?
-                      RCHSTA_out(iens,segIndex)%MC_ROUTE,      & ! inout:
-                      RCHFLX_out(iens,segIndex),               & ! inout: updated fluxes at reach
+                      RCHSTA_out(segIndex)%MC_ROUTE,           & ! inout:
+                      RCHFLX_out(segIndex),                    & ! inout: updated fluxes at reach
                       verbose,                                 & ! input: reach index to be examined
                       ierr, cmessage)                            ! output: error control
  if(ierr/=0)then
@@ -179,15 +178,15 @@ CONTAINS
  endif
 
  if(verbose)then
-   write(iulog,'(A,1X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_Q
+   write(iulog,'(A,1X,G12.5)') ' RCHFLX_out(segIndex)%REACH_Q=', RCHFLX_out(segIndex)%ROUTE(idxMC)%REACH_Q
  endif
 
- if (RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1) < 0._dp) then
-   write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1), &
+ if (RCHFLX_out(segIndex)%ROUTE(idxMC)%REACH_VOL(1) < 0._dp) then
+   write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(segIndex)%ROUTE(idxMC)%REACH_VOL(1), &
          'at ', NETOPO_in(segIndex)%REACHID
  end if
 
- call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxMC, q_upstream, Qlat, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
+ call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxMC, q_upstream, Qlat, RCHFLX_out(segIndex), verbose, lakeFlag=.false.)
 
  END SUBROUTINE mc_rch
 

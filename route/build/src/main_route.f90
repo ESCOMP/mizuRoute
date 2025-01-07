@@ -22,8 +22,7 @@ CONTAINS
  ! ******
  ! public subroutine: main HRU/reach routing routines
  ! ************************
- SUBROUTINE main_route(iens,           &  ! input: ensemble index
-                       basinRunoff_in, &  ! input: basin (i.e.,HRU) runoff (m/s)
+ SUBROUTINE main_route(basinRunoff_in, &  ! input: basin (i.e.,HRU) runoff (m/s)
                        basinEvapo_in,  &  ! input: basin (i.e.,HRU) evaporation (m/s)
                        basinPrecip_in, &  ! input: basin (i.e.,HRU) precipitation (m/s)
                        reachflux_in,   &  ! input: reach (i.e.,reach) flux (m3/s)
@@ -51,7 +50,6 @@ CONTAINS
 
    implicit none
    ! argument variables
-   integer(i4b),                    intent(in)    :: iens                 ! ensemble member
    real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    real(dp),           allocatable, intent(in)    :: basinEvapo_in(:)     ! basin (i.e.,HRU) evaporation (m/s)
    real(dp),           allocatable, intent(in)    :: basinPrecip_in(:)    ! basin (i.e.,HRU) precipitation (m/s)
@@ -62,8 +60,8 @@ CONTAINS
    type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),       allocatable, intent(inout) :: RPARAM_in(:)         ! River reach parameter
    integer(i4b),                    intent(in)    :: ixDesire             ! index of the reach for verbose output
-   type(STRFLX),                    intent(inout) :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   type(STRSTA),                    intent(inout) :: RCHSTA_out(:,:)      ! reach state data structure
+   type(STRFLX),                    intent(inout) :: RCHFLX_out(:)        ! Reach fluxes (space [reaches]) for decomposed domains
+   type(STRSTA),                    intent(inout) :: RCHSTA_out(:)        ! reach state data structure
    integer(i4b),                    intent(out)   :: ierr                 ! error code
    character(len=strLen),           intent(out)   :: message              ! error message
    ! local variables
@@ -88,17 +86,17 @@ CONTAINS
   ! Initialize water-management flux (water take, lake volume threshold for release)
   if (is_flux_wm) then
     do iSeg = 1,nSeg
-      RCHFLX_out(iens,ixRchProcessed(iSeg))%REACH_WM_FLUX = reachflux_in(iSeg)  ! added or subtracted stremflow for each reach
+      RCHFLX_out(ixRchProcessed(iSeg))%REACH_WM_FLUX = reachflux_in(iSeg)  ! added or subtracted stremflow for each reach
     end do
   else
-    RCHFLX_out(iens,:)%REACH_WM_FLUX = 0._dp
+    RCHFLX_out(:)%REACH_WM_FLUX = 0._dp
   end if
   if (is_vol_wm .and. is_lake_sim) then
     do iSeg = 1,nSeg
-      RCHFLX_out(iens,ixRchProcessed(iSeg))%REACH_WM_VOL = reachvol_in(iSeg)   ! target volume for the lakes
+      RCHFLX_out(ixRchProcessed(iSeg))%REACH_WM_VOL = reachvol_in(iSeg)   ! target volume for the lakes
     end do
   else
-    RCHFLX_out(iens,:)%REACH_WM_VOL = 0._dp
+    RCHFLX_out(:)%REACH_WM_VOL = 0._dp
   end if
 
   ! 1. subroutine: map basin runoff to river network HRUs
@@ -145,11 +143,10 @@ CONTAINS
    if (doesBasinRoute == 1) then
      ! instantaneous runoff volume (m3/s) to data structure
      do iSeg = 1,nSeg
-       RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QI = reachRunoff_local(iSeg)
+       RCHFLX_out(ixRchProcessed(iSeg))%BASIN_QI = reachRunoff_local(iSeg)
      enddo
      ! perform Basin routing
-     call IRF_route_basin(iens,              &  ! input:  ensemble index
-                          NETOPO_in,         &  ! input:  reach topology
+     call IRF_route_basin(NETOPO_in,         &  ! input:  reach topology
                           RCHFLX_out,        &  ! inout:  reach flux data structure
                           ierr, cmessage,    &  ! output: error controls
                           ixRchProcessed)       ! optional input: indices of reach to be routed
@@ -157,16 +154,16 @@ CONTAINS
    else
      ! no basin routing required (handled outside mizuRoute))
      do iSeg = 1,nSeg
-       RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(0) = RCHFLX_out(iens,iSeg)%BASIN_QR(1)   ! streamflow from previous step
-       RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1) = reachRunoff_local(iSeg)             ! streamflow (m3/s)
+       RCHFLX_out(ixRchProcessed(iSeg))%BASIN_QR(0) = RCHFLX_out(iSeg)%BASIN_QR(1)        ! streamflow from previous step
+       RCHFLX_out(ixRchProcessed(iSeg))%BASIN_QR(1) = reachRunoff_local(iSeg)             ! streamflow (m3/s)
      end do
    end if
 
    ! allocating precipitation and evaporation for
    if (is_lake_sim) then
      do iSeg = 1,nSeg
-       RCHFLX_out(iens,ixRchProcessed(iSeg))%Basinevapo  = reachEvapo_local(iSeg)  ! Evaporation pass to reach flux (m/s)
-       RCHFLX_out(iens,ixRchProcessed(iSeg))%BasinPrecip = reachPrecip_local(iSeg) ! precipitation pass to reach flux (m/s)
+       RCHFLX_out(ixRchProcessed(iSeg))%Basinevapo  = reachEvapo_local(iSeg)  ! Evaporation pass to reach flux (m/s)
+       RCHFLX_out(ixRchProcessed(iSeg))%BasinPrecip = reachPrecip_local(iSeg) ! precipitation pass to reach flux (m/s)
      end do
    endif
 
@@ -174,7 +171,6 @@ CONTAINS
    do ix=1,size(routeMethods)
      call route_network(rch_routes(ix)%rch_route, &  ! input: instantiated routing object
                         routeMethods(ix),         &  ! input: routing method index
-                        iens,                     &  ! input: ensemble index
                         river_basin,              &  ! input: river basin data type
                         TSEC(1), TSEC(2),         &  ! input: start and end of the time step since simulation start [sec]
                         ixDesire,                 &  ! input: index of verbose reach
@@ -194,7 +190,6 @@ CONTAINS
   ! *********************************************************************
   SUBROUTINE route_network(rch_route,            & ! input: instantiated routing object
                            idRoute,              & ! input: routing method id
-                           iens,                 & ! input: ensemble index
                            river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
                            T0,T1,                & ! input: start and end of the time step since simulation start [sec]
                            ixDesire,             & ! input: reachID to be checked by on-screen pringing
@@ -222,14 +217,13 @@ CONTAINS
     ! Argument variables
     class(base_route_rch), intent(in),    allocatable :: rch_route
     integer(i4b),          intent(in)                 :: idRoute              ! routing method id
-    integer(i4b),          intent(in)                 :: iEns                 ! ensemble member
     type(subbasin_omp),    intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
     real(dp),              intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
     integer(i4b),          intent(in)                 :: ixDesire             ! index of the reach for verbose output
     type(RCHTOPO),         intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
     type(RCHPRP),          intent(inout), allocatable :: RPARAM_in(:)         ! River reach parameter
-    type(STRSTA),          intent(inout)              :: RCHSTA_out(:,:)      ! reach state data
-    type(STRFLX),          intent(inout)              :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+    type(STRSTA),          intent(inout)              :: RCHSTA_out(:)        ! reach state data
+    type(STRFLX),          intent(inout)              :: RCHFLX_out(:)        ! Reach fluxes (space [reaches]) for decomposed domains
     integer(i4b),          intent(out)                :: ierr                 ! error code
     character(*),          intent(out)                :: message              ! error message
     integer(i4b),          intent(in), optional       :: ixSubRch(:)          ! subset of reach indices to be processed
@@ -257,7 +251,7 @@ CONTAINS
         message=trim(message)//'routing method id expect digits 0-5. Check <outOpt> in control file'; ierr=81; return
     end select
 
-    nSeg = size(RCHFLX_out(iens,:))
+    nSeg = size(RCHFLX_out)
 
     ! number of reach check
     if (size(NETOPO_in)/=nSeg) then
@@ -291,14 +285,14 @@ CONTAINS
 !$OMP          shared(RPARAM_in)                        & ! data structure shared
 !$OMP          shared(RCHSTA_out)                       & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
-!$OMP          shared(ix, iEns, ixDesire, iRoute)       & ! indices shared
+!$OMP          shared(ix, ixDesire, iRoute)             & ! indices shared
 !$OMP          firstprivate(nTrib)
       do iTrib = 1,nTrib
         do iSeg = 1,river_basin(ix)%branch(iTrib)%nRch
           jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
           if (.not. doRoute(jSeg)) cycle
           if ((NETOPO_in(jseg)%islake).and.(is_lake_sim).and.iRoute/=idxSUM) then
-            call lake_route(iEns, jSeg,    & ! input: ensemble and reach indices
+            call lake_route(jSeg,          & ! input: reach indices
                             iRoute,        & ! input: routing method index
                             ixDesire,      & ! input: index of verbose reach
                             NETOPO_in,     & ! input: reach topology data structure
@@ -306,7 +300,7 @@ CONTAINS
                             RCHFLX_out,    & ! inout: reach flux data structure
                             ierr,cmessage)   ! output: error control
           else
-            call rch_route%route(iEns,jSeg,      & ! input: array indices
+            call rch_route%route(jSeg,           & ! input: array indices
                                  ixDesire,       & ! input: index of verbose reach
                                  T0,T1,          & ! input: start and end of the time step
                                  NETOPO_in,      & ! input: reach topology data structure

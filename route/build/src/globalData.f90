@@ -122,7 +122,6 @@ MODULE globalData
   character(len=strLen),           public :: runMode='standalone'        ! run options: standalone or cesm-coupling
   character(len=12),               public :: hfile_dayStamp='period-start' ! day stamp in history file for daily file. period-start or period-end
   integer(i4b),                    public :: ixPrint(1:2)=integerMissing ! index of desired reach to be on-screen print
-  integer(i4b),                    public :: nEns=1                      ! number of ensemble
   integer(i4b),                    public :: maxtdh                      ! maximum unit-hydrograph future time steps
   type(cMolecule),                 public :: nMolecule                   ! number of computational molecule (used for KW, MC, DW)
   character(FileStrLen),           public :: hfileout=charMissing        ! history output file name
@@ -149,18 +148,17 @@ MODULE globalData
   type(io_desc_t),                 public :: ioDesc_rch_float                   ! [reach] (float)
   type(io_desc_t),                 public :: ioDesc_gauge_float                 ! [gauge points] (float)
   ! decomposition used for restart variables
-  type(io_desc_t),                 public :: ioDesc_rch_int                     ! [reach x ensemble] (integer)
-  type(io_desc_t),                 public :: ioDesc_rch_double                  ! [reach x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_hist_rch_double             ! [reach] (double precision)
+  type(io_desc_t),                 public :: ioDesc_rch_int                     ! [reach] (integer)
+  type(io_desc_t),                 public :: ioDesc_rch_double                  ! [reach] (double precision)
   type(io_desc_t),                 public :: ioDesc_hru_double                  ! [hru] (double precision)
-  type(io_desc_t),                 public :: ioDesc_wave_int                    ! [reach x max. number of waves x ensemble] (integer)
-  type(io_desc_t),                 public :: ioDesc_wave_double                 ! [reach x max. number of waves x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_mesh_kw_double              ! [reach x Euler kinematic wave computational meshes x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_mesh_mc_double              ! [reach x Muskingum-Cunge computational meshes x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_mesh_dw_double              ! [reach x Duffusive wave computational meshes x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_irf_double                  ! [reach x IRF future timer-steps x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_vol_double                  ! [reach x time-bounds x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_irf_bas_double              ! [reach x basin UH future time-steps x ensemble] (double precision)
+  type(io_desc_t),                 public :: ioDesc_wave_int                    ! [reach x max. number of waves] (integer)
+  type(io_desc_t),                 public :: ioDesc_wave_double                 ! [reach x max. number of waves] (double precision)
+  type(io_desc_t),                 public :: ioDesc_mesh_kw_double              ! [reach x Euler kinematic wave computational meshes] (double precision)
+  type(io_desc_t),                 public :: ioDesc_mesh_mc_double              ! [reach x Muskingum-Cunge computational meshes] (double precision)
+  type(io_desc_t),                 public :: ioDesc_mesh_dw_double              ! [reach x Duffusive wave computational meshes] (double precision)
+  type(io_desc_t),                 public :: ioDesc_irf_double                  ! [reach x IRF future timer-steps] (double precision)
+  type(io_desc_t),                 public :: ioDesc_vol_double                  ! [reach x time-bounds] (double precision)
+  type(io_desc_t),                 public :: ioDesc_irf_bas_double              ! [reach x basin UH future time-steps] (double precision)
   integer(i4b),   allocatable,     public :: index_write_gage(:)                ! reach indices to gauge points w.r.t. distributed domains
 
   ! ---------- conversion factors -------------------------------------------------------------------
@@ -221,10 +219,10 @@ MODULE globalData
   real(dp),           allocatable, public :: FRAC_FUTURE(:)         ! fraction of runoff in future time steps
 
   ! routing data structures
-  type(STRSTA),       allocatable, public :: RCHSTA(:,:)            ! restart variables (ensembles, reaches) for the entire domain
-  type(STRFLX),       allocatable, public :: RCHFLX(:,:)            ! Reach fluxes (ensembles, reaches) for entire domain
-  type(STRSTA),       allocatable, public :: RCHSTA_trib(:,:)       ! restart variables (ensembles, reaches) for decomposed domains
-  type(STRFLX),       allocatable, public :: RCHFLX_trib(:,:)       ! Reach fluxes (ensembles, reaches) for decomposed domains
+  type(STRSTA),       allocatable, public :: RCHSTA(:)              ! restart variables (reaches) for the entire domain
+  type(STRFLX),       allocatable, public :: RCHFLX(:)              ! Reach fluxes (reaches) for entire domain
+  type(STRSTA),       allocatable, public :: RCHSTA_trib(:)         ! restart variables (reaches) for decomposed domains
+  type(STRFLX),       allocatable, public :: RCHFLX_trib(:)         ! Reach fluxes (reaches) for decomposed domains
 
   ! lakes data structures
   type(LAKPRP),       allocatable, public :: LPARAM(:)              ! Lake parameters
