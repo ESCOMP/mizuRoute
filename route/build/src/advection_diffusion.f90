@@ -19,17 +19,17 @@ CONTAINS
   SUBROUTINE solve_ade(reach_length,  & ! input: Reach length [m]
                        nMolecule,     & ! input: number of sub-segments
                        dt_local,      & ! input: time_step [sec]
-                       Qupstream,     & ! input: quantity from upstream [unit of quantity]
+                       FluxUpstream,  & ! input: Flux (e.g., dischage, concentration) from upstream [unit of quantity]
                        ck,            & ! input: velocity [m/s]
                        dk,            & ! input: diffusivity [m2/s]
-                       Qlat,          & ! input: lateral quantity into chaneel [unit of quantity]
-                       Qprev,         & ! input: quantity at previous time step [unit of quantity]
-                       Qlocal,        & ! inout: quantity soloved at current time step [unit of quantity]
+                       FluxLat,       & ! input: lateral flux into chaneel [unit of quantity]
+                       FluxPrev,      & ! input: Flux at previous time step [unit of quantity]
+                       FluxLocal,     & ! inout: Flux soloved at current time step [unit of quantity]
                        verbose,       & ! input: reach index to be examined
                        ierr,message)
   ! ----------------------------------------------------------------------------------------
   ! Solve linearlized advection diffusive equation per reach and time step.
-  !  dQ/dt + ck*dQ/dx = dk*d2Q/dx2 + Qlat - a)
+  !  dQ/dt + ck*dQ/dx = dk*d2Q/dx2 + FluxLat - a)
   !
   !  ck (velocity) and dk (diffusivity) are given by input argument
   !
@@ -58,12 +58,12 @@ CONTAINS
   real(dp),     intent(in)      :: reach_length              ! River reach length [m]
   integer(i4b), intent(in)      :: nMolecule                 ! number of sub-segments
   real(dp),     intent(in)      :: dt_local                  ! time inteval for time-step [sec]
-  real(dp),     intent(in)      :: Qupstream                 ! quantity at top of the reach being processed
+  real(dp),     intent(in)      :: FluxUpstream              ! quantity at top of the reach being processed
   real(dp),     intent(in)      :: ck                        ! velocity [m/s]
   real(dp),     intent(in)      :: dk                        ! diffusivity [m2/s]
-  real(dp),     intent(in)      :: Qlat                      ! lateral quantity into chaneel [m3/s]
-  real(dp),     intent(in)      :: Qprev(nMolecule)          ! sub-reach quantity at previous time step [m3/s]
-  real(dp),     intent(out)     :: Qlocal(nMolecule,0:1)     ! sub-reach & sub-time step quantity at previous and current time step [m3/s]
+  real(dp),     intent(in)      :: FluxLat                   ! lateral flux into chaneel [m3/s]
+  real(dp),     intent(in)      :: FluxPrev(nMolecule)       ! sub-reach quantity at previous time step [m3/s]
+  real(dp),     intent(out)     :: FluxLocal(nMolecule,0:1)  ! sub-reach & sub-time step quantity at previous and current time step [m3/s]
   logical(lgt), intent(in)      :: verbose                   ! reach index to be examined
   integer(i4b), intent(out)     :: ierr                      ! error code
   character(*), intent(out)     :: message                   ! error message
@@ -74,7 +74,7 @@ CONTAINS
   real(dp)                      :: Sbc                       ! neumann BC slope
   real(dp)                      :: diagonal(nMolecule,3)     ! diagonal part of matrix - diagonal(:,1)=upper, diagonal(:,2)=middle, diagonal(:,3)=lower
   real(dp)                      :: b(nMolecule)              ! right-hand side of the matrix equation
-  real(dp)                      :: Qsolved(nMolecule)        ! solved Q at sub-reach at current time step [m3/s]
+  real(dp)                      :: FluxSolved(nMolecule)     ! solved flux at sub-reach at current time step [unit depending on type of flux]
   real(dp)                      :: wck                       ! weight for advection
   real(dp)                      :: wdk                       ! weight for diffusion
   integer(i4b)                  :: ix                        ! loop index
@@ -102,9 +102,9 @@ CONTAINS
     write(iulog,'(A,1X,G12.5)') ' time-step [sec]=',dt_local
   end if
 
-  Qlocal(1:nMolecule, 0) = Qprev ! previous time step
-  Qlocal(1:nMolecule, 1) = realMissing ! initialize current time step part
-  Qlocal(1,1)  = Qupstream     ! quantity from upstream at current time step
+  FluxLocal(1:nMolecule, 0) = FluxPrev    ! previous time step
+  FluxLocal(1:nMolecule, 1) = realMissing ! initialize current time step part
+  FluxLocal(1,1)  = FluxUpstream          ! quantity from upstream at current time step
 
   ! Fourier number and Courant number
   Cd = dk*dt_local/dx**2
@@ -136,33 +136,33 @@ CONTAINS
 
   ! populate right-hand side
   ! upstream boundary condition
-  b(1)             = Qlocal(1,1)
+  b(1)             = FluxLocal(1,1)
   ! downstream boundary condition
   if (downstreamBC == absorbingBC) then
-    b(nMolecule) = (1._dp-(1._dp-wck)*Ca)*Qlocal(nMolecule,0) + (1-wck)*Ca*Qlocal(nMolecule-1,0)
+    b(nMolecule) = (1._dp-(1._dp-wck)*Ca)*FluxLocal(nMolecule,0) + (1-wck)*Ca*FluxLocal(nMolecule-1,0)
   else if (downstreamBC == neumannBC) then
-    Sbc = (Qlocal(nMolecule,0)-Qlocal(nMolecule-1,0))
+    Sbc = (FluxLocal(nMolecule,0)-FluxLocal(nMolecule-1,0))
     b(nMolecule)     = Sbc
   end if
   ! internal node points
-  b(2:nMolecule-1) = ((1._dp-wck)*Ca +2._dp*(1._dp-wdk)*Cd)*Qlocal(1:nMolecule-2,0)  &
-                    + (2._dp-4._dp*(1._dp-wdk)*Cd)*Qlocal(2:nMolecule-1,0)           &
-                    - ((1._dp-wck)*Ca -2._dp*(1._dp-wdk)*Cd)*Qlocal(3:nMolecule,0)
-  ! solve matrix equation - get updated Qlocal
-  call TDMA(nMolecule, diagonal, b, Qsolved)
+  b(2:nMolecule-1) = ((1._dp-wck)*Ca +2._dp*(1._dp-wdk)*Cd)*FluxLocal(1:nMolecule-2,0)  &
+                    + (2._dp-4._dp*(1._dp-wdk)*Cd)*FluxLocal(2:nMolecule-1,0)           &
+                    - ((1._dp-wck)*Ca -2._dp*(1._dp-wdk)*Cd)*FluxLocal(3:nMolecule,0)
+  ! solve matrix equation - get updated FluxLocal
+  call TDMA(nMolecule, diagonal, b, FluxSolved)
 
-  Qlocal(:,1) = Qsolved
+  FluxLocal(:,1) = FluxSolved
 
   if (verbose) then
     write(fmt1,'(A,I5,A)') '(A,1X',nMolecule,'(1X,G15.4))'
-    write(iulog,fmt1) ' Qprev(1:nMolecule)= ', Qprev(1:nMolecule)
+    write(iulog,fmt1) ' FluxPrev(1:nMolecule)= ', FluxPrev(1:nMolecule)
     write(iulog,'(A,3(1X,G12.5))') ' ck, dk= ',ck, dk
     write(iulog,'(A,2(1X,G12.5))') ' Cd, Ca= ', Cd, Ca
     write(iulog,fmt1) ' diagonal(:,1)= ', diagonal(:,1)
     write(iulog,fmt1) ' diagonal(:,2)= ', diagonal(:,2)
     write(iulog,fmt1) ' diagonal(:,3)= ', diagonal(:,3)
     write(iulog,fmt1) ' b= ', b(1:nMolecule)
-    write(iulog,fmt1) ' Q sub_reqch=', (Qsolved(ix), ix=1,nMolecule)
+    write(iulog,fmt1) ' Q sub_reqch=', (FluxSolved(ix), ix=1,nMolecule)
   end if
 
   END SUBROUTINE solve_ade
