@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4395155.svg)](https://doi.org/10.5281/zenodo.4395155)
 [![Documentation Status](https://readthedocs.org/projects/mizuroute/badge/?version=cesm-coupling)](https://mizuroute.readthedocs.io/en/cesm-coupling/?badge=cesm-coupling)
 
 # mizuRoute
