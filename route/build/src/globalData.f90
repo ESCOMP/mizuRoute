@@ -61,6 +61,7 @@ MODULE globalData
   USE var_lookup, ONLY: nVarsRFLX    ! number of variables in data structure (river flux/state)
   USE var_lookup, ONLY: nVarsHFLX    ! number of variables in data structure (HRU flux/state)
   USE var_lookup, ONLY: nVarsBasinQ  ! number of variables in data structure (restart vars for
+  USE var_lookup, ONLY: nVarsBasinC  ! number of variables in data structure (restart vars for
   USE var_lookup, ONLY: nVarsIRFbas  ! number of variables in data structure (restart vars for overland unit-hydrograph routing)
   USE var_lookup, ONLY: nVarsIRF     ! number of variables in data structure (restart vars for unit-hydrograph routing)
   USE var_lookup, ONLY: nVarsKWT     ! number of variables in data structure (restart vars for lagrangian kinematic wave)
@@ -206,6 +207,7 @@ MODULE globalData
   type(var_info_new),              public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
   type(var_info_new),              public :: meta_hflx   (nVarsHFLX   ) ! hru flux variables
   type(var_info_new),              public :: meta_basinQ (nVarsBasinQ ) ! reach inflow from basin
+  type(var_info_new),              public :: meta_basinC (nVarsBasinC ) ! reach concentration flux from basin
   type(var_info_new),              public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
   type(var_info_new),              public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
   type(var_info_new),              public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states

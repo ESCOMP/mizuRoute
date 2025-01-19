@@ -153,6 +153,7 @@ CONTAINS
    case('<vname_qsim>');           vname_qsim   = trim(cData)                          ! name of runoff variable
    case('<vname_evapo>');          vname_evapo  = trim(cData)                          ! name of actual evapoartion variable
    case('<vname_precip>');         vname_precip = trim(cData)                          ! name of precipitation variable
+   case('<vname_cc>');             vname_cc     = trim(cData)                          ! name of concentration variable
    case('<vname_time>');           vname_time   = trim(cData)                          ! name of time variable in the runoff file
    case('<vname_hruid>');          vname_hruid  = trim(cData)                          ! name of the HRU id
    case('<dname_time>');           dname_time   = trim(cData)                          ! name of time variable in the runoff file
@@ -160,6 +161,7 @@ CONTAINS
    case('<dname_xlon>');           dname_xlon   = trim(cData)                          ! name of x (j,lon) dimension
    case('<dname_ylat>');           dname_ylat   = trim(cData)                          ! name of y (i,lat) dimension
    case('<units_qsim>');           units_qsim   = trim(cData)                          ! units of runoff
+   case('<units_cc>');             units_cc     = trim(cData)                          ! units of concentration
    case('<dt_ro>');                read(cData,*,iostat=io_error) dt_ro                 ! time interval of the runoff data [sec]
    case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue       ! fillvalue used for input variable
    case('<ro_calendar>');          ro_calendar  = trim(cData)                          ! name of calendar used in runoff input netcdfs

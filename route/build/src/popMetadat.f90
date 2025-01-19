@@ -30,6 +30,7 @@ USE globalData, ONLY: meta_PFAF      ! pfafstetter code
 USE globalData, ONLY: meta_rflx      ! reach flux variables
 USE globalData, ONLY: meta_hflx      ! hru flux variables
 USE globalData, ONLY: meta_basinQ    ! reach inflow from basin
+USE globalData, ONLY: meta_basinC    ! reach concentration flux from basin
 USE globalData, ONLY: meta_irf_bas   ! within-basin irf routing fluxes and states
 USE globalData, ONLY: meta_irf       ! irf routing fluxes and states in a segment
 USE globalData, ONLY: meta_kwt       ! lagrangiankinematic wave routing fluxes and states in a segment
@@ -52,6 +53,7 @@ USE var_lookup, ONLY: ixRFLX
 USE var_lookup, ONLY: ixHFLX
 USE var_lookup, ONLY: ixIRFbas
 USE var_lookup, ONLY: ixBasinQ
+USE var_lookup, ONLY: ixBasinC
 USE var_lookup, ONLY: ixIRF
 USE var_lookup, ONLY: ixKWT
 USE var_lookup, ONLY: ixKW
@@ -300,6 +302,9 @@ contains
 
  ! reach inflow from basin
  call meta_basinQ(ixBasinQ%q)%init('basin_q', 'basin routed flow', 'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%ens], .true.)
+
+ ! reach concentration flux from basin
+ call meta_basinC(ixBasinC%c)%init('basin_c', 'concentration from basin', 'g/m3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%ens], .false.)
 
  end subroutine popMetadat
 

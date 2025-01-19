@@ -246,6 +246,10 @@ MODULE var_lookup
  type, public  ::  iLook_basinQ
   integer(i4b)     :: q              = integerMissing  ! 1. final discharge (m3/s)
  endtype iLook_basinQ
+ ! Reach consituent from basin
+ type, public  ::  iLook_basinC
+  integer(i4b)     :: c              = integerMissing  ! 1. consituent flux (g/m3/s)
+ endtype iLook_basinC
  ! Basin IRF state/fluxes
  type, public  ::  iLook_IRFbas
   integer(i4b)     :: qfuture        = integerMissing  ! 1. future routed flow (m3/s)
@@ -310,6 +314,7 @@ MODULE var_lookup
                                                                          21,22,23,24,25,26,27,28)
  type(iLook_HFLX)     ,public,parameter :: ixHFLX      = iLook_HFLX     ( 1)
  type(iLook_basinQ)   ,public,parameter :: ixBasinQ    = iLook_basinQ   ( 1)
+ type(iLook_basinC)   ,public,parameter :: ixBasinC    = iLook_basinC   ( 1)
  type(iLook_IRFbas)   ,public,parameter :: ixIRFbas    = iLook_IRFbas   ( 1)
  type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      ( 1, 2, 3)
  type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      ( 1, 2, 3, 4, 5, 6)
@@ -337,6 +342,7 @@ MODULE var_lookup
  integer(i4b),parameter,public    :: nVarsIRF      = storage_size(ixIRF     )/iLength
  integer(i4b),parameter,public    :: nVarsIRFbas   = storage_size(ixIRFbas  )/iLength
  integer(i4b),parameter,public    :: nVarsBasinQ   = storage_size(ixBasinQ  )/iLength
+ integer(i4b),parameter,public    :: nVarsBasinC   = storage_size(ixBasinC  )/iLength
  ! ***********************************************************************************************************
 
 END MODULE var_lookup

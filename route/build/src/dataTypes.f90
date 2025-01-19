@@ -320,6 +320,7 @@ implicit none
    real(dp), allocatable  :: Q(:)        ! Discharge at sub-reaches at current step (m3/s)
    real(dp), allocatable  :: A(:)        ! Flow area at sub-reach at current step (m2)
    real(dp), allocatable  :: H(:)        ! Flow height at sub-reach at current step (m)
+   real(dp), allocatable  :: CC(:,:)     ! Concentration at sub-reach at current step (g/m3)
  end type SUBRCH
 
  type, public :: kwRch
@@ -345,14 +346,16 @@ implicit none
 
  ! ---------- reach fluxes --------------------------------------------------------------------
  type, public :: hydraulic
-   real(dp)        :: REACH_ELE              ! water height at current time step [m]
-   real(dp)        :: REACH_INFLOW           ! total upstream discharge at current time step [m3/s]
-   real(dp)        :: FLOOD_VOL(0:1)         ! water volume in floodplain [m3]
-   real(dp)        :: REACH_Q                ! discharge at current time step [m3/s]
-   real(dp)        :: REACH_VOL(0:1)         ! water volume at previous and current time steps [m3]
-   real(dp)        :: REACH_WM_FLUX_actual   ! water management fluxes to and from each reach [m3/s]
-   real(dp)        :: WB                     ! reach water balance error [m3]
-   real(dp)        :: Qerror
+   real(dp)              :: REACH_ELE                ! water height at current time step [m]
+   real(dp)              :: REACH_INFLOW             ! total upstream discharge at current time step [m3/s]
+   real(dp)              :: FLOOD_VOL(0:1)           ! water volume in floodplain [m3]
+   real(dp)              :: REACH_Q                  ! discharge at current time step [m3/s]
+   real(dp)              :: REACH_VOL(0:1)           ! water volume at previous and current time steps [m3]
+   real(dp)              :: REACH_WM_FLUX_actual     ! water management fluxes to and from each reach [m3/s]
+   real(dp)              :: WB                       ! reach water balance error [m3]
+   real(dp)              :: Qerror                   ! simulated discharge error compared to obs [m3/s] -- only for data assimilation
+   real(dp),allocatable  :: reach_cc(:)              ! consituents concentration at the end of reach [g/m3]
+   real(dp),allocatable  :: reach_mass(:,:)          ! consituent mass[g]. 1st dim 0:1(prev and current time), 2nd dim: a number of consituents
  end type hydraulic
 
  ! fluxes and states in each reach

@@ -128,6 +128,7 @@ MODULE public_var
   character(len=strLen),public    :: vname_qsim           = charMissing     ! variable name for runoff
   character(len=strLen),public    :: vname_evapo          = charMissing     ! variable name for actual evapoartion
   character(len=strLen),public    :: vname_precip         = charMissing     ! variable name for precipitation
+  character(len=strLen),public    :: vname_cc             = charMissing     ! variable name for consituent concentration
   character(len=strLen),public    :: vname_time           = charMissing     ! variable name for time
   character(len=strLen),public    :: vname_hruid          = charMissing     ! variable name for runoff hru id
   character(len=strLen),public    :: dname_time           = charMissing     ! dimension name for time
@@ -135,6 +136,7 @@ MODULE public_var
   character(len=strLen),public    :: dname_xlon           = charMissing     ! dimension name for x (j, longitude) dimension
   character(len=strLen),public    :: dname_ylat           = charMissing     ! dimension name for y (i, latitude) dimension
   character(len=strLen),public    :: units_qsim           = charMissing     ! units of runoff data
+  character(len=strLen),public    :: units_cc             = charMissing     ! units of concentration data
   real(dp)             ,public    :: dt_ro                = realMissing     ! runoff time step (seconds)
   real(dp)             ,public    :: input_fillvalue      = realMissing     ! fillvalue used for input variables (runoff, precipitation, evaporation)
   character(len=strLen),public    :: ro_time_units        = charMissing     ! time units used in ro netcdf. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
