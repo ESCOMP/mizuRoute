@@ -166,6 +166,7 @@ implicit none
    real(dp)                 , allocatable  :: basinRunoff(:)  ! remapped river network catchment runoff [depth/time] (size: number of nHRU)
    real(dp)                 , allocatable  :: basinEvapo(:)   ! remapped river network catchment evaporation [depth/time] (size: number of nHRU)
    real(dp)                 , allocatable  :: basinPrecip(:)  ! remapped river network catchment precipitation [depth/time] (size: number of nHRU)
+   real(dp)                 , allocatable  :: basinCC(:)      ! remapped river network catchment Consituent [mass] (size: number of nHRU)
  end type runoff
 
  type, public, extends(inputData) :: wm  ! water-management

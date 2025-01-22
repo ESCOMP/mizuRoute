@@ -102,6 +102,7 @@ MODULE public_var
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   logical(lgt)         ,public    :: floodplain           = .false.         ! logical if flood water is computed or not (floodplain is added)
   integer(i4b)         ,public    :: hw_drain_point       = 2               ! how to add inst. runoff in reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)
+  logical(lgt)         ,public    :: tracer               = .false.         ! logical if tracer is activated to compute a consituent transport
   logical(lgt)         ,public    :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
   logical(lgt)         ,public    :: lakeRegulate         = .true.          ! logical: F -> turn all the lakes into natural (lakeType=1) regardless of lakeModelType defined individually
   logical(lgt)         ,public    :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
