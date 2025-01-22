@@ -102,6 +102,8 @@ CONTAINS
   USE globalData,          ONLY: basinEvapo_trib          ! tributary only HRU Evaporation
   USE globalData,          ONLY: basinPrecip_main         ! mainstem only HRU Precipitation
   USE globalData,          ONLY: basinPrecip_trib         ! tributary only HRU Precipitation
+  USE globalData,          ONLY: basinCC_main             ! mainstem only HRU consituent mass
+  USE globalData,          ONLY: basinCC_trib             ! tributary only HRU consituent mass
   USE globalData,          ONLY: flux_wm_main             ! nRch flux holder for mainstem
   USE globalData,          ONLY: flux_wm_trib             ! nRch flux holder for tributary
   USE globalData,          ONLY: vol_wm_main              ! nRch target vol holder for mainstem
@@ -121,6 +123,7 @@ CONTAINS
   USE globalData,          ONLY: reachID
   USE globalData,          ONLY: basinID
   USE globalData,          ONLY: commRch                  !
+  USE public_var,          ONLY: tracer                   ! logical whether or not tracer is on
   USE public_var,          ONLY: is_flux_wm               ! logical whether or not water abstraction/injection occurs
   USE public_var,          ONLY: is_lake_sim              ! logical whether or not lake simulation occurs
   USE public_var,          ONLY: is_vol_wm                ! logical whether or not target volume should be passed
@@ -585,6 +588,14 @@ CONTAINS
       allocate(basinRunoff_trib(nHRU_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+      if (tracer) then
+        allocate(basinCC_main(nHRU_mainstem), source=0.0_dp, stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        allocate(basinCC_trib(nHRU_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
+
       ! precipitation and evaporation
       if (is_lake_sim) then
         allocate(basinEvapo_main(nHRU_mainstem), source=0.0_dp, stat=ierr, errmsg=cmessage)
@@ -631,6 +642,11 @@ CONTAINS
       ! basin runoff array
       allocate(basinRunoff_trib(nHRU_trib),source=0.0_dp, stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      if (tracer) then
+        allocate(basinCC_trib(nHRU_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
 
       ! precipitation and evaporation
       if (is_lake_sim) then
@@ -1154,6 +1170,8 @@ CONTAINS
   USE globalData, ONLY: basinEvapo_trib     ! tributary only HRU Evaporation
   USE globalData, ONLY: basinPrecip_main    ! mainstem only HRU Precipitation
   USE globalData, ONLY: basinPrecip_trib    ! tributary only HRU Precipitation
+  USE globalData, ONLY: basinCC_main        ! mainstem only HRU consitunet mass
+  USE globalData, ONLY: basinCC_trib        ! tributary only HRU consitunet mass
   USE globalData, ONLY: river_basin_trib    ! tributary OMP domain data structure
   USE globalData, ONLY: river_basin_main    ! mainstem OMP domain data structure
   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
@@ -1259,6 +1277,7 @@ CONTAINS
                   basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
                   basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
                   basinPrecip_trib,  &  ! input: basin (i.e. HRU) Precip (m/s)
+                  basinCC_trib,      &  ! input: basin (i.e. HRU) consituent (g)
                   flux_wm_trib,      &  ! reach (i.e.,reach) flux (m3/s)
                   vol_wm_trib,       &  ! reach (i.e.,reach) target volume for lakes (m3)
                   ixRchProcessed,    &  ! input: indices of reach to be routed
@@ -1340,6 +1359,7 @@ CONTAINS
                       basinRunoff_main,        &  ! input: basin (i.e.,HRU) runoff (m/s)
                       basinEvapo_main,         &  ! input: basin (i.e. HRU) Evapo  (m/s)
                       basinPrecip_main,        &  ! input: basin (i.e. HRU) Precip (m/s)
+                      basinCC_main,            &  ! input: basin (i.e. HRU) consituent (g)
                       flux_wm_main,            &  ! reach (i.e.,reach) flux (m3/s)
                       vol_wm_main,             &  ! reach (i.e.,reach) target volume for lakes (m3)
                       ixRchProcessed,          &  ! input: indices of reach to be routed
@@ -1403,6 +1423,8 @@ CONTAINS
   USE globalData, ONLY: basinEvapo_trib   ! HRU evaporation holder for tributary
   USE globalData, ONLY: basinPrecip_main  ! HRU precipitation holder for mainstem
   USE globalData, ONLY: basinPrecip_trib  ! HRU precipitation holder for tributary
+  USE globalData, ONLY: basinCC_main      ! HRU consitunet holder for mainstem
+  USE globalData, ONLY: basinCC_trib      ! HRU consitunet holder for tributary
   USE public_var, ONLY: is_lake_sim       ! logical whether or not lake should be simulated
 
   implicit none

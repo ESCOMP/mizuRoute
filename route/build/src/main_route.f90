@@ -28,6 +28,7 @@ CONTAINS
                        basinRunoff_in, &  ! input: basin (i.e.,HRU) runoff (m/s)
                        basinEvapo_in,  &  ! input: basin (i.e.,HRU) evaporation (m/s)
                        basinPrecip_in, &  ! input: basin (i.e.,HRU) precipitation (m/s)
+                       basinCC_in,     &  ! input: basin (i.e.,HRU) consituent (g)
                        reachflux_in,   &  ! input: reach (i.e.,reach) flux (m3/s)
                        reachvol_in,    &  ! input: reach (i.e.,reach) target volume for lakes (m3)
                        ixRchProcessed, &  ! input: indices of reach to be routed
@@ -51,6 +52,7 @@ CONTAINS
    USE globalData, ONLY: simDatetime             ! current model datetime
    USE globalData, ONLY: rch_routes              !
    USE public_var, ONLY: doesBasinRoute
+   USE public_var, ONLY: tracer                  ! logical whether or not tracer is on
    USE public_var, ONLY: is_flux_wm              ! logical whether or not fluxes should be passed
    USE public_var, ONLY: is_vol_wm               ! logical whether or not target volume should be passed
    USE public_var, ONLY: qmodOption              ! options for streamflow modification (DA)
@@ -61,6 +63,7 @@ CONTAINS
    real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    real(dp),           allocatable, intent(in)    :: basinEvapo_in(:)     ! basin (i.e.,HRU) evaporation (m/s)
    real(dp),           allocatable, intent(in)    :: basinPrecip_in(:)    ! basin (i.e.,HRU) precipitation (m/s)
+   real(dp),           allocatable, intent(in)    :: basinCC_in(:)        ! basin (i.e.,HRU) consituent (g)
    real(dp),           allocatable, intent(in)    :: reachflux_in(:)      ! reach (i.e.,reach) flux (m3/s)
    real(dp),           allocatable, intent(in)    :: reachvol_in(:)       ! reach (i.e.,reach) target volume for lakes (m3)
    integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
@@ -76,6 +79,7 @@ CONTAINS
    ! local variables
    character(len=strLen)                          :: cmessage             ! error message of downwind routine
    real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
+   real(dp),           allocatable                :: reachCC_local(:)     ! reach consituent (g)
    real(dp),           allocatable                :: reachEvapo_local(:)  ! reach evaporation (m/s)
    real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m/s)
    real(dp)                                       :: qobs                 ! observed discharge at a time step and site
@@ -137,7 +141,6 @@ CONTAINS
       ierr=1; message=trim(message)//"Error: qmodOption invalid"; return
   end select
 
-  ! 1. subroutine: map basin runoff to river network HRUs
   ! map the basin runoff to the stream network...
   call basin2reach(basinRunoff_in,     & ! input: basin runoff (m/s)
                    NETOPO_in,          & ! input: reach topology
@@ -146,6 +149,19 @@ CONTAINS
                    ierr, cmessage,     & ! output: error control
                    ixRchProcessed)       ! optional input: indices of reach to be routed
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  if(tracer) then
+    allocate(reachCC_local(nSeg), source=0._dp, stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachCC_local]'; return; endif
+
+    call basin2reach(basinCC_in,         & ! input: basin runoff (m/s)
+                     NETOPO_in,          & ! input: reach topology
+                     RPARAM_in,          & ! input: reach parameter
+                     reachCC_local,  & ! output: reach runoff (m3/s)
+                     ierr, cmessage,     & ! output: error control
+                     ixRchProcessed)       ! optional input: indices of reach to be routed
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
 
   if (is_lake_sim) then
 
