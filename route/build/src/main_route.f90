@@ -28,7 +28,7 @@ CONTAINS
                        basinRunoff_in, &  ! input: basin (i.e.,HRU) runoff (m/s)
                        basinEvapo_in,  &  ! input: basin (i.e.,HRU) evaporation (m/s)
                        basinPrecip_in, &  ! input: basin (i.e.,HRU) precipitation (m/s)
-                       basinCC_in,     &  ! input: basin (i.e.,HRU) consituent (g)
+                       basinCC_in,     &  ! input: basin (i.e.,HRU) constituent (g)
                        reachflux_in,   &  ! input: reach (i.e.,reach) flux (m3/s)
                        reachvol_in,    &  ! input: reach (i.e.,reach) target volume for lakes (m3)
                        ixRchProcessed, &  ! input: indices of reach to be routed
@@ -63,7 +63,7 @@ CONTAINS
    real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    real(dp),           allocatable, intent(in)    :: basinEvapo_in(:)     ! basin (i.e.,HRU) evaporation (m/s)
    real(dp),           allocatable, intent(in)    :: basinPrecip_in(:)    ! basin (i.e.,HRU) precipitation (m/s)
-   real(dp),           allocatable, intent(in)    :: basinCC_in(:)        ! basin (i.e.,HRU) consituent (g)
+   real(dp),           allocatable, intent(in)    :: basinCC_in(:)        ! basin (i.e.,HRU) constituent (g)
    real(dp),           allocatable, intent(in)    :: reachflux_in(:)      ! reach (i.e.,reach) flux (m3/s)
    real(dp),           allocatable, intent(in)    :: reachvol_in(:)       ! reach (i.e.,reach) target volume for lakes (m3)
    integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
@@ -79,7 +79,7 @@ CONTAINS
    ! local variables
    character(len=strLen)                          :: cmessage             ! error message of downwind routine
    real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
-   real(dp),           allocatable                :: reachCC_local(:)     ! reach consituent (g)
+   real(dp),           allocatable                :: reachCC_local(:)     ! reach constituent (g)
    real(dp),           allocatable                :: reachEvapo_local(:)  ! reach evaporation (m/s)
    real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m/s)
    real(dp)                                       :: qobs                 ! observed discharge at a time step and site

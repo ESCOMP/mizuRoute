@@ -23,11 +23,11 @@ CONTAINS
   USE public_var,           ONLY: vname_qsim          ! varibale runoff in netCDF file
   USE public_var,           ONLY: vname_evapo         ! varibale actual evaporation in netCDF file
   USE public_var,           ONLY: vname_precip        ! varibale precipitation in netCDF file
-  USE public_var,           ONLY: vname_cc            ! varibale name of a consituent [g] in netCDF file
+  USE public_var,           ONLY: vname_cc            ! varibale name of a constituent [g] in netCDF file
   USE public_var,           ONLY: vname_flux_wm       ! varibale precipitation in netCDF file
   USE public_var,           ONLY: vname_vol_wm        ! varibale precipitation in netCDF file
   USE public_var,           ONLY: is_remap            ! logical runnoff needs to be mapped to river network HRU
-  USE public_var,           ONLY: tracer              ! logical to activate a consituent transport simulation
+  USE public_var,           ONLY: tracer              ! logical to activate a constituent transport simulation
   USE public_var,           ONLY: is_lake_sim         ! logical lake should be simulated
   USE public_var,           ONLY: is_flux_wm          ! logical water management components fluxes should be read
   USE public_var,           ONLY: is_vol_wm           ! logical water management components target volume should be read
@@ -106,16 +106,16 @@ CONTAINS
     if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
   end if
 
-  ! Optional: reading consituent
+  ! Optional: reading constituent
   if (tracer) then
     call read_forcing_data(inFileInfo_ro,         & ! input: meta for runoff input files
-                           vname_cc,              & ! input: consituent varname
+                           vname_cc,              & ! input: constituent varname
                            tmap_sim_ro,           & ! input: ro-sim time mapping at current simulation step
-                           runoff_data,           & ! inout: consituent conentration data structure
+                           runoff_data,           & ! inout: constituent conentration data structure
                            ierr, cmessage)          ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! Get river network HRU consituent into runoff_data data structure
+    ! Get river network HRU constituent into runoff_data data structure
     if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
       call remap_runoff(runoff_data, remap_data, runoff_data%basinCC, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

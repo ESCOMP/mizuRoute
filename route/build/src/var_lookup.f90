@@ -246,9 +246,9 @@ MODULE var_lookup
  type, public  ::  iLook_basinQ
   integer(i4b)     :: q              = integerMissing  ! 1. final discharge (m3/s)
  endtype iLook_basinQ
- ! Reach consituent from basin
+ ! Reach constituent from basin
  type, public  ::  iLook_basinC
-  integer(i4b)     :: c              = integerMissing  ! 1. consituent flux (g/m3/s)
+  integer(i4b)     :: c              = integerMissing  ! 1. constituent flux (g/m3/s)
  endtype iLook_basinC
  ! Basin IRF state/fluxes
  type, public  ::  iLook_IRFbas

@@ -102,8 +102,8 @@ CONTAINS
   USE globalData,          ONLY: basinEvapo_trib          ! tributary only HRU Evaporation
   USE globalData,          ONLY: basinPrecip_main         ! mainstem only HRU Precipitation
   USE globalData,          ONLY: basinPrecip_trib         ! tributary only HRU Precipitation
-  USE globalData,          ONLY: basinCC_main             ! mainstem only HRU consituent mass
-  USE globalData,          ONLY: basinCC_trib             ! tributary only HRU consituent mass
+  USE globalData,          ONLY: basinCC_main             ! mainstem only HRU constituent mass
+  USE globalData,          ONLY: basinCC_trib             ! tributary only HRU constituent mass
   USE globalData,          ONLY: flux_wm_main             ! nRch flux holder for mainstem
   USE globalData,          ONLY: flux_wm_trib             ! nRch flux holder for tributary
   USE globalData,          ONLY: vol_wm_main              ! nRch target vol holder for mainstem
@@ -1277,7 +1277,7 @@ CONTAINS
                   basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
                   basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
                   basinPrecip_trib,  &  ! input: basin (i.e. HRU) Precip (m/s)
-                  basinCC_trib,      &  ! input: basin (i.e. HRU) consituent (g)
+                  basinCC_trib,      &  ! input: basin (i.e. HRU) constituent (g)
                   flux_wm_trib,      &  ! reach (i.e.,reach) flux (m3/s)
                   vol_wm_trib,       &  ! reach (i.e.,reach) target volume for lakes (m3)
                   ixRchProcessed,    &  ! input: indices of reach to be routed
@@ -1359,7 +1359,7 @@ CONTAINS
                       basinRunoff_main,        &  ! input: basin (i.e.,HRU) runoff (m/s)
                       basinEvapo_main,         &  ! input: basin (i.e. HRU) Evapo  (m/s)
                       basinPrecip_main,        &  ! input: basin (i.e. HRU) Precip (m/s)
-                      basinCC_main,            &  ! input: basin (i.e. HRU) consituent (g)
+                      basinCC_main,            &  ! input: basin (i.e. HRU) constituent (g)
                       flux_wm_main,            &  ! reach (i.e.,reach) flux (m3/s)
                       vol_wm_main,             &  ! reach (i.e.,reach) target volume for lakes (m3)
                       ixRchProcessed,          &  ! input: indices of reach to be routed

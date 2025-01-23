@@ -129,7 +129,7 @@ CONTAINS
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
    case('<floodplain>');           read(cData,*,iostat=io_error) floodplain            ! logical: floodwater is computed, otherwise, channel is unlimited bank depth
    case('<hw_drain_point>');       read(cData,*,iostat=io_error) hw_drain_point        ! integer: how to add inst. runoff in reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)
-   case('<tracer>');               read(cData,*,iostat=io_error) tracer                ! logical; tracer is activated to compute a consituent transport
+   case('<tracer>');               read(cData,*,iostat=io_error) tracer                ! logical; tracer is activated to compute a constituent transport
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
    case('<lakeRegulate>');         read(cData,*,iostat=io_error) lakeRegulate          ! logical: F -> turn all the lakes into natural (lakeType=1) regardless of lakeModelType defined individually. T (default)
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm            ! logical; provided fluxes to or from seg/lakes should be considered
