@@ -14,6 +14,7 @@ MODULE histVars_data
   USE public_var,        ONLY: diffusiveWave              ! DW routing ID = 5
   USE public_var,        ONLY: outputInflow               ! logical for outputting upstream inflow in history file
   USE public_var,        ONLY: floodplain                 ! logical for outputting upstream inflow in history file
+  USE public_var,        ONLY: tracer                     ! logical for tracer
   USE globalData,        ONLY: nRoutes
   USE globalData,        ONLY: routeMethods
   USE globalData,        ONLY: meta_rflx, meta_hflx
@@ -60,6 +61,7 @@ MODULE histVars_data
     real(dp), allocatable    :: waterHeight(:,:)   ! river/lake surface water elevation [m] for each reach/lake and routing method [nRch,nMethod]
     real(dp), allocatable    :: floodVolume(:,:)   ! river/lake volume [m3] for each reach/lake and routing method [nRch,nMethod]
     real(dp), allocatable    :: volume(:,:)        ! river/lake volume [m3] for each reach/lake and routing method [nRch,nMethod]
+    real(dp), allocatable    :: cc(:,:)            ! concentration [g/m3] for each reach/lake and routing method [nRch,nMethod]
 
     CONTAINS
 
@@ -132,6 +134,12 @@ MODULE histVars_data
           allocate(instHistVar%inflow(nRch_local, nRoutes), source=0._dp, stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%inflow]'; return; endif
         end if
+
+        if (tracer) then
+          allocate(instHistVar%cc(nRch_local, nRoutes), source=0._dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%cc]'; return; endif
+        end if
+
       end if
 
     END FUNCTION constructor
@@ -224,6 +232,9 @@ MODULE histVars_data
           if (outputInflow) then
             this%inflow(ix,iRoute)  = this%inflow(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_INFLOW
           end if
+          if (tracer) then
+            this%cc(ix,iRoute)  = this%cc(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_CC
+          end if
         end do
       end do
 
@@ -279,6 +290,10 @@ MODULE histVars_data
         this%inflow = this%inflow/real(this%nt, kind=dp)
       end if
 
+      if (allocated(this%cc)) then
+        this%cc = this%cc/real(this%nt, kind=dp)
+      end if
+
     END SUBROUTINE finalize
 
     ! ---------------------------------------------------------------
@@ -300,6 +315,7 @@ MODULE histVars_data
       if (allocated(this%waterHeight)) this%waterHeight = 0._dp
       if (allocated(this%floodVolume)) this%floodVolume = 0._dp
       if (allocated(this%inflow))      this%inflow = 0._dp
+      if (allocated(this%cc))          this%cc = 0._dp
 
     END SUBROUTINE refresh
 
@@ -320,6 +336,7 @@ MODULE histVars_data
       if (allocated(this%waterHeight)) deallocate(this%waterHeight)
       if (allocated(this%floodVolume)) deallocate(this%floodVolume)
       if (allocated(this%inflow))      deallocate(this%inflow)
+      if (allocated(this%cc))          deallocate(this%cc)
 
     END SUBROUTINE clean
 

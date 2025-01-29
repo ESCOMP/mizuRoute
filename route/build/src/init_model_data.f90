@@ -353,6 +353,7 @@ CONTAINS
   USE public_var, ONLY: kinematicWave          ! KW routing ID = 3
   USE public_var, ONLY: muskingumCunge         ! MC routing ID = 4
   USE public_var, ONLY: diffusiveWave          ! DW routing ID = 5
+  USE public_var, ONLY: tracer                 ! T or F to tell whether tracer is on or not
   USE public_var, ONLY: is_lake_sim            ! logical if lakes are activated in simulation
   USE globalData, ONLY: idxSUM, idxIRF, idxKWT, &
                         idxKW, idxMC, idxDW
@@ -468,6 +469,10 @@ CONTAINS
           allocate(RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%Q]'; return; endif
           RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%Q(:) = 0._dp
+          if (tracer) then
+            allocate(RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%CC(nMolecule%KW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%CC]'; return; endif
+          end if
         end do
       end if
       if (onRoute(muskingumCunge)) then
@@ -478,6 +483,10 @@ CONTAINS
           allocate(RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%Q]'; return; endif
           RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%Q(:) = 0._dp
+          if (tracer) then
+            allocate(RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%CC(nMolecule%MC_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%CC]'; return; endif
+          end if
         end do
       end if
       if (onRoute(diffusiveWave)) then
@@ -488,6 +497,10 @@ CONTAINS
           allocate(RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%Q]'; return; endif
           RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%Q(:) = 0._dp
+          if (tracer) then
+            allocate(RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%CC(nMolecule%DW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%CC]'; return; endif
+          end if
         end do
       end if
     else
@@ -539,6 +552,10 @@ CONTAINS
             allocate(RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%Q]'; return; endif
             RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%Q(:) = 0._dp
+            if (tracer) then
+              allocate(RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%CC(nMolecule%KW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+              if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%CC]'; return; endif
+            end if
           end do
         end if
         if (onRoute(muskingumCunge)) then
@@ -550,6 +567,10 @@ CONTAINS
             allocate(RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%Q]'; return; endif
             RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%Q(:) = 0._dp
+            if (tracer) then
+              allocate(RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%CC(nMolecule%MC_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+              if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%CC]'; return; endif
+            end if
           end do
         end if
         if (onRoute(diffusiveWave)) then
@@ -561,6 +582,10 @@ CONTAINS
             allocate(RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%Q]'; return; endif
             RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%Q(:) = 0._dp
+            if (tracer) then
+              allocate(RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%CC(nMolecule%DW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+              if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%CC]'; return; endif
+            end if
           end do
         end if
       end if

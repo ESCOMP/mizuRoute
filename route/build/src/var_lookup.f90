@@ -234,6 +234,8 @@ MODULE var_lookup
   integer(i4b)     :: KWinflow          = integerMissing  ! 26. KW inflow from upstreams into reach/lake (m3/s)
   integer(i4b)     :: MCinflow          = integerMissing  ! 27. MC inflow from upstreams into reach/lake (m3/s)
   integer(i4b)     :: DWinflow          = integerMissing  ! 28. DW inflow from upstreams into reach/lake (m3/s)
+  integer(i4b)     :: localCC           = integerMissing  ! 29. concentration from local basin (g/m3)
+  integer(i4b)     :: DWcc              = integerMissing  ! 30. DW routed concentration from upstreams into reach/lake (g/m3)
  endtype iLook_RFLX
  ! HRU fluxes
  type, public  ::  iLook_HFLX
@@ -311,7 +313,7 @@ MODULE var_lookup
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     ( 1)
  type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     ( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &
                                                                          11,12,13,14,15,16,17,18,19,20, &
-                                                                         21,22,23,24,25,26,27,28)
+                                                                         21,22,23,24,25,26,27,28,29,30)
  type(iLook_HFLX)     ,public,parameter :: ixHFLX      = iLook_HFLX     ( 1)
  type(iLook_basinQ)   ,public,parameter :: ixBasinQ    = iLook_basinQ   ( 1)
  type(iLook_basinC)   ,public,parameter :: ixBasinC    = iLook_basinC   ( 1)

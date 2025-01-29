@@ -11,8 +11,11 @@ USE obs_data,             ONLY: gageObs
 USE globalData,           ONLY: routeMethods    ! Active routing method IDs
 USE public_var,           ONLY: is_lake_sim     ! lake simulation flag
 USE public_var,           ONLY: integerMissing  ! missing integer value
-USE process_remap_module, ONLY: basin2reach     ! remap HRU variable to reach
+USE public_var,           ONLY: tracer          ! logical whether or not tracer is on
+USE process_remap_module, ONLY: basin2reach     ! remap HRU variable to reach for volume
+USE process_remap_module, ONLY: basin2reach_mass! remap HRU variable to reach for mass concentration
 USE basinUH_module,       ONLY: IRF_route_basin ! perform UH convolution for basin routing
+USE tracer_module,        ONLY: constituent_rch ! constituent routing per segment
 
 implicit none
 
@@ -52,7 +55,6 @@ CONTAINS
    USE globalData, ONLY: simDatetime             ! current model datetime
    USE globalData, ONLY: rch_routes              !
    USE public_var, ONLY: doesBasinRoute
-   USE public_var, ONLY: tracer                  ! logical whether or not tracer is on
    USE public_var, ONLY: is_flux_wm              ! logical whether or not fluxes should be passed
    USE public_var, ONLY: is_vol_wm               ! logical whether or not target volume should be passed
    USE public_var, ONLY: qmodOption              ! options for streamflow modification (DA)
@@ -150,19 +152,6 @@ CONTAINS
                    ixRchProcessed)       ! optional input: indices of reach to be routed
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  if(tracer) then
-    allocate(reachCC_local(nSeg), source=0._dp, stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachCC_local]'; return; endif
-
-    call basin2reach(basinCC_in,         & ! input: basin runoff (m/s)
-                     NETOPO_in,          & ! input: reach topology
-                     RPARAM_in,          & ! input: reach parameter
-                     reachCC_local,  & ! output: reach runoff (m3/s)
-                     ierr, cmessage,     & ! output: error control
-                     ixRchProcessed)       ! optional input: indices of reach to be routed
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  end if
-
   if (is_lake_sim) then
 
     ! allocate evaporation
@@ -213,6 +202,28 @@ CONTAINS
        RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1) = reachRunoff_local(iSeg)             ! streamflow (m3/s)
      end do
    end if
+
+   if(tracer) then
+     allocate(reachCC_local(nSeg), source=0._dp, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachCC_local]'; return; endif
+
+     call basin2reach_mass(basinCC_in,         & ! input: basin total constitunet (g/s)
+                           NETOPO_in,          & ! input: reach topology
+                           reachCC_local,      & ! output:total constituent going to reach (g/s)
+                           ierr, cmessage,     & ! output: error control
+                           ixRchProcessed)       ! optional input: indices of reach to be routed
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     if (doesBasinRoute == 1) then
+     else
+       do iSeg = 1,nSeg
+         if (RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1)>0) then
+           RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_C = reachCC_local(iSeg)/RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1)     ! total constituent going to reach (g/m3)
+         else
+           RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_C = 0._dp
+         endif
+       end do
+     end if
+   end if ! tracer
 
    ! allocating precipitation and evaporation for
    if (is_lake_sim) then
@@ -368,6 +379,8 @@ CONTAINS
                                  ierr,cmessage)    ! output: error control
           end if
           if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
+          if (tracer) then
+          end if
         end do ! reach index
       end do ! tributary
 !$OMP END PARALLEL DO

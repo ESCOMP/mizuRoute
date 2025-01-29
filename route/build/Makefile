@@ -224,6 +224,7 @@ CORE = \
     kwe_route.f90 \
     mc_route.f90 \
     dfw_route.f90 \
+    tracer.f90 \
     main_route.f90 \
     mpi_process.f90 \
     init_model_data.f90 \

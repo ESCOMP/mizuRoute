@@ -264,6 +264,8 @@ contains
  call meta_rflx(ixRFLX%KWinflow         )%init('KWinflow'        ,  'Inflow from upstream lake or streams-kinematic wave'            , 'm3/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%MCinflow         )%init('MCinflow'        ,  'Inflow from upstream lake or streams-muskingum-cunge'           , 'm3/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%DWinflow         )%init('DWinflow'        ,  'Inflow from upstream lake or streams-diffusive wave'            , 'm3/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%localCC          )%init('localDOC'         , 'Dissolved Carbon concentration from local basin'                , 'g/m3', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%DWcc             )%init('routedDOC'        , 'Dissolved Carbon concentration routed from upstream'            , 'g/m3', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
 
  ! HRU flux                                    varName              varDesc                                                  unit,   varType,  varDim,                     writeOut
  call meta_hflx(ixHFLX%basRunoff        )%init('basRunoff'        , 'basin runoff'                                         , 'm/s' , ncd_float, [ixQdims%hru,ixQdims%time], .true.)
@@ -304,7 +306,7 @@ contains
  call meta_basinQ(ixBasinQ%q)%init('basin_q', 'basin routed flow', 'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%ens], .true.)
 
  ! reach concentration flux from basin
- call meta_basinC(ixBasinC%c)%init('basin_c', 'concentration from basin', 'g/m3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%ens], .false.)
+ call meta_basinC(ixBasinC%c)%init('basin_c', 'concentration from basin', 'g/s' ,ncd_double, [ixStateDims%seg,ixStateDims%ens], .false.)
 
  end subroutine popMetadat
 

@@ -657,6 +657,7 @@ CONTAINS
 
  ! basin runoff routing option
  if (doesBasinRoute==0) meta_rflx(ixRFLX%instRunoff)%varFile = .false.
+ if (tracer) meta_rflx(ixRFLX%DWcc)%varFile = .true.
 
  END SUBROUTINE read_control
 
