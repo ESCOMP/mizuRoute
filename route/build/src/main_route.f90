@@ -7,8 +7,10 @@ USE dataTypes,            ONLY: RCHTOPO         ! Network topology
 USE dataTypes,            ONLY: RCHPRP          ! Reach parameter
 USE dataTypes,            ONLY: runoff          ! runoff data type
 USE dataTypes,            ONLY: subbasin_omp    ! mainstem+tributary data structures
+USE obs_data,             ONLY: gageObs
 USE globalData,           ONLY: routeMethods    ! Active routing method IDs
 USE public_var,           ONLY: is_lake_sim     ! lake simulation flag
+USE public_var,           ONLY: integerMissing  ! missing integer value
 USE process_remap_module, ONLY: basin2reach     ! remap HRU variable to reach
 USE basinUH_module,       ONLY: IRF_route_basin ! perform UH convolution for basin routing
 
@@ -35,19 +37,23 @@ CONTAINS
                        ixDesire,       &  ! input: index of verbose reach
                        RCHFLX_out,     &  ! inout: reach flux data structure
                        RCHSTA_out,     &  ! inout: reach state data structure
+                       gage_obs_data,  &  ! inout: gauge data
                        ierr, message)     ! output: error control
    ! Details:
    ! Given HRU (basin) runoff, perform hru routing (optional) to get reach runoff, and then channel routing
+   ! This routine is called from each distributed core
    ! Restriction:
    ! 1. Reach order in NETOPO_in, RPARAM_in, RCHFLX_out, RCHSTA_out must be in the same orders
    ! 2. Process a list of reach indices (in terms of NETOPO_in etc.) given by ixRchProcessed
    ! 3. basinRunoff_in is given in the order of NETOPO_in(:)%HRUIX.
 
    USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
+   USE globalData, ONLY: simDatetime             ! current model datetime
    USE globalData, ONLY: rch_routes              !
    USE public_var, ONLY: doesBasinRoute
    USE public_var, ONLY: is_flux_wm              ! logical whether or not fluxes should be passed
    USE public_var, ONLY: is_vol_wm               ! logical whether or not target volume should be passed
+   USE public_var, ONLY: qmodOption              ! options for streamflow modification (DA)
 
    implicit none
    ! argument variables
@@ -64,6 +70,7 @@ CONTAINS
    integer(i4b),                    intent(in)    :: ixDesire             ! index of the reach for verbose output
    type(STRFLX),                    intent(inout) :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    type(STRSTA),                    intent(inout) :: RCHSTA_out(:,:)      ! reach state data structure
+   type(gageObs),                   intent(inout) :: gage_obs_data        ! gauge observation data
    integer(i4b),                    intent(out)   :: ierr                 ! error code
    character(len=strLen),           intent(out)   :: message              ! error message
    ! local variables
@@ -71,9 +78,13 @@ CONTAINS
    real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
    real(dp),           allocatable                :: reachEvapo_local(:)  ! reach evaporation (m/s)
    real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m/s)
+   real(dp)                                       :: qobs                 ! observed discharge at a time step and site
    integer(i4b)                                   :: nSeg                 ! number of reach to be processed
    integer(i4b)                                   :: iSeg                 ! index of reach
-   integer(i4b)                                   :: ix                   ! loop index
+   integer(i4b)                                   :: ix,jx                ! loop index
+   integer(i4b), allocatable                      :: reach_ix(:)
+   integer(i4b), parameter                        :: no_mod=0
+   integer(i4b), parameter                        :: direct_insert=1
 
    ierr=0; message = "main_routing/"
 
@@ -100,6 +111,31 @@ CONTAINS
   else
     RCHFLX_out(iens,:)%REACH_WM_VOL = 0._dp
   end if
+
+  select case(qmodOption)
+    case(no_mod) ! do nothing
+    case(direct_insert)
+      ! read gage observation [m3/s] at current time
+      jx = gage_obs_data%time_ix(simDatetime(1))
+
+      if (jx/=integerMissing) then ! there is observation at this time step
+        call gage_obs_data%read_obs(ierr, cmessage, index_time=jx)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        ! put qmod at right reach
+        reach_ix = gage_obs_data%link_ix()
+        do ix=1,size(reach_ix) ! size(reach_ix) is number of gauges
+          if (reach_ix(ix)==integerMissing) cycle
+          qobs = gage_obs_data%get_obs(tix=1, six=ix)
+          if (isnan(qobs) .or. qobs<0) cycle
+          RCHFLX_out(iens,reach_ix(ix))%Qobs = qobs
+          RCHFLX_out(iens,reach_ix(ix))%Qelapsed = 0
+        end do
+      else
+        RCHFLX_out(iens,:)%Qelapsed = RCHFLX_out(iens,:)%Qelapsed + 1 ! change only gauge point
+      end if
+    case default
+      ierr=1; message=trim(message)//"Error: qmodOption invalid"; return
+  end select
 
   ! 1. subroutine: map basin runoff to river network HRUs
   ! map the basin runoff to the stream network...

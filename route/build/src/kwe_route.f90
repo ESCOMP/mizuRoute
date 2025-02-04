@@ -22,6 +22,7 @@ USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method 
 USE hydraulic,     ONLY: flow_depth
 USE hydraulic,     ONLY: water_height
 USE hydraulic,     ONLY: Pwet
+USE data_assimilation, ONLY: direct_insertion ! qmod option (use 1==direct insertion)
 
 implicit none
 
@@ -99,9 +100,6 @@ CONTAINS
    do iUps = 1,nUps
      if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach which does not any flow due to zero total contributory areas
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     if (qmodOption==1 .and. RCHFLX_out(iens,iRch_ups)%Qobs/=realMissing) then
-       RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q = RCHFLX_out(iens,iRch_ups)%Qobs
-     end if
      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q
    end do
    q_upstream_mod  = q_upstream
@@ -184,6 +182,19 @@ CONTAINS
  if (RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(1) < 0) then
    write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(1), &
          'at ', NETOPO_in(segIndex)%REACHID
+ end if
+
+ if (qmodOption==1) then
+   call direct_insertion(iens, segIndex, & ! input: reach index
+                         idxKW,          & ! input: routing method id for diffusive wave routing
+                         ixDesire,       & ! input: verbose seg index
+                         NETOPO_in,      & ! input: reach topology data structure
+                         RCHSTA_out,     & ! inout: reach state data structure
+                         RCHFLX_out,     & ! inout: reach fluxes datq structure
+                         ierr, cmessage)   ! output: error control
+   if(ierr/=0)then
+     write(message,'(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
+   endif
  end if
 
  call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxKW, q_upstream, Qlat, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
