@@ -1426,6 +1426,7 @@ CONTAINS
   USE globalData, ONLY: basinCC_main      ! HRU consitunet holder for mainstem
   USE globalData, ONLY: basinCC_trib      ! HRU consitunet holder for tributary
   USE public_var, ONLY: is_lake_sim       ! logical whether or not lake should be simulated
+  USE public_var, ONLY: tracer            ! logical whether or not tracer is on
 
   implicit none
   ! argument variables
@@ -1437,6 +1438,7 @@ CONTAINS
   real(dp)                                :: basinRunoff_local(nHRU)   ! temporal basin runoff (m/s) for whole domain
   real(dp)                                :: basinEvapo_local(nHRU)    ! temporal basin evaporation (m/s) for whole domain
   real(dp)                                :: basinPrecip_local(nHRU)   ! temporal basin precipitation (m/s) for whole domain
+  real(dp)                                :: basinCC_local(nHRU)       ! temporal basin constituent (g) for whole domain
   character(len=strLen)                   :: cmessage                  ! error message from a subroutine
 
   ierr=0; message='scatter_runoff/'
@@ -1450,6 +1452,10 @@ CONTAINS
     if (is_lake_sim) then
       basinEvapo_local (1:nHRU) = runoff_data%basinEvapo(1:nHRU)
       basinPrecip_local(1:nHRU) = runoff_data%basinPrecip(1:nHRU)
+    end if
+
+    if (tracer) then
+      basinCC_local (1:nHRU) = runoff_data%basinCC(1:nHRU)
     end if
 
     if (nHRU_mainstem>0) then
@@ -1472,6 +1478,15 @@ CONTAINS
         endif
         basinPrecip_main(1:nHRU_mainstem) = basinPrecip_local(1:nHRU_mainstem)
       end if
+
+      if (tracer) then
+        if (.not. allocated(basinCC_main)) then
+          allocate(basinCC_main(nHRU_mainstem), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinEvapo_main]'; return; endif
+        endif
+        basinCC_main (1:nHRU_mainstem) = basinCC_local (1:nHRU_mainstem)
+
+      end if
     end if
 
   end if ! (masterproc)
@@ -1493,6 +1508,14 @@ CONTAINS
     call shr_mpi_scatterV(basinPrecip_local(nHRU_mainstem+1:nHRU), &
                           hru_per_proc(0:nNodes-1),                &
                           basinPrecip_trib,                        &
+                          ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (tracer) then
+    call shr_mpi_scatterV(basinCC_local(nHRU_mainstem+1:nHRU), &
+                          hru_per_proc(0:nNodes-1),            &
+                          basinCC_trib,                        &
                           ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
