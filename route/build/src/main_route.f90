@@ -213,16 +213,13 @@ CONTAINS
                            ierr, cmessage,     & ! output: error control
                            ixRchProcessed)       ! optional input: indices of reach to be routed
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     if (doesBasinRoute == 1) then
-     else
-       do iSeg = 1,nSeg
-         if (RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1)>0) then
-           RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_C = reachCC_local(iSeg)/RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1)     ! total constituent going to reach (g/m3)
-         else
-           RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_C = 0._dp
-         endif
-       end do
-     end if
+     do iSeg = 1,nSeg
+       if (RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1)>0) then
+         RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_C = reachCC_local(iSeg)     ! total constituent going to reach (g/m3)
+       else
+         RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_C = 0._dp
+       endif
+     end do
    end if ! tracer
 
    ! allocating precipitation and evaporation for
@@ -380,6 +377,14 @@ CONTAINS
           end if
           if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
           if (tracer) then
+            call constituent_rch(iEns,jSeg ,    & ! input: index of runoff ensemble to be processed
+                                 ixDesire,      & ! input: reachID to be checked by on-screen pringing
+                                 NETOPO_in,     & ! input: reach topology data structure
+                                 RPARAM_in,     & ! input: reach parameter data structure
+                                 RCHSTA_out,    & ! inout: reach state data structure
+                                 RCHFLX_out,    & ! inout: reach flux data structure
+                                 ierr, message)   ! output: error control
+            if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
           end if
         end do ! reach index
       end do ! tributary
