@@ -259,7 +259,9 @@ CONTAINS
    case('<varname_slope>'          ); meta_SEG    (ixSEG%slope           )%varName =trim(cData)   ! slope of segment   (-)
    case('<varname_width>'          ); meta_SEG    (ixSEG%width           )%varName =trim(cData)   ! width of segment   (m)
    case('<varname_depth>'          ); meta_SEG    (ixSEG%depth           )%varName =trim(cData)   ! bankful depth of segment   (m)
+   case('<varname_sideSlope>'      ); meta_SEG    (ixSEG%sideSlope       )%varName =trim(cData)   ! River channel side slope (-): v:h=1:sideSlope
    case('<varname_man_n>'          ); meta_SEG    (ixSEG%man_n           )%varName =trim(cData)   ! Manning's n        (weird units)
+   case('<varname_floodplainSlope>'); meta_SEG    (ixSEG%floodplainSlope )%varName =trim(cData)   ! Floodplain slope (-): v:h=1:floodplainSlope 
    case('<varname_hruArea>'        ); meta_SEG    (ixSEG%hruArea         )%varName =trim(cData)   ! local basin area (m2)
    case('<varname_weight>'         ); meta_SEG    (ixSEG%weight          )%varName =trim(cData)   ! HRU weight
    case('<varname_timeDelayHist>'  ); meta_SEG    (ixSEG%timeDelayHist   )%varName =trim(cData)   ! time delay histogram for each reach (s)
