@@ -61,7 +61,8 @@ MODULE histVars_data
     real(dp), allocatable    :: waterHeight(:,:)   ! river/lake surface water elevation [m] for each reach/lake and routing method [nRch,nMethod]
     real(dp), allocatable    :: floodVolume(:,:)   ! river/lake volume [m3] for each reach/lake and routing method [nRch,nMethod]
     real(dp), allocatable    :: volume(:,:)        ! river/lake volume [m3] for each reach/lake and routing method [nRch,nMethod]
-    real(dp), allocatable    :: cc(:,:)            ! concentration [g/m3] for each reach/lake and routing method [nRch,nMethod]
+    real(dp), allocatable    :: solute_flux(:,:)   ! solute out flux [mg/s] for each reach/lake and routing method [nRch,nMethod]
+    real(dp), allocatable    :: solute_mass(:,:)   ! solute mass [mg] for each reach/lake and routing method [nRch,nMethod]
 
     CONTAINS
 
@@ -136,8 +137,11 @@ MODULE histVars_data
         end if
 
         if (tracer) then
-          allocate(instHistVar%cc(nRch_local, nRoutes), source=0._dp, stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%cc]'; return; endif
+          allocate(instHistVar%solute_flux(nRch_local, nRoutes), source=0._dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%solute_flux]'; return; endif
+
+          allocate(instHistVar%solute_mass(nRch_local, nRoutes), source=0._dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%solute_mass]'; return; endif
         end if
 
       end if
@@ -224,7 +228,7 @@ MODULE histVars_data
 
         do ix=1,this%nRch
           this%discharge(ix,iRoute) = this%discharge(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_Q
-          this%volume(ix,iRoute)    = this%volume(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_VOL(1)
+          this%volume(ix,iRoute)    = RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_VOL(1)
           if (floodplain) then
             this%floodVolume(ix,iRoute)    = this%floodVolume(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%FLOOD_VOL(1)
             this%waterHeight(ix,iRoute)    = this%waterHeight(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_ELE
@@ -233,7 +237,8 @@ MODULE histVars_data
             this%inflow(ix,iRoute)  = this%inflow(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_INFLOW
           end if
           if (tracer) then
-            this%cc(ix,iRoute)  = this%cc(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_CC
+            this%solute_flux(ix,iRoute)  = this%solute_flux(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%reach_solute_flux
+            this%solute_mass(ix,iRoute)  = RCHFLX_local(1,ix)%ROUTE(idxMethod)%reach_solute_mass(1)
           end if
         end do
       end do
@@ -272,7 +277,7 @@ MODULE histVars_data
 
       ! 5. volume
       if (allocated(this%volume)) then
-        this%volume = this%volume/real(this%nt, kind=dp)
+        this%volume = this%volume
       end if
 
       ! 6. volume
@@ -290,10 +295,13 @@ MODULE histVars_data
         this%inflow = this%inflow/real(this%nt, kind=dp)
       end if
 
-      if (allocated(this%cc)) then
-        this%cc = this%cc/real(this%nt, kind=dp)
+      if (allocated(this%solute_flux)) then
+        this%solute_flux = this%solute_flux/real(this%nt, kind=dp)
       end if
 
+      if (allocated(this%solute_mass)) then
+        this%solute_mass = this%solute_mass
+      end if
     END SUBROUTINE finalize
 
     ! ---------------------------------------------------------------
@@ -315,7 +323,8 @@ MODULE histVars_data
       if (allocated(this%waterHeight)) this%waterHeight = 0._dp
       if (allocated(this%floodVolume)) this%floodVolume = 0._dp
       if (allocated(this%inflow))      this%inflow = 0._dp
-      if (allocated(this%cc))          this%cc = 0._dp
+      if (allocated(this%solute_flux)) this%solute_flux = 0._dp
+      if (allocated(this%solute_mass)) this%solute_mass = 0._dp
 
     END SUBROUTINE refresh
 
@@ -336,7 +345,8 @@ MODULE histVars_data
       if (allocated(this%waterHeight)) deallocate(this%waterHeight)
       if (allocated(this%floodVolume)) deallocate(this%floodVolume)
       if (allocated(this%inflow))      deallocate(this%inflow)
-      if (allocated(this%cc))          deallocate(this%cc)
+      if (allocated(this%solute_flux)) deallocate(this%solute_flux)
+      if (allocated(this%solute_mass)) deallocate(this%solute_mass)
 
     END SUBROUTINE clean
 

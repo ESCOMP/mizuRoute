@@ -175,6 +175,8 @@ MODULE globalData
 
   real(dp),                        public :: time_conv                  ! time conversion factor -- used to convert to mm/s
   real(dp),                        public :: length_conv                ! length conversion factor -- used to convert to mm/s
+  real(dp),                        public :: time_conv_solute           ! time conversion factor -- used to convert to dt
+  real(dp),                        public :: mass_conv_solute           ! mass conversion factor -- used to convert to mg
 
   ! ---------- routing parameter names -------------------------------------------------------------------
   ! spatial constant ....

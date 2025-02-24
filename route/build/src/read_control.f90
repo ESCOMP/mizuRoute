@@ -19,6 +19,8 @@ CONTAINS
 
  ! global vars
  USE globalData, ONLY: time_conv,length_conv   ! conversion factors
+ USE globalData, ONLY: time_conv_solute        ! time conversion factor for solute mass
+ USE globalData, ONLY: mass_conv_solute        ! mass conversion factors
  USE globalData, ONLY: masterproc              ! procs id and number of procs
  ! metadata structures
  USE globalData, ONLY: meta_HRU                ! HRU properties
@@ -58,6 +60,7 @@ CONTAINS
  character(len=strLen),allocatable :: cLines(:)               ! vector of character strings
  character(len=strLen)             :: cName,cData             ! name and data from cLines(iLine)
  character(len=strLen)             :: cLength,cTime           ! length and time units
+ character(len=strLen)             :: cMass                   ! mass units needed only when tracer is on
  logical(lgt)                      :: isGeneric               ! temporal logical scalar
  logical(lgt)                      :: onlyOneRouting          ! temporal logical scalar
  integer(i4b)                      :: ipos                    ! index of character string
@@ -460,6 +463,39 @@ CONTAINS
      err=81; return
  end select
 
+ if (tracer) then
+   ! find the position of the "/" character
+   ipos = index(trim(units_cc),'/')
+   if(ipos==0)then
+     message=trim(message)//'expect the character "/" exists in the mass flux units string [units='//trim(units_qsim)//']'
+     err=80; return
+   endif
+
+   ! get the mass and time units
+   cMass = units_cc(1:ipos-1)
+   cTime = units_cc(ipos+1:len_trim(units_cc))
+
+   ! get the conversion factor for length
+   select case(trim(cMass))
+     case('mg');  mass_conv_solute = 1._dp
+     case('g');   mass_conv_solute = 1000._dp
+     case('kg');  mass_conv_solute = 1000000._dp
+     case default
+       message=trim(message)//'expect the mass units of solute to be "mg" [units='//trim(cMass)//']'
+       err=81; return
+   end select
+
+   ! get the conversion factor for time
+   select case(trim(cTime))
+     case('d','day');          time_conv_solute = 1._dp/secprday
+     case('h','hr','hour');    time_conv_solute = 1._dp/secprhour
+     case('s','sec','second'); time_conv_solute = 1._dp
+     case default
+       message=trim(message)//'expect the time units of mass flux to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
+       err=81; return
+   end select
+ end if
+
  ! ---------- I/O time stamp -------
  if (masterproc) then
    write(iulog,'(2a)') new_line('a'), '---- input time stamp --- '
@@ -657,7 +693,10 @@ CONTAINS
 
  ! basin runoff routing option
  if (doesBasinRoute==0) meta_rflx(ixRFLX%instRunoff)%varFile = .false.
- if (tracer) meta_rflx(ixRFLX%DWcc)%varFile = .true.
+ if (tracer) then
+   meta_rflx(ixRFLX%DWsoluteFlux)%varFile = .true.
+   meta_rflx(ixRFLX%DWsoluteMass)%varFile = .true.
+ end if
 
  END SUBROUTINE read_control
 

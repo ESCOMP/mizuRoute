@@ -23,6 +23,7 @@ MODULE process_remap_module
   USE public_var, ONLY: negRunoffTol
   USE public_var, ONLY: integerMissing, realMissing
   USE globalData, ONLY: time_conv, length_conv ! conversion factors
+  USE globalData, ONLY: time_conv_solute, mass_conv_solute ! conversion factors
 
   implicit none
   private
@@ -426,18 +427,21 @@ MODULE process_remap_module
 
   ! *****
   ! * public subroutine: used to obtain streamflow for each stream segment...
+  !   !!!! this routine should be able to be removed, and instead basin2reach can be used !!!!
   ! *************************************************************************
-  SUBROUTINE basin2reach_mass(basinCC,           & ! basin constituent mass (g/s)
+  SUBROUTINE basin2reach_mass(basinSolute,       & ! basin constituent mass flux per unit area(mg/s/m2)
                               NETOPO_in,         & ! reach topology data structure
-                              reachCC,           & ! intent(out): reach runoff (m/s)
+                              RPARAM_in,         & ! reach parameter data structure
+                              reachSolute,       & ! intent(out): constituent mass flux into reach (mg/s)
                               ierr, message,     & ! intent(out): error control
-                              ixSubRch)           ! optional input: subset of reach indices to be processed
+                              ixSubRch)            ! optional input: subset of reach indices to be processed
   USE nr_utils, ONLY : arth
   implicit none
   ! Argument variables
-  real(dp)                  , intent(in)  :: basinCC(:)       ! basin constituent (g/s)
+  real(dp)                  , intent(in)  :: basinSolute(:)   ! constituent mass flux per unit area (mg/s/m2)
   type(RCHTOPO), allocatable, intent(in)  :: NETOPO_in(:)     ! River Network topology
-  real(dp)                  , intent(out) :: reachCC(:)       ! reach runoff (g/s)
+  type(RCHPRP),  allocatable, intent(in)  :: RPARAM_in(:)     ! River (non-)physical parameters
+  real(dp)                  , intent(out) :: reachSolute(:)   ! constitunet mass flux into reach (g/s)
   integer(i4b)              , intent(out) :: ierr             ! error code
   character(len=strLen)     , intent(out) :: message          ! error message
   integer(i4b),  optional   , intent(in)  :: ixSubRch(:)      ! subset of reach indices to be processed
@@ -472,24 +476,29 @@ MODULE process_remap_module
     ! associate variables in data structure
     nContrib       = size(NETOPO_in(jSeg)%HRUID)
     associate(hruContribId   => NETOPO_in(jSeg)%HRUID,   & ! unique ids of contributing HRU
-              hruContribIx   => NETOPO_in(jSeg)%HRUIX)     ! index of contributing HRU
+              hruContribIx   => NETOPO_in(jSeg)%HRUIX,   & ! index of contributing HRU
+              basArea        => RPARAM_in(jSeg)%BASAREA, & ! basin (total contributing HRU) area
+              hruWeight      => NETOPO_in(jSeg)%HRUWGT   ) ! weight assigned to each HRU
 
     ! * case where HRUs drain into the segment
     if(nContrib > 0)then
 
       ! intialize the streamflow
-      reachCC(jSeg) = 0._dp
+      reachSolute(jSeg) = 0._dp
       ! loop through the HRUs
       do iHRU=1,nContrib
         ! error check - runoff depth cannot be negative (no missing value)
-        if( basinCC( hruContribIx(iHRU) ) < 0._dp )then
-         write(iulog,*) 'Negative constituent mass: HRU = ', hruContribId(iHRU), ' CC = ', basinCC( hruContribIx(iHRU) )
+        if( basinSolute( hruContribIx(iHRU) ) < 0._dp )then
+         write(iulog,*) 'Negative constituent mass: HRU = ', hruContribId(iHRU), ' CC = ', basinSolute( hruContribIx(iHRU) )
          write(message,'(a,i12, g12.2)') trim(message)//'Negative constituent mass for HRU ', hruContribId(iHRU)
          ierr=20; return
         endif
-        ! summing mass over all the contributing areas
-        reachCC(jSeg) = reachCC(jSeg) + basinCC( hruContribIx(iHRU) )
+        ! compute the weighted average mass (mg/s)
+        reachSolute(jSeg) = reachSolute(jSeg) + hruWeight(iHRU)*basinSolute( hruContribIx(iHRU) )*time_conv_solute*mass_conv_solute
      end do  ! (looping through contributing HRUs)
+
+    ! convert basin average runoff volume (mg/s)
+    reachSolute(jSeg) = reachSolute(jSeg)*basArea
 
     endif
 

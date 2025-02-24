@@ -31,7 +31,7 @@ CONTAINS
                        basinRunoff_in, &  ! input: basin (i.e.,HRU) runoff (m/s)
                        basinEvapo_in,  &  ! input: basin (i.e.,HRU) evaporation (m/s)
                        basinPrecip_in, &  ! input: basin (i.e.,HRU) precipitation (m/s)
-                       basinCC_in,     &  ! input: basin (i.e.,HRU) constituent (g)
+                       basinSolute_in, &  ! input: basin (i.e.,HRU) constituent mass fluw (mg/s/m2)
                        reachflux_in,   &  ! input: reach (i.e.,reach) flux (m3/s)
                        reachvol_in,    &  ! input: reach (i.e.,reach) target volume for lakes (m3)
                        ixRchProcessed, &  ! input: indices of reach to be routed
@@ -65,7 +65,7 @@ CONTAINS
    real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    real(dp),           allocatable, intent(in)    :: basinEvapo_in(:)     ! basin (i.e.,HRU) evaporation (m/s)
    real(dp),           allocatable, intent(in)    :: basinPrecip_in(:)    ! basin (i.e.,HRU) precipitation (m/s)
-   real(dp),           allocatable, intent(in)    :: basinCC_in(:)        ! basin (i.e.,HRU) constituent (g)
+   real(dp),           allocatable, intent(in)    :: basinSolute_in(:)    ! basin (i.e.,HRU) constituent (mg/s/m2)
    real(dp),           allocatable, intent(in)    :: reachflux_in(:)      ! reach (i.e.,reach) flux (m3/s)
    real(dp),           allocatable, intent(in)    :: reachvol_in(:)       ! reach (i.e.,reach) target volume for lakes (m3)
    integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
@@ -80,11 +80,11 @@ CONTAINS
    character(len=strLen),           intent(out)   :: message              ! error message
    ! local variables
    character(len=strLen)                          :: cmessage             ! error message of downwind routine
-   real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
-   real(dp),           allocatable                :: reachCC_local(:)     ! reach constituent (g)
-   real(dp),           allocatable                :: reachEvapo_local(:)  ! reach evaporation (m/s)
-   real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m/s)
    real(dp)                                       :: qobs                 ! observed discharge at a time step and site
+   real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m3/s)
+   real(dp),           allocatable                :: reachSolute_local(:) ! reach constituent (mg/s)
+   real(dp),           allocatable                :: reachEvapo_local(:)  ! reach evaporation (m3/s)
+   real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m3/s)
    integer(i4b)                                   :: nSeg                 ! number of reach to be processed
    integer(i4b)                                   :: iSeg                 ! index of reach
    integer(i4b)                                   :: ix,jx                ! loop index
@@ -204,20 +204,21 @@ CONTAINS
    end if
 
    if(tracer) then
-     allocate(reachCC_local(nSeg), source=0._dp, stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachCC_local]'; return; endif
+     allocate(reachSolute_local(nSeg), source=0._dp, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachSolute_local]'; return; endif
 
-     call basin2reach_mass(basinCC_in,         & ! input: basin total constitunet (g/s)
+     call basin2reach_mass(basinSolute_in,     & ! input: basin total constitunet (mg/s/m2)
                            NETOPO_in,          & ! input: reach topology
-                           reachCC_local,      & ! output:total constituent going to reach (g/s)
+                           RPARAM_in,          & ! input: reach parameter
+                           reachSolute_local,  & ! output:total constituent going to reach (mg/s)
                            ierr, cmessage,     & ! output: error control
                            ixRchProcessed)       ! optional input: indices of reach to be routed
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      do iSeg = 1,nSeg
        if (RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1)>0) then
-         RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_C = reachCC_local(iSeg)     ! total constituent going to reach (g/m3)
+         RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_solute = reachSolute_local(iSeg)     ! total constituent going to reach (mg/s)
        else
-         RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_C = 0._dp
+         RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_solute = 0._dp
        endif
      end do
    end if ! tracer
@@ -296,7 +297,7 @@ CONTAINS
     ! local variables
     character(len=strLen)                             :: cmessage             ! error message for downwind routine
     logical(lgt),                      allocatable    :: doRoute(:)           ! logical to indicate which reaches are processed
-    integer(i4b)                                      :: iRoute               ! routing method index
+    integer(i4b)                                      :: idxRoute             ! routing method index
     integer(i4b)                                      :: nOrder               ! number of stream order
     integer(i4b)                                      :: nTrib                ! number of tributary basins
     integer(i4b)                                      :: nSeg                 ! number of reaches in the network
@@ -307,12 +308,12 @@ CONTAINS
     ierr=0; message='route_network/'
 
     select case(idRoute)
-      case(accumRunoff);           iRoute = idxSUM
-      case(kinematicWaveTracking); iRoute = idxKWT
-      case(impulseResponseFunc);   iRoute = idxIRF
-      case(muskingumCunge);        iRoute = idxMC
-      case(kinematicWave);         iRoute = idxKW
-      case(diffusiveWave);         iRoute = idxDW
+      case(accumRunoff);           idxRoute = idxSUM
+      case(kinematicWaveTracking); idxRoute = idxKWT
+      case(impulseResponseFunc);   idxRoute = idxIRF
+      case(muskingumCunge);        idxRoute = idxMC
+      case(kinematicWave);         idxRoute = idxKW
+      case(diffusiveWave);         idxRoute = idxDW
       case default
         message=trim(message)//'routing method id expect digits 0-5. Check <outOpt> in control file'; ierr=81; return
     end select
@@ -351,15 +352,15 @@ CONTAINS
 !$OMP          shared(RPARAM_in)                        & ! data structure shared
 !$OMP          shared(RCHSTA_out)                       & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
-!$OMP          shared(ix, iEns, ixDesire, iRoute)       & ! indices shared
+!$OMP          shared(ix, iEns, ixDesire, idxRoute)     & ! indices shared
 !$OMP          firstprivate(nTrib)
       do iTrib = 1,nTrib
         do iSeg = 1,river_basin(ix)%branch(iTrib)%nRch
           jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
           if (.not. doRoute(jSeg)) cycle
-          if ((NETOPO_in(jseg)%islake).and.(is_lake_sim).and.iRoute/=idxSUM) then
+          if ((NETOPO_in(jseg)%islake).and.(is_lake_sim).and.idxRoute/=idxSUM) then
             call lake_route(iEns, jSeg,    & ! input: ensemble and reach indices
-                            iRoute,        & ! input: routing method index
+                            idxRoute,      & ! input: routing method index
                             ixDesire,      & ! input: index of verbose reach
                             NETOPO_in,     & ! input: reach topology data structure
                             RPARAM_in,     & ! input: reach parameter data structure
@@ -376,8 +377,9 @@ CONTAINS
                                  ierr,cmessage)    ! output: error control
           end if
           if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
-          if (tracer) then
+          if (tracer .and. idxRoute/=idxSUM) then
             call constituent_rch(iEns,jSeg ,    & ! input: index of runoff ensemble to be processed
+                                 idxRoute,      & ! input: routing method index
                                  ixDesire,      & ! input: reachID to be checked by on-screen pringing
                                  NETOPO_in,     & ! input: reach topology data structure
                                  RPARAM_in,     & ! input: reach parameter data structure
