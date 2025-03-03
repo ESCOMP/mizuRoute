@@ -197,7 +197,7 @@ CONTAINS
    reach_vol  = rflux%ROUTE(idxRoute)%REACH_INFLOW*dt + rflux%ROUTE(idxRoute)%REACH_VOL(0)
    solute_per_vol = reach_mass/reach_vol
 
-   solute_out = rflux%ROUTE(idxRoute)%REACH_Q*solute_per_vol
+   solute_out = (rflux%ROUTE(idxRoute)%REACH_Q-rflux%BASIN_QR(1))*solute_per_vol
 
    max_outCC=rflux%ROUTE(idxRoute)%reach_solute_mass(1)/dt + Cupstream
    if (solute_out>max_outCC) then
