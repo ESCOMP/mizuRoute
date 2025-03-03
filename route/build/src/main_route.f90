@@ -152,9 +152,21 @@ CONTAINS
                    ixRchProcessed)       ! optional input: indices of reach to be routed
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+   if(tracer) then
+     allocate(reachSolute_local(nSeg), source=0._dp, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachSolute_local]'; return; endif
+
+     call basin2reach_mass(basinSolute_in,     & ! input: basin total constitunet (mg/s/m2)
+                           NETOPO_in,          & ! input: reach topology
+                           RPARAM_in,          & ! input: reach parameter
+                           reachSolute_local,  & ! output:total constituent going to reach (mg/s)
+                           ierr, cmessage,     & ! output: error control
+                           ixRchProcessed)       ! optional input: indices of reach to be routed
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
+
   if (is_lake_sim) then
 
-    ! allocate evaporation
     allocate(reachEvapo_local(nSeg), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachEvapo_local]'; return; endif
 
@@ -167,7 +179,6 @@ CONTAINS
                       ixRchProcessed)       ! optional input: indices of reach to be routed
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-     ! allocate precipitaiton
      allocate(reachPrecip_local(nSeg), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachPrecip_local]'; return; endif
 
@@ -184,9 +195,16 @@ CONTAINS
 
    ! 2. subroutine: basin route
    if (doesBasinRoute == 1) then
-     ! instantaneous runoff volume (m3/s) to data structure
+     ! instantaneous runoff volume (m3/s) and solute mass (mg/s) to data structure
      do iSeg = 1,nSeg
        RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QI = reachRunoff_local(iSeg)
+       if (tracer) then
+         if (RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QI>0) then ! this may cause mass inbalance between input and output. so may need to feed flag to land surface model
+           RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_solute_inst = reachSolute_local(iSeg)
+         else
+           RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_solute_inst = 0._dp
+         endif
+       end if
      enddo
      ! perform Basin routing
      call IRF_route_basin(iens,              &  ! input:  ensemble index
@@ -201,27 +219,17 @@ CONTAINS
        RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(0) = RCHFLX_out(iens,iSeg)%BASIN_QR(1)   ! streamflow from previous step
        RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1) = reachRunoff_local(iSeg)             ! streamflow (m3/s)
      end do
+
+     if (tracer) then
+       do iSeg = 1,nSeg
+         if (RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1)>0) then
+           RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_solute = reachSolute_local(iSeg)     ! total constituent going to reach (mg/s)
+         else
+           RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_solute = 0._dp
+         endif
+       end do
+     end if
    end if
-
-   if(tracer) then
-     allocate(reachSolute_local(nSeg), source=0._dp, stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachSolute_local]'; return; endif
-
-     call basin2reach_mass(basinSolute_in,     & ! input: basin total constitunet (mg/s/m2)
-                           NETOPO_in,          & ! input: reach topology
-                           RPARAM_in,          & ! input: reach parameter
-                           reachSolute_local,  & ! output:total constituent going to reach (mg/s)
-                           ierr, cmessage,     & ! output: error control
-                           ixRchProcessed)       ! optional input: indices of reach to be routed
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     do iSeg = 1,nSeg
-       if (RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1)>0) then
-         RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_solute = reachSolute_local(iSeg)     ! total constituent going to reach (mg/s)
-       else
-         RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_solute = 0._dp
-       endif
-     end do
-   end if ! tracer
 
    ! allocating precipitation and evaporation for
    if (is_lake_sim) then
