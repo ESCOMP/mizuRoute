@@ -1185,7 +1185,7 @@ CONTAINS
   USE globalData, ONLY: nTribOutlet         !
   USE globalData, ONLY: global_ix_main      ! reach index at tributary reach outlets to mainstem (size = sum of tributary outlets in all the procs)
   USE globalData, ONLY: local_ix_comm       ! local reach index at tributary reach outlets to mainstem for each proc (size = sum of tributary outlets in proc)
-  USE public_var, ONLY: compWB              ! logical whether or not whole domain water balance check is done
+  USE public_var, ONLY: checkMassBalance    ! logical whether or not whole domain water balance check is done
   USE public_var, ONLY: is_lake_sim         ! logical whether or not lake should be simulated
   USE public_var, ONLY: is_flux_wm          ! logical whether or not fluxes should be passed
   USE public_var, ONLY: is_vol_wm           ! logical whether or not target volume should be passed
@@ -1396,7 +1396,7 @@ CONTAINS
 
   endif !(nRch_mainstem==0)
 
-  if (compWB) then
+  if (checkMassBalance) then
     call t_startf ('route/comp_global_wb')
     do ixRoute=1,nRoutes
       call comp_global_wb(ixRoute, .true., ierr, cmessage)

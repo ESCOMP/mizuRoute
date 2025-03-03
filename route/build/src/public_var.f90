@@ -116,7 +116,7 @@ MODULE public_var
   real(dp)             ,public    :: scale_factor_prec    = realMissing     ! float scale to scale the precipitation
   real(dp)             ,public    :: offset_value_prec    = realMissing     ! float offset for precipitation
   real(dp)             ,public    :: min_length_route     = 0.0_dp          ! float; minimum reach length for routing to be performed. pass-through is performed for length less than this threshold
-  logical(lgt)         ,public    :: compWB               = .false.         ! logical if entire domain water balance is computed
+  logical(lgt)         ,public    :: checkMassBalance     = .false.         ! logical if entire domain water balance is computed
   real(dp)             ,public    :: dt                   = realMissing     ! simulation time step (seconds)
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
