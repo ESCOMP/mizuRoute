@@ -215,7 +215,6 @@ IO = \
 # CORE
 CORE = \
     advection_diffusion.f90 \
-    data_assimilation.f90 \
     accum_runoff.f90 \
     basinUH.f90 \
     water_balance.f90 \
