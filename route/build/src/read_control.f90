@@ -254,6 +254,9 @@ CONTAINS
    case('<KWheight>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWheight         )%varFile  ! default: true (turned off if floodplain is inactive)
    case('<MCheight>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCheight         )%varFile  ! default: true (turned off if floodplain is inactive)
    case('<DWheight>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWheight         )%varFile  ! default: true (turned off if floodplain is inactive)
+   case('<localDOC>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%localCC          )%varFile  ! default: faulse (turned off if tracer is inactive)
+   case('<routedDOC>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWsoluteFlux     )%varFile  ! default: faulse (turned off if tracer is inactive)
+   case('<DOCmass>');              read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWsoluteMass     )%varFile  ! default: faulse (turned off if tracer is inactive)
    case('<outputInflow>');         read(cData,*,iostat=io_error) outputInflow
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
