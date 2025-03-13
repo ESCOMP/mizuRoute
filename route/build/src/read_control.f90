@@ -264,7 +264,7 @@ CONTAINS
    case('<varname_depth>'          ); meta_SEG    (ixSEG%depth           )%varName =trim(cData)   ! bankful depth of segment   (m)
    case('<varname_sideSlope>'      ); meta_SEG    (ixSEG%sideSlope       )%varName =trim(cData)   ! River channel side slope (-): v:h=1:sideSlope
    case('<varname_man_n>'          ); meta_SEG    (ixSEG%man_n           )%varName =trim(cData)   ! Manning's n        (weird units)
-   case('<varname_floodplainSlope>'); meta_SEG    (ixSEG%floodplainSlope )%varName =trim(cData)   ! Floodplain slope (-): v:h=1:floodplainSlope 
+   case('<varname_floodplainSlope>'); meta_SEG    (ixSEG%floodplainSlope )%varName =trim(cData)   ! Floodplain slope (-): v:h=1:floodplainSlope
    case('<varname_hruArea>'        ); meta_SEG    (ixSEG%hruArea         )%varName =trim(cData)   ! local basin area (m2)
    case('<varname_weight>'         ); meta_SEG    (ixSEG%weight          )%varName =trim(cData)   ! HRU weight
    case('<varname_timeDelayHist>'  ); meta_SEG    (ixSEG%timeDelayHist   )%varName =trim(cData)   ! time delay histogram for each reach (s)
@@ -288,7 +288,7 @@ CONTAINS
    case('<varname_HYP_Qrate_phs>'  ); meta_SEG    (ixSEG%HYP_Qrate_phs   )%varName =trim(cData)   ! HYPE; phase of the Qrate_main based on the day of the year [-]; default 100
    case('<varname_HYP_prim_F>'     ); meta_SEG    (ixSEG%HYP_prim_F      )%varName =trim(cData)   ! HYPE; if the reservoir has a primary spillway then set to 1 otherwise 0
    case('<varname_HYP_A_avg>'      ); meta_SEG    (ixSEG%HYP_A_avg       )%varName =trim(cData)   ! HYPE; average area for the lake; this might not be used if bathymetry is provided [m]
-   case('<varname_ HYP_Qsim_mode>' ); meta_SEG    (ixSEG% HYP_Qsim_mode  )%varName =trim(cData)   ! HYPE; the outflow is sum of emergency and primary spillways if 1, otherwise the maximum
+   case('<varname_HYP_Qsim_mode>'  ); meta_SEG    (ixSEG%HYP_Qsim_mode   )%varName =trim(cData)   ! HYPE; the outflow is sum of emergency and primary spillways if 1, otherwise the maximum
 
    case('<varname_H06_Smax>'       ); meta_SEG    (ixSEG%H06_Smax        )%varName =trim(cData)   ! Hanasaki 2006; maximume reservoir storage [m3]
    case('<varname_H06_alpha>'      ); meta_SEG    (ixSEG%H06_alpha       )%varName =trim(cData)   ! Hanasaki 2006; fraction of active storage compared to total storage [-]
