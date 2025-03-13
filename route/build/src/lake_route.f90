@@ -424,10 +424,15 @@ CONTAINS
             Q_spill = RPARAM_in(segIndex)%HYP_Qrate_emr* (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_ELE &
                       - RPARAM_in(segIndex)%HYP_E_emr)**RPARAM_in(segIndex)%HYP_Erate_emr
           end if
-          ! Q_sim
-          Q_sim = Q_prim + Q_spill
-          !! original implementation picks the maximume value of output from primary spillway and emergency spillway
-          Q_sim = max(Q_prim, Q_spill)
+
+          if (RPARAM_in(segIndex)%HYP_Qsim_mode) then
+            ! Q_sim
+            Q_sim = Q_prim + Q_spill
+          else
+            ! Original implementation picks the maximum value of output
+            ! from primary spillway and emergency spillway
+            Q_sim = max(Q_prim, Q_spill)
+          end if
 
           ! check if the output is not more than the existing stored water
           RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q = min(Q_sim, max(0._dp,(RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)*RPARAM_in(segIndex)%HYP_A_avg)/dt)

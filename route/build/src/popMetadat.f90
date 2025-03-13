@@ -162,6 +162,7 @@ contains
  meta_SEG    (ixSEG%HYP_Qrate_phs    ) = var_info('HYP_Qrate_phs'  , 'HYPE; phase of the Qrate_main based on the day of the year'                              ,'-'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%HYP_prim_F       ) = var_info('HYP_prim_F'     , 'HYPE; if the reservoir has a primary spillway then set to 1 otherwise 0'                 ,'-'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%HYP_A_avg        ) = var_info('HYP_A_avg'      , 'HYPE; average area for the lake; this might not be used if bathymetry is provided'       ,'m2'    ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%HYP_Qsim_mode    ) = var_info('HYP_Qsim_mode'  , 'HYPE; the outflow is sum of emergency and primary spillways if 1, otherwise the maximum' ,'-'     ,ixDims%seg   , .false.)
 
  meta_SEG    (ixSEG%H06_Smax         ) = var_info('H06_Smax'       , 'Hanasaki 2006; maximume reservoir storage'                                               ,'m3'    ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%H06_alpha        ) = var_info('H06_alpha'      , 'Hanasaki 2006; fraction of active storage compared to total storage'                     ,'-'     ,ixDims%seg   , .false.)
