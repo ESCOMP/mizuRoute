@@ -441,6 +441,7 @@ END SUBROUTINE augment_ntopo
      RPARAM_in(iSeg)%HYP_Qrate_phs   =     structSEG(iSeg)%var(ixSEG%HYP_Qrate_phs)%dat(1)
      RPARAM_in(iSeg)%HYP_prim_F      =     (structSEG(iSeg)%var(ixSEG%HYP_prim_F)%dat(1)==1)
      RPARAM_in(iSeg)%HYP_A_avg       =     structSEG(iSeg)%var(ixSEG%HYP_A_avg)%dat(1)
+     RPARAM_in(iSeg)%HYP_Qsim_mode   =     (structSEG(iSeg)%var(ixSEG%HYP_Qsim_mode)%dat(1)==1)
 
      RPARAM_in(iSeg)%H06_Smax        =     structSEG(iSeg)%var(ixSEG%H06_Smax)%dat(1)
      RPARAM_in(iSeg)%H06_alpha       =     structSEG(iSeg)%var(ixSEG%H06_alpha)%dat(1)
