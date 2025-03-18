@@ -385,6 +385,7 @@ CONTAINS
   integer(i4b)                     :: nRch_root        ! number of reaches in roor processors consisting (mainstem, halo, and tributary)
   integer(i4b)                     :: iens             ! ensemble index (currently only 1)
   integer(i4b)                     :: ix, iRoute       ! loop indices
+  integer(i4b)                     :: ntdh             ! the length of UH for allocating QFUTURE_IRF for IRF routing
   character(len=strLen)            :: cmessage         ! error message of downwind routine
 
   ierr=0; message='init_state_data/'
@@ -418,6 +419,9 @@ CONTAINS
       end if
       if (onRoute(impulseResponseFunc)) then
         do ix = 1,nRch_root
+          ntdh = size(NETOPO_trib(ix)%UH)
+          allocate(RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
+          RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%QFUTURE_IRF(1:ntdh) = 0._dp
           RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_VOL(0:1) = 0._dp
           RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_Q        = 0._dp
         end do
@@ -490,8 +494,11 @@ CONTAINS
         end if
         if (onRoute(impulseResponseFunc)) then
           do ix = 1, size(RCHFLX_trib(1,:))
-            RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_VOL(0:1) = 0._dp
-            RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_Q        = 0._dp
+            ntdh = size(NETOPO_trib(ix)%UH)
+            allocate(RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
+            RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%QFUTURE_IRF(1:ntdh) = 0._dp
+            RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_VOL(0:1)      = 0._dp
+            RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_Q             = 0._dp
           end do
         end if
         if (onRoute(kinematicWaveTracking)) then
