@@ -319,7 +319,7 @@
   </test>
 
   <!-- half-degree: r05mz, HDMA, and MERIT all DEBUG off all smoke test only not on small machines  -->
-  <test name="SMS_PS" grid="hcru_hcru_mt13" compset="I2000Clm60SpMizGs" testmods="mizuroute/hcru">
+  <test name="SMS_PS" grid="hcru_hcru_mt13" compset="I2000Clm60SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="derecho" compiler="intel" category="mizu"></machine>
     </machines>
@@ -328,7 +328,7 @@
       <option name="comment"  >Smoke test on half-degree grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS_PS" grid="hcru_hcru_rHDMAlk_mt13" compset="I2000Clm60SpMizGs" testmods="mizuroute/hcru">
+  <test name="SMS_PS" grid="hcru_hcru_rHDMAlk_mt13" compset="I2000Clm60SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="derecho" compiler="intel" category="mizu"></machine>
     </machines>
