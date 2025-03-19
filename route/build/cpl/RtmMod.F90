@@ -838,7 +838,7 @@ CONTAINS
     locfn = './'// trim(rpntfil)//trim(inst_suffix)//timestamp
     inquire (file=locfn,exist=lexist)
     if (.not. lexist) then ! backward compatibility - rpointer file w/o datetime
-      write(iulog,*) 'Could not fine the rpointer file: ', trim(locfn)
+      write(iulog,*) 'Could not find the rpointer file: ', trim(locfn)
       locfn = './'// trim(rpntfil)//trim(inst_suffix)
       write(iulog,*) 'Try file: ', trim(locfn)
     end if
