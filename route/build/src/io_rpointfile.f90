@@ -42,7 +42,7 @@ CONTAINS
       rpntfil_path = trim(restart_dir)//trim(rpntfil)//timestamp
     else
       if ( trim(runMode) == "cesm-coupling" )then
-        ierr=20; message=trim(message)//"for cesm-coupling mode curDatetime MUST be sent in"
+        ierr=20; message=trim(message)//":: for cesm-coupling mode curDatetime MUST be sent in"
         return
       end if
       rpntfil_path = trim(restart_dir)//trim(rpntfil)
