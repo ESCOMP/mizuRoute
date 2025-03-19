@@ -22,6 +22,7 @@ CONTAINS
   ! *********************************************************************
   SUBROUTINE io_rpfile(mode, ierr, message, curDatetime)
 
+    USE globalData,  ONLY: runMode
     implicit none
     ! argument variables
     character(1),   intent(in)           :: mode          ! io mode: 'r' or 'w'
@@ -40,6 +41,10 @@ CONTAINS
             curDatetime%year(),curDatetime%month(),curDatetime%day(),sec_in_day
       rpntfil_path = trim(restart_dir)//trim(rpntfil)//timestamp
     else
+      if ( trim(runMode) == "cesm-coupling" )then
+        ierr=20; message=trim(message)//"for cesm-coupling mode curDatetime MUST be sent in"
+        return
+      end if
       rpntfil_path = trim(restart_dir)//trim(rpntfil)
     end if
 
