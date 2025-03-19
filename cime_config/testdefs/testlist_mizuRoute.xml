@@ -196,7 +196,7 @@
       <option name="comment"  >Exact restart hybrid/startup/branch test on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="PET_P215x8" grid="nldas2_nldas2_rHDMA_mnldas2" compset="I2000Clm60SpMizGs" testmods="mizuroute/default">
+  <test name="PET_P256x8" grid="nldas2_nldas2_rHDMA_mnldas2" compset="I2000Clm60SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="derecho" compiler="intel" category="mizu"></machine>
       <machine name="derecho" compiler="gnu"   category="mizu"></machine>
@@ -216,7 +216,7 @@
       <option name="comment"  >Exact restart on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS_P720x4" grid="nldas2_nldas2_rMERIT_mnldas2" compset="I2000Clm60SpMizGs" testmods="mizuroute/default">
+  <test name="SMS_P768x4" grid="nldas2_nldas2_rMERIT_mnldas2" compset="I2000Clm60SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="derecho" compiler="intel" category="mizu"></machine>
       <machine name="derecho" compiler="gnu"   category="mizu"></machine>
@@ -278,7 +278,7 @@
       <option name="comment"  >Smoke test on 2-degree MERIT grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS_P80x18" grid="f19_f19_rMERIT_mg17" compset="I2000Clm60SpMizGs" testmods="mizuroute/default">
+  <test name="SMS_P64x18" grid="f19_f19_rMERIT_mg17" compset="I2000Clm60SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="derecho" compiler="intel" category="mizu"></machine>
       <machine name="derecho" compiler="intel" category="prebeta"></machine>
