@@ -557,6 +557,11 @@ END SUBROUTINE augment_ntopo
      allocate(NETOPO_in(iSeg)%UH(size(structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO_in(iSeg)%UH'; return; endif
      NETOPO_in(iSeg)%UH(:) =  structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
+     ! Ensure UH for lake is corrected
+     if (NETOPO_in(iSeg)%islake) then
+       NETOPO_in(iSeg)%UH    = 0._dp  ! Set all values to zero
+       NETOPO_in(iSeg)%UH(1) = 1._dp  ! Set the first value to 1
+     end if
    end if
 
    ! upstream reach list

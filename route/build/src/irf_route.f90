@@ -81,14 +81,6 @@ CONTAINS
    verbose = .true.
  end if
 
-  ! initialize future discharge array at first time
-  if (.not.allocated(RCHFLX_out(iens,segIndex)%QFUTURE_IRF))then
-    ntdh = size(NETOPO_in(segIndex)%UH)
-    allocate(RCHFLX_out(iens,segIndex)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_out(iens,segIndex)%QFUTURE_IRF'; return; endif
-    RCHFLX_out(iens,segIndex)%QFUTURE_IRF(:) = 0._dp
-  end if
-
   ! get discharge coming from upstream
   nUps = count(NETOPO_in(segIndex)%goodBas) ! reminder: goodBas is reach with >0 total contributory area
   q_upstream = 0.0_dp

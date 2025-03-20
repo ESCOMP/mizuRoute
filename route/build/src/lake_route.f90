@@ -472,15 +472,6 @@ CONTAINS
     call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxRoute, q_upstream, RCHFLX_out(iens,segIndex)%BASIN_QR(1), RCHFLX_out(iens,segIndex), &
                        verbose, lakeFlag=.true.,tolerance=lakeWBtol)
 
-    ! assign the zero value as lake do not have a QFUTURE_IRF
-    ! TO-DO: Need to handle this when construct unit-hydrograph
-    if (.not.allocated(RCHFLX_out(iens,segIndex)%QFUTURE_IRF))then
-      ntdh = size(NETOPO_in(segIndex)%UH)
-      allocate(RCHFLX_out(iens,segIndex)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_out(iens,segIndex)%QFUTURE_IRF'; return; endif
-      RCHFLX_out(iens,segIndex)%QFUTURE_IRF(1:ntdh) = 0._dp
-    end if
-
   END SUBROUTINE lake_route
 
 END MODULE lake_route_module
