@@ -222,6 +222,7 @@ CONTAINS
 
   ! build filename and its path containing list of NetCDF files
   ! then construct a character array including the file paths
+  ! to include more complex input such as file_name.nc, file_name*.nc and file_name(s).txt
   if (masterproc) then
     infilename = trim(dir_name)//trim(file_name)
     tmp_file_list = trim(dir_name)//'tmp'
