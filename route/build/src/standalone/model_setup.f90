@@ -213,7 +213,6 @@ CONTAINS
   integer(i4b)                                      :: iFile            ! counter for forcing files
   integer(i4b)                                      :: nFile            ! number of nc files identified in the text file
   integer(i4b)                                      :: nTime            ! hard coded for now
-  integer(i4b)                                      :: char_code        ! character code 
   logical(lgt)                                      :: existAttr        ! attribute exists or not
   logical(lgt)                                      :: tmp_file_exists  ! tmp file exists or not
   real(dp)                                          :: convTime2sec     ! time conversion to second
@@ -221,14 +220,12 @@ CONTAINS
   character(len=strLen),allocatable                 :: dataLines(:)     ! vector of lines of information (non-comment lines)
   character(len=strLen)                             :: cmessage         ! error message of downwind routine
   character(len=strLen)                             :: trim_file_name   ! temporal text keeping the trimmed file name
-  character(len=1)                                  :: char             ! character inside infilename
   integer(i4b)                                      :: ncid             ! NetCDF file ID
 
   ierr=0; message='inFile_pop/'
 
   ! build filename and its path containing list of NetCDF files
   ! then construct a character array including the file paths
-  ! to include more complex input such as file_name.nc, file_name*.nc and file_name(s).txt
   trim_file_name = trim(file_name)
   infilename = trim(dir_name)//trim_file_name
   tmp_file_list = trim(dir_name)//'tmp'
@@ -237,7 +234,7 @@ CONTAINS
   
   if (masterproc) then
     
-    ! check if the infile is a wild card with * or ?
+    ! check if the infile is a wild card with * or ? such as file*.nc4 or file?.nc
     DO i = 1, len(trim_file_name)
       IF (trim_file_name(i:i) == '*' .OR. trim_file_name(i:i) == '?') THEN
         ! create the tmp_file_list on disk
@@ -249,8 +246,8 @@ CONTAINS
     ! check if tmp is created
     INQUIRE(FILE=tmp_file_list, EXIST=tmp_file_exists)
     
-    ! is infilename is not 
-    if not (tmp_file_exists) then
+    ! is tmp file is not created then it should be file.nc or file_name.txt 
+    if (.NOT. tmp_file_exists) then
       ! Try opening the NetCDF file
       ierr = nf90_open(infilename, NF90_NOWRITE, ncid)
       ! check opening is successful
