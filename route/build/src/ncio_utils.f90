@@ -902,7 +902,7 @@ CONTAINS
 
 
  ! *********************************************************************
- ! Public subroutine: close netcdf
+ ! Public subroutine: open netcdf
  ! *********************************************************************
  SUBROUTINE open_nc(fname, mode, ncid, ierr, message)
 
@@ -952,5 +952,40 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); endif
 
  END SUBROUTINE close_nc
+
+
+ ! *********************************************************************
+ ! Public subroutine: check if the file is NetCDF
+ ! *********************************************************************
+ SUBROUTINE is_netcdf_file(fname, is_nc, ierr, message)
+
+   implicit none
+   ! input
+   character(*), intent(in)  :: fname    ! Filename
+   ! output
+   logical(lgt), intent(out) :: is_nc    ! Flag: True if NetCDF file
+   integer(i4b), intent(out) :: ierr     ! Error code
+   character(*), intent(out) :: message  ! Error message
+   ! local
+   integer(i4b)              :: ncid     ! NetCDF file ID
+
+   ! initialize outputs
+   is_nc = .FALSE.
+   ierr  = 0
+   message = 'is_netcdf_file: '
+
+   ! Try to open the file in read-only mode
+   ierr = nf90_open(TRIM(fname), NF90_NOWRITE, ncid)
+
+   if (ierr == NF90_NOERR) then
+     ! Successfully opened, so it's a NetCDF file
+     is_nc = .TRUE.
+     call nf90_close(ncid) ! close the file
+   else
+     ! Not a valid NetCDF file
+     message = TRIM(message) // '[' // TRIM(nf90_strerror(ierr)) // '; file=' // TRIM(fname) // ']'
+   end if
+
+ END SUBROUTINE is_netcdf_file
 
 END MODULE ncio_utils
