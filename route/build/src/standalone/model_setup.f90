@@ -186,7 +186,7 @@ CONTAINS
   USE datetime_data,       ONLY: datetime       ! datetime data
   USE ascii_utils,         ONLY: file_open      ! open file (performs a few checks as well)
   USE ascii_utils,         ONLY: get_vlines     ! get a list of character strings from non-comment lines
-  USE netcdf,                                   ! To check if the file is netcdf
+  USE ncio_utils,          ONLY: is_netcdf_file ! check if a file is netcdf
   USE ncio_utils,          ONLY: get_nc         ! Read netCDF variable data
   USE ncio_utils,          ONLY: check_attr     ! check if the attribute exist for a variable
   USE ncio_utils,          ONLY: get_var_attr   ! Read attributes variables
@@ -215,12 +215,12 @@ CONTAINS
   integer(i4b)                                      :: nTime            ! hard coded for now
   logical(lgt)                                      :: existAttr        ! attribute exists or not
   logical(lgt)                                      :: tmp_file_exists  ! tmp file exists or not
+  logical(lgt)                                      :: is_nc            ! input file is netcdf and not ascii
   real(dp)                                          :: convTime2sec     ! time conversion to second
   character(len=strLen)                             :: infilename       ! input filename
   character(len=strLen),allocatable                 :: dataLines(:)     ! vector of lines of information (non-comment lines)
   character(len=strLen)                             :: cmessage         ! error message of downwind routine
   character(len=strLen)                             :: trim_file_name   ! temporal text keeping the trimmed file name
-  integer(i4b)                                      :: ncid             ! NetCDF file ID
 
   ierr=0; message='inFile_pop/'
 
@@ -229,6 +229,7 @@ CONTAINS
   trim_file_name = trim(file_name)
   infilename = trim(dir_name)//trim_file_name
   tmp_file_list = trim(dir_name)//'tmp'
+  is_nc = .fasle.
   ! remove possible tmp file
   call execute_command_line("rm -f "//trim(tmp_file_list))
   
@@ -248,10 +249,10 @@ CONTAINS
     
     ! is tmp file is not created then it should be file.nc or file_name.txt 
     if (.NOT. tmp_file_exists) then
-      ! Try opening the NetCDF file
-      ierr = nf90_open(infilename, NF90_NOWRITE, ncid)
+      ! check the file is netcdf
+      call is_netcdf_file (infilename, is_nc, ierr, message)
       ! check opening is successful
-      if (ierr == NF90_NOERR) then
+      if (is_nc) then
         call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
       else
         call execute_command_line("cp "//infilename//" > "//trim(tmp_file_list))
