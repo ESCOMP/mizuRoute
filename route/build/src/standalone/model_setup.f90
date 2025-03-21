@@ -218,6 +218,7 @@ CONTAINS
   logical(lgt)                                      :: existAttr        ! attribute exists or not
   logical(lgt)                                      :: tmp_file_exists  ! tmp file exists or not
   logical(lgt)                                      :: is_nc            ! input file is netcdf and not ascii
+  logical(lgt)                                      :: is_ascii         ! input file is ascii, list of file name
   real(dp)                                          :: convTime2sec     ! time conversion to second
   character(len=strLen)                             :: infilename       ! input filename
   character(len=strLen),allocatable                 :: dataLines(:)     ! vector of lines of information (non-comment lines)
@@ -234,10 +235,12 @@ CONTAINS
   infilename = trim(dir_name)//trim_file_name
   tmp_file_list = trim(dir_name)//'tmp'
   is_nc = .false.
-  ! remove possible tmp file
-  call execute_command_line("rm -f "//trim(tmp_file_list))
+  is_ascii = .false.
 
   if (masterproc) then
+
+    ! remove possible sxisting tmp file
+    call execute_command_line("rm -f "//trim(tmp_file_list))
 
     ! check if the infile is a wild card with * or ? such as file*.nc4 or file?.nc
     DO iChar = 1, len(trim_file_name)
@@ -257,9 +260,10 @@ CONTAINS
       call is_netcdf_file (infilename, is_nc, ierr_dummy, message_dummy)
       ! check opening is successful
       if (is_nc) then
-        call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
+        call execute_command_line("ls "//trim(infilename)//" > "//trim(tmp_file_list))
       else
-        call execute_command_line("cp "//infilename//"   "//trim(tmp_file_list))
+        is_ascii = .true.
+        call execute_command_line("cp "//trim(infilename)//" "//trim(tmp_file_list))
       end if
     end if
 
@@ -287,7 +291,10 @@ CONTAINS
   do iFile=1,nFile
 
     ! set forcing file name
-    inputFileInfo(iFile)%infilename = dataLines(iFile)
+    inputFileInfo(iFile)%infilename = trim(dataLines(iFile))
+    if (is_ascii) then ! the input is ascii and the input direction should be added
+      inputFileInfo(iFile)%infilename = trim(dir_name)//inputFileInfo(iFile)%infilename
+    end if
 
     ! get the time units. if not exsit in netcdfs, provided from the control file
     existAttr = check_attr(trim(inputFileInfo(iFile)%infilename), time_var_name, 'units')
