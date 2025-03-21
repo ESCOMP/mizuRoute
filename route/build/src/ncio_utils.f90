@@ -21,6 +21,7 @@ public::end_def
 public::write_nc
 public::open_nc
 public::close_nc
+public::is_netcdf_file
 
 INTERFACE get_nc
   module procedure get_scalar
