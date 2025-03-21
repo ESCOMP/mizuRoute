@@ -970,20 +970,20 @@ CONTAINS
    integer(i4b)              :: ncid     ! NetCDF file ID
 
    ! initialize outputs
-   is_nc = .FALSE.
+   is_nc = .false.
    ierr  = 0
    message = 'is_netcdf_file: '
 
    ! Try to open the file in read-only mode
-   ierr = nf90_open(TRIM(fname), NF90_NOWRITE, ncid)
+   ierr = nf90_open(trim(fname), NF90_NOWRITE, ncid)
 
    if (ierr == NF90_NOERR) then
      ! Successfully opened, so it's a NetCDF file
-     is_nc = .TRUE.
-     call nf90_close(ncid) ! close the file
+     is_nc = .true.
+     ierr = nf90_close(ncid) ! close the NetCDF file
    else
      ! Not a valid NetCDF file
-     message = TRIM(message) // '[' // TRIM(nf90_strerror(ierr)) // '; file=' // TRIM(fname) // ']'
+     message = trim(message) // '[' // trim(nf90_strerror(ierr)) // '; file=' // trim(fname) // ']'
    end if
 
  END SUBROUTINE is_netcdf_file

@@ -213,6 +213,7 @@ CONTAINS
   integer(i4b)                                      :: iFile            ! counter for forcing files
   integer(i4b)                                      :: nFile            ! number of nc files identified in the text file
   integer(i4b)                                      :: nTime            ! hard coded for now
+  integer(i4b)                                      :: iChar            ! integer for loop over characters
   logical(lgt)                                      :: existAttr        ! attribute exists or not
   logical(lgt)                                      :: tmp_file_exists  ! tmp file exists or not
   logical(lgt)                                      :: is_nc            ! input file is netcdf and not ascii
@@ -229,15 +230,15 @@ CONTAINS
   trim_file_name = trim(file_name)
   infilename = trim(dir_name)//trim_file_name
   tmp_file_list = trim(dir_name)//'tmp'
-  is_nc = .fasle.
+  is_nc = .false.
   ! remove possible tmp file
   call execute_command_line("rm -f "//trim(tmp_file_list))
-  
+
   if (masterproc) then
-    
+
     ! check if the infile is a wild card with * or ? such as file*.nc4 or file?.nc
-    DO i = 1, len(trim_file_name)
-      IF (trim_file_name(i:i) == '*' .OR. trim_file_name(i:i) == '?') THEN
+    DO iChar = 1, len(trim_file_name)
+      IF (trim_file_name(iChar:iChar) == '*' .OR. trim_file_name(iChar:iChar) == '?') THEN
         ! create the tmp_file_list on disk
         call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
         EXIT
@@ -246,9 +247,9 @@ CONTAINS
 
     ! check if tmp is created
     INQUIRE(FILE=tmp_file_list, EXIST=tmp_file_exists)
-    
-    ! is tmp file is not created then it should be file.nc or file_name.txt 
-    if (.NOT. tmp_file_exists) then
+
+    ! is tmp file is not created then it should be file.nc or file_name.txt
+    if (.not. tmp_file_exists) then
       ! check the file is netcdf
       call is_netcdf_file (infilename, is_nc, ierr, message)
       ! check opening is successful
@@ -258,7 +259,7 @@ CONTAINS
         call execute_command_line("cp "//infilename//" > "//trim(tmp_file_list))
       end if
     end if
-    
+
     ! open the tmp file
     call file_open(tmp_file_list,funit,ierr,cmessage) ! open the text file
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
