@@ -212,30 +212,64 @@ CONTAINS
   integer(i4b)                                      :: iFile            ! counter for forcing files
   integer(i4b)                                      :: nFile            ! number of nc files identified in the text file
   integer(i4b)                                      :: nTime            ! hard coded for now
+  integer(i4b)                                      :: char_code        ! character code 
   logical(lgt)                                      :: existAttr        ! attribute exist or not
   real(dp)                                          :: convTime2sec     ! time conversion to second
   character(len=strLen)                             :: infilename       ! input filename
   character(len=strLen),allocatable                 :: dataLines(:)     ! vector of lines of information (non-comment lines)
   character(len=strLen)                             :: cmessage         ! error message of downwind routine
+  character(len=strLen)                             :: trim_file_name   ! temporal text keeping the trimmed file name
+  character(len=1) :: char ! character inside infilename
 
   ierr=0; message='inFile_pop/'
 
   ! build filename and its path containing list of NetCDF files
   ! then construct a character array including the file paths
   ! to include more complex input such as file_name.nc, file_name*.nc and file_name(s).txt
+  trim_file_name = trim(file_name)
+  infile_is_ascii = .FALSE.
   if (masterproc) then
-    infilename = trim(dir_name)//trim(file_name)
-    tmp_file_list = trim(dir_name)//'tmp'
-    call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
+    ! check if the infile is a wild card with * or ?
+    DO i = 1, len(trim_file_name)
+      IF (trim_file_name(i:i) == '*' .OR. trim_file_name(i:i) == '?') THEN
+        ! create the tmp_file_list on disk
+        infilename = trim(dir_name)//trim_file_name
+        tmp_file_list = trim(dir_name)//'tmp'
+        call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
+        infile_is_ascii = .TRUE.
+        EXIT
+      END IF
+    END DO
+    ! check if the file is ascii
+    if not (infile_is_ascii) THEN
+      ! open the file
+      open(unit=funit, file=infilename, status='old', action='read', iunit=ierr)
+      do i = 1, 100  ! Check the first 100 characters
+        read(funit, '(A)', i = i) char
+        char_code = iachar(char)
+        ! Check for non-ASCII characters (ASCII range: 32-126 for printable characters)
+        if (char_code < 32 .or. char_code > 126) then
+          is_ascii = .false.  ! Found a non-ASCII character
+          exit
+        end if
+      end do
+    end if
+        
+    
+        call file_open(tmp_file_list,funit,ierr,cmessage) ! open the text file
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
+    
+        ! get a list of character strings from non-commented lines
+        call get_vlines(funit,dataLines,ierr,cmessage)
+        if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
+    
+        call execute_command_line("rm -f "//trim(tmp_file_list))
 
-    call file_open(tmp_file_list,funit,ierr,cmessage) ! open the text file
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
-
-    ! get a list of character strings from non-commented lines
-    call get_vlines(funit,dataLines,ierr,cmessage)
-    if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
-
-    call execute_command_line("rm -f "//trim(tmp_file_list))
+        EXIT
+      ELSE
+        ! check if the file name is text
+        
+    END DO
   end if
 
   call shr_mpi_bcast(dataLines, ierr, cmessage)
