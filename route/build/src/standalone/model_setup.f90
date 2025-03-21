@@ -222,8 +222,11 @@ CONTAINS
   character(len=strLen),allocatable                 :: dataLines(:)     ! vector of lines of information (non-comment lines)
   character(len=strLen)                             :: cmessage         ! error message of downwind routine
   character(len=strLen)                             :: trim_file_name   ! temporal text keeping the trimmed file name
+  integer(i4b)                                      :: ierr_dummy       ! dummy error code, for checking nc file
+  character(*)                                      :: message_dummy    ! dummy error message, for checking nc file
 
   ierr=0; message='inFile_pop/'
+  ierr_dummy=0; message_dummy=''
 
   ! build filename and its path containing list of NetCDF files
   ! then construct a character array including the file paths
@@ -251,12 +254,12 @@ CONTAINS
     ! is tmp file is not created then it should be file.nc or file_name.txt
     if (.not. tmp_file_exists) then
       ! check the file is netcdf
-      call is_netcdf_file (infilename, is_nc, ierr, message)
+      call is_netcdf_file (infilename, is_nc, ierr_dummy, message_dummy)
       ! check opening is successful
       if (is_nc) then
         call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
       else
-        call execute_command_line("cp "//infilename//" "//trim(tmp_file_list))
+        call execute_command_line("cp "//infilename//"   "//trim(tmp_file_list))
       end if
     end if
 
