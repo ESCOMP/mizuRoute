@@ -214,6 +214,7 @@ CONTAINS
   integer(i4b)                                      :: nFile            ! number of nc files identified in the text file
   integer(i4b)                                      :: nTime            ! hard coded for now
   integer(i4b)                                      :: iChar            ! integer for loop over characters
+  integer(i4b)                                      :: ierr_dummy       ! dummy error code, for checking nc file
   logical(lgt)                                      :: existAttr        ! attribute exists or not
   logical(lgt)                                      :: tmp_file_exists  ! tmp file exists or not
   logical(lgt)                                      :: is_nc            ! input file is netcdf and not ascii
@@ -222,8 +223,7 @@ CONTAINS
   character(len=strLen),allocatable                 :: dataLines(:)     ! vector of lines of information (non-comment lines)
   character(len=strLen)                             :: cmessage         ! error message of downwind routine
   character(len=strLen)                             :: trim_file_name   ! temporal text keeping the trimmed file name
-  integer(i4b)                                      :: ierr_dummy       ! dummy error code, for checking nc file
-  character(*)                                      :: message_dummy    ! dummy error message, for checking nc file
+  character(len=strLen)                             :: message_dummy    ! dummy error message, for checking nc file
 
   ierr=0; message='inFile_pop/'
   ierr_dummy=0; message_dummy=''
