@@ -256,7 +256,7 @@ CONTAINS
       if (is_nc) then
         call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
       else
-        call execute_command_line("cp "//infilename//" > "//trim(tmp_file_list))
+        call execute_command_line("cp "//infilename//" "//trim(tmp_file_list))
       end if
     end if
 
