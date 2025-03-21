@@ -214,7 +214,8 @@ CONTAINS
   integer(i4b)                                      :: nFile            ! number of nc files identified in the text file
   integer(i4b)                                      :: nTime            ! hard coded for now
   integer(i4b)                                      :: char_code        ! character code 
-  logical(lgt)                                      :: existAttr        ! attribute exist or not
+  logical(lgt)                                      :: existAttr        ! attribute exists or not
+  logical(lgt)                                      :: tmp_file_exists  ! tmp file exists or not
   real(dp)                                          :: convTime2sec     ! time conversion to second
   character(len=strLen)                             :: infilename       ! input filename
   character(len=strLen),allocatable                 :: dataLines(:)     ! vector of lines of information (non-comment lines)
@@ -231,9 +232,8 @@ CONTAINS
   trim_file_name = trim(file_name)
   infilename = trim(dir_name)//trim_file_name
   tmp_file_list = trim(dir_name)//'tmp'
-  infile_is_wildcard = .FALSE.
-  infile_is_ascii = .FALSE.
-  inifle_is_nc = .FALSE.
+  ! remove possible tmp file
+  call execute_command_line("rm -f "//trim(tmp_file_list))
   
   if (masterproc) then
     
@@ -242,35 +242,34 @@ CONTAINS
       IF (trim_file_name(i:i) == '*' .OR. trim_file_name(i:i) == '?') THEN
         ! create the tmp_file_list on disk
         call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
-        infile_is_wildcard = .TRUE.
         EXIT
       END IF
     END DO
+
+    ! check if tmp is created
+    INQUIRE(FILE=tmp_file_list, EXIST=tmp_file_exists)
     
-    ! check if the input file is nc
-    if not (infile_is_wildcard) then
+    ! is infilename is not 
+    if not (tmp_file_exists) then
       ! Try opening the NetCDF file
       ierr = nf90_open(infilename, NF90_NOWRITE, ncid)
-      ! check opening is sucessful
+      ! check opening is successful
       if (ierr == NF90_NOERR) then
-        inifle_is_nc = .true.
+        call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
       else
-        infile_is_ascii = .true.
-        execute_command_line("cp "//trim(tmp_file_list))
+        call execute_command_line("cp "//infilename//" > "//trim(tmp_file_list))
       end if
     end if
     
-    ! is wild card or list of file name in ascii format then read the tmp file
-    if (infile_is_ascii) then
-      ! open the tmp file
-      call file_open(tmp_file_list,funit,ierr,cmessage) ! open the text file
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
-      ! get a list of character strings from non-commented lines
-      call get_vlines(funit,dataLines,ierr,cmessage)
-      if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
-      ! remove the tmp file
-      call execute_command_line("rm -f "//trim(tmp_file_list))
-    end if
+    ! open the tmp file
+    call file_open(tmp_file_list,funit,ierr,cmessage) ! open the text file
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
+    ! get a list of character strings from non-commented lines
+    call get_vlines(funit,dataLines,ierr,cmessage)
+    if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
+    ! remove the tmp file
+    call execute_command_line("rm -f "//trim(tmp_file_list))
+
   end if
 
   call shr_mpi_bcast(dataLines, ierr, cmessage)
