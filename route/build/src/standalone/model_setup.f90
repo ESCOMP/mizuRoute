@@ -247,6 +247,7 @@ CONTAINS
       IF (trim_file_name(iChar:iChar) == '*' .OR. trim_file_name(iChar:iChar) == '?') THEN
         ! create the tmp_file_list on disk
         call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
+        !call execute_command_line("bash -c 'ls "//infilename//" > "//trim(tmp_file_list)//"'")
         EXIT
       END IF
     END DO
