@@ -216,14 +216,13 @@ CONTAINS
   integer(i4b)                                      :: iChar            ! integer for loop over characters
   integer(i4b)                                      :: ierr_dummy       ! dummy error code, for checking nc file
   logical(lgt)                                      :: existAttr        ! attribute exists or not
-  logical(lgt)                                      :: tmp_file_exists  ! tmp file exists or not
+  logical(lgt)                                      :: file_exists      ! flag to check if a file exists or not
+  logical(lgt)                                      :: infile_exists    ! flag to check if infile exists or not
   logical(lgt)                                      :: is_nc            ! input file is netcdf and not ascii
-  logical(lgt)                                      :: is_ascii         ! input file is ascii, list of file name
   real(dp)                                          :: convTime2sec     ! time conversion to second
   character(len=strLen)                             :: infilename       ! input filename
   character(len=strLen),allocatable                 :: dataLines(:)     ! vector of lines of information (non-comment lines)
   character(len=strLen)                             :: cmessage         ! error message of downwind routine
-  character(len=strLen)                             :: trim_file_name   ! temporal text keeping the trimmed file name
   character(len=strLen)                             :: message_dummy    ! dummy error message, for checking nc file
 
   ierr=0; message='inFile_pop/'
@@ -231,51 +230,51 @@ CONTAINS
 
   ! build filename and its path containing list of NetCDF files
   ! then construct a character array including the file paths
-  trim_file_name = trim(file_name)
-  infilename = trim(dir_name)//trim_file_name
-  tmp_file_list = trim(dir_name)//'tmp'
+  infilename = trim(dir_name)//trim(file_name)
+  tmp_file_list = 'tmp'
   is_nc = .false.
-  is_ascii = .false.
+  file_exists = .false.
+  infile_exists = .false.
 
   if (masterproc) then
-
-    ! remove possible sxisting tmp file
-    call execute_command_line("rm -f "//trim(tmp_file_list))
-
-    ! check if the infile is a wild card with * or ? such as file*.nc4 or file?.nc
-    DO iChar = 1, len(trim_file_name)
-      IF (trim_file_name(iChar:iChar) == '*' .OR. trim_file_name(iChar:iChar) == '?') THEN
-        ! create the tmp_file_list on disk
+    ! check if the provided input file is netcdf
+    call is_netcdf_file (infilename, is_nc, ierr_dummy, message_dummy)
+    if (is_nc) then
+      ! allocate the dataLines
+      allocate(dataLines(1))
+      ! pass the infilename as netcdf directly
+      dataLines(1) = infilename
+    else
+      ! check if the file list exists, assumed to be ascii
+      INQUIRE(FILE=infilename, EXIST=infile_exists)
+      ! check if infilename exists or not
+      if (.not. infile_exists) then ! assume to to be wildcard
         call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
-        EXIT
-      END IF
-    END DO
-
-    ! check if tmp is created
-    INQUIRE(FILE=tmp_file_list, EXIST=tmp_file_exists)
-
-    ! is tmp file is not created then it should be file.nc or file_name.txt
-    if (.not. tmp_file_exists) then
-      ! check the file is netcdf
-      call is_netcdf_file (infilename, is_nc, ierr_dummy, message_dummy)
-      ! check opening is successful
-      if (is_nc) then
-        call execute_command_line("ls "//trim(infilename)//" > "//trim(tmp_file_list))
-      else
-        is_ascii = .true.
-        call execute_command_line("cp "//trim(infilename)//" "//trim(tmp_file_list))
+      else ! assumes the file include list of files
+        tmp_file_list = infilename
       end if
+      ! open the tmp file
+      call file_open(tmp_file_list,funit,ierr,cmessage) ! open the text file
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
+      ! get a list of character strings from non-commented lines
+      call get_vlines(funit,dataLines,ierr,cmessage)
+      if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
+      ! remove the tmp file
+      call execute_command_line("rm -f "//trim(tmp_file_list))
+      ! check if the file names actually exist
+      nFile = size(dataLines) ! get the number of lines in the list file
+      do iFile=1,nFile
+        ! if file list is provided, the input folder should be added to the file names
+        if (infile_exists) then
+          dataLines(iFile) = trim(dir_name)//trim(dataLines(iFile))
+        end if
+        ! check if the file exists
+        INQUIRE(FILE=trim(dataLines(iFile)), EXIST=file_exists)
+        if (.not. file_exists) then
+          ierr=30; message=trim(message)//trim(dataLines(iFile))//" does not exist"; return;
+        end if
+      end do
     end if
-
-    ! open the tmp file
-    call file_open(tmp_file_list,funit,ierr,cmessage) ! open the text file
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
-    ! get a list of character strings from non-commented lines
-    call get_vlines(funit,dataLines,ierr,cmessage)
-    if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
-    ! remove the tmp file
-    call execute_command_line("rm -f "//trim(tmp_file_list))
-
   end if
 
   call shr_mpi_bcast(dataLines, ierr, cmessage)
@@ -292,9 +291,6 @@ CONTAINS
 
     ! set forcing file name
     inputFileInfo(iFile)%infilename = trim(dataLines(iFile))
-    if (is_ascii) then ! the input is ascii and the input direction should be added
-      inputFileInfo(iFile)%infilename = trim(dir_name)//inputFileInfo(iFile)%infilename
-    end if
 
     ! get the time units. if not exsit in netcdfs, provided from the control file
     existAttr = check_attr(trim(inputFileInfo(iFile)%infilename), time_var_name, 'units')
