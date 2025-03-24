@@ -213,7 +213,6 @@ CONTAINS
   integer(i4b)                                      :: iFile            ! counter for forcing files
   integer(i4b)                                      :: nFile            ! number of nc files identified in the text file
   integer(i4b)                                      :: nTime            ! hard coded for now
-  integer(i4b)                                      :: iChar            ! integer for loop over characters
   integer(i4b)                                      :: ierr_dummy       ! dummy error code, for checking nc file
   logical(lgt)                                      :: existAttr        ! attribute exists or not
   logical(lgt)                                      :: file_exists      ! flag to check if a file exists or not
@@ -260,7 +259,9 @@ CONTAINS
       call get_vlines(funit,dataLines,ierr,cmessage)
       if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
       ! remove the tmp file
-      call execute_command_line("rm -f "//trim(tmp_file_list))
+      if (.not. infile_exists) then ! assume to to be wildcard, remove tmp file
+        call execute_command_line("rm -f "//trim(tmp_file_list))
+      end if
       ! check if the file names actually exist
       nFile = size(dataLines) ! get the number of lines in the list file
       do iFile=1,nFile
