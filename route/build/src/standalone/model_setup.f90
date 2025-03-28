@@ -237,7 +237,7 @@ CONTAINS
 
   if (masterproc) then
     ! check if the provided input file is netcdf
-    call is_netcdf_file (infilename, is_nc, ierr_dummy, message_dummy)
+    is_nc =  is_netcdf_file (infilename, ierr_dummy, message_dummy)
     if (is_nc) then
       ! allocate the dataLines
       allocate(dataLines(1))
@@ -245,7 +245,7 @@ CONTAINS
       dataLines(1) = infilename
     else
       ! check if the file list exists, assumed to be ascii
-      INQUIRE(FILE=infilename, EXIST=infile_exists)
+      inquire(FILE=infilename, EXIST=infile_exists)
       ! check if infilename exists or not
       if (.not. infile_exists) then ! assume to to be wildcard
         call execute_command_line("ls "//infilename//" > "//trim(tmp_file_list))
@@ -270,7 +270,7 @@ CONTAINS
           dataLines(iFile) = trim(dir_name)//trim(dataLines(iFile))
         end if
         ! check if the file exists
-        INQUIRE(FILE=trim(dataLines(iFile)), EXIST=file_exists)
+        inquire(FILE=trim(dataLines(iFile)), EXIST=file_exists)
         if (.not. file_exists) then
           ierr=30; message=trim(message)//trim(dataLines(iFile))//" does not exist"; return;
         end if

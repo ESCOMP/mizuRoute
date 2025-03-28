@@ -958,17 +958,17 @@ CONTAINS
  ! *********************************************************************
  ! Public subroutine: check if the file is NetCDF
  ! *********************************************************************
- SUBROUTINE is_netcdf_file(fname, is_nc, ierr, message)
+ function is_netcdf_file(fname, ierr, message) result(is_nc)
 
    implicit none
    ! input
    character(*), intent(in)  :: fname    ! Filename
    ! output
-   logical(lgt), intent(out) :: is_nc    ! Flag: True if NetCDF file
    integer(i4b), intent(out) :: ierr     ! Error code
    character(*), intent(out) :: message  ! Error message
    ! local
    integer(i4b)              :: ncid     ! NetCDF file ID
+   logical(lgt)              :: is_nc    ! Flag: True if NetCDF file
 
    ! initialize outputs
    is_nc = .false.
@@ -987,6 +987,6 @@ CONTAINS
      message = trim(message) // '[' // trim(nf90_strerror(ierr)) // '; file=' // trim(fname) // ']'
    end if
 
- END SUBROUTINE is_netcdf_file
+ end function is_netcdf_file
 
 END MODULE ncio_utils
