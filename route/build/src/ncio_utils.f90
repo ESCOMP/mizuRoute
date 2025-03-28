@@ -21,6 +21,7 @@ public::end_def
 public::write_nc
 public::open_nc
 public::close_nc
+public::is_netcdf_file
 
 INTERFACE get_nc
   module procedure get_scalar
@@ -902,7 +903,7 @@ CONTAINS
 
 
  ! *********************************************************************
- ! Public subroutine: close netcdf
+ ! Public subroutine: open netcdf
  ! *********************************************************************
  SUBROUTINE open_nc(fname, mode, ncid, ierr, message)
 
@@ -952,5 +953,40 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); endif
 
  END SUBROUTINE close_nc
+
+
+ ! *********************************************************************
+ ! Public subroutine: check if the file is NetCDF
+ ! *********************************************************************
+ function is_netcdf_file(fname, ierr, message) result(is_nc)
+
+   implicit none
+   ! input
+   character(*), intent(in)  :: fname    ! Filename
+   ! output
+   integer(i4b), intent(out) :: ierr     ! Error code
+   character(*), intent(out) :: message  ! Error message
+   ! local
+   integer(i4b)              :: ncid     ! NetCDF file ID
+   logical(lgt)              :: is_nc    ! Flag: True if NetCDF file
+
+   ! initialize outputs
+   is_nc = .false.
+   ierr  = 0
+   message = 'is_netcdf_file: '
+
+   ! Try to open the file in read-only mode
+   ierr = nf90_open(trim(fname), NF90_NOWRITE, ncid)
+
+   if (ierr == NF90_NOERR) then
+     ! Successfully opened, so it's a NetCDF file
+     is_nc = .true.
+     ierr = nf90_close(ncid) ! close the NetCDF file
+   else
+     ! Not a valid NetCDF file
+     message = trim(message) // '[' // trim(nf90_strerror(ierr)) // '; file=' // trim(fname) // ']'
+   end if
+
+ end function is_netcdf_file
 
 END MODULE ncio_utils
