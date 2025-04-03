@@ -50,12 +50,14 @@ CONTAINS
                       ierr, message)   ! output: error control
 
    USE public_var,          ONLY: continue_run        ! T-> append output in existing history files. F-> write output in new history file
+   USE public_var,          ONLY: qmodOption          ! DA option: 1-> direct insersion, 0-> do nothing
    USE globalData,          ONLY: version             ! mizuRoute version
    USE globalData,          ONLY: gitBranch           ! git branch
    USE globalData,          ONLY: gitHash             ! git commit hash
    USE mpi_process,         ONLY: pass_global_data    ! mpi globaldata copy to slave proc
    USE init_model_data,     ONLY: init_ntopo_data
    USE init_model_data,     ONLY: init_state_data
+   USE init_model_data,     ONLY: init_qmod
    USE write_simoutput_pio, ONLY: init_histFile       ! open existing history file to append (only continue_run is true)
 
    implicit none
@@ -106,6 +108,11 @@ CONTAINS
    ! restart initialization
    call init_state_data(pid, nNodes, comm, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   if (qmodOption==1) then
+     call init_qmod(ierr,cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
    if (continue_run) then
      call init_histFile(ierr, cmessage)

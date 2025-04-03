@@ -254,6 +254,7 @@ MODULE var_lookup
  type, public  ::  iLook_IRF
   integer(i4b)     :: qfuture        = integerMissing  ! 1. future routed flow (m3/s)
   integer(i4b)     :: vol            = integerMissing  ! 2. reach volume (m3)
+  integer(i4b)     :: qerror         = integerMissing  ! 3. discharge error (m3/s): optional
  endtype iLook_IRF
  ! KWT state/fluxes
  type, public  ::  iLook_KWT
@@ -268,16 +269,19 @@ MODULE var_lookup
  type, public  ::  iLook_KW
   integer(i4b)     :: qsub           = integerMissing  ! 1. discharge (m3/s)
   integer(i4b)     :: vol            = integerMissing  ! 2. reach volume (m3)
+  integer(i4b)     :: qerror         = integerMissing  ! 3. discharge error (m3/s): optional
  endtype iLook_KW
  ! DW state/fluxes
  type, public  ::  iLook_DW
   integer(i4b)     :: qsub           = integerMissing  ! 1. discharge (m3/s)
   integer(i4b)     :: vol            = integerMissing  ! 2. reach volume (m3)
+  integer(i4b)     :: qerror         = integerMissing  ! 3. discharge error (m3/s): optional
  endtype iLook_DW
  ! MC state/fluxes
  type, public  ::  iLook_MC
   integer(i4b)     :: qsub           = integerMissing  ! 1. discharge (m3/s)
   integer(i4b)     :: vol            = integerMissing  ! 2. reach volume (m3)
+  integer(i4b)     :: qerror         = integerMissing  ! 3. discharge error (m3/s): optional
  endtype iLook_MC
  ! ***********************************************************************************************************
  ! ** define data vectors
@@ -307,11 +311,11 @@ MODULE var_lookup
  type(iLook_HFLX)     ,public,parameter :: ixHFLX      = iLook_HFLX     ( 1)
  type(iLook_basinQ)   ,public,parameter :: ixBasinQ    = iLook_basinQ   ( 1)
  type(iLook_IRFbas)   ,public,parameter :: ixIRFbas    = iLook_IRFbas   ( 1)
- type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      ( 1, 2)
+ type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      ( 1, 2, 3)
  type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      ( 1, 2, 3, 4, 5, 6)
- type(iLook_KW)       ,public,parameter :: ixKW        = iLook_KW       ( 1, 2)
- type(iLook_DW)       ,public,parameter :: ixDW        = iLook_DW       ( 1, 2)
- type(iLook_MC)       ,public,parameter :: ixMC        = iLook_MC       ( 1, 2)
+ type(iLook_KW)       ,public,parameter :: ixKW        = iLook_KW       ( 1, 2, 3)
+ type(iLook_DW)       ,public,parameter :: ixDW        = iLook_DW       ( 1, 2, 3)
+ type(iLook_MC)       ,public,parameter :: ixMC        = iLook_MC       ( 1, 2, 3)
  ! ***********************************************************************************************************
  ! ** define size of data vectors
  ! ***********************************************************************************************************

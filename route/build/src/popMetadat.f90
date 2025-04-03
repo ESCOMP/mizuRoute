@@ -278,18 +278,22 @@ contains
  ! Kinematic Wave
  call meta_kw(ixKW%qsub)%init('q_sub_kw' , 'flow at computational moelcule', 'm3/s', ncd_double, [ixStateDims%seg,ixStateDims%mol_kw,ixStateDims%ens], .true.)
  call meta_kw(ixKW%vol )%init('volume_kw', 'volume in reach/lake',           'm3',   ncd_double, [ixStateDims%seg,ixStateDims%ens] , .true.)
+ call meta_kw(ixKW%qerror)%init('qerror_kw', 'discharge error',              'm3/s', ncd_double, [ixStateDims%seg,ixStateDims%ens] , .false.)
 
  ! Diffusive Wave
  call meta_dw(ixDW%qsub)%init('q_sub_dw' , 'flow at computational moelcule', 'm3/s', ncd_double, [ixStateDims%seg,ixStateDims%mol_dw,ixStateDims%ens], .true.)
  call meta_dw(ixDW%vol )%init('volume_dw', 'volume in reach/lake',           'm3',   ncd_double, [ixStateDims%seg,ixStateDims%ens] , .true.)
+ call meta_dw(ixDW%qerror)%init('qerror_dw', 'discharge error',              'm3/s', ncd_double, [ixStateDims%seg,ixStateDims%ens] , .false.)
 
  ! Muskingum-cunge
  call meta_mc(ixMC%qsub)%init('q_sub_mc' , 'flow at computational molecule', 'm3/s', ncd_double, [ixStateDims%seg,ixStateDims%mol_mc,ixStateDims%ens], .true.)
  call meta_mc(ixMC%vol )%init('volume_mc', 'volume in reach/lake',           'm3',   ncd_double, [ixStateDims%seg,ixStateDims%ens] , .true.)
+ call meta_mc(ixMC%qerror)%init('qerror_mc', 'discharge error',              'm3/s', ncd_double, [ixStateDims%seg,ixStateDims%ens] , .false.)
 
  ! Impulse Response Function
  call meta_irf(ixIRF%qfuture)%init('irf_qfuture', 'future flow series',   'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh_irf,ixStateDims%ens] , .true.)
  call meta_irf(ixIRF%vol    )%init('volume_irf' , 'volume in reach/lake', 'm3'   ,ncd_double, [ixStateDims%seg,ixStateDims%tbound, ixStateDims%ens] , .true.)
+ call meta_irf(ixIRF%qerror)%init('qerror_irf',   'discharge error',      'm3/s', ncd_double, [ixStateDims%seg,ixStateDims%ens] , .false.)
 
  ! Basin Impulse Response Function
  call meta_irf_bas(ixIRFbas%qfuture)%init('qfuture', 'future flow series', 'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%ens], .true.)
