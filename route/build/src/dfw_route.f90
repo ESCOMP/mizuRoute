@@ -199,7 +199,9 @@ CONTAINS
    endif
  end if
 
- call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxDW, Qupstream, Qlat, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
+ if (qmodOption==0) then ! check reach water balance only if data assimilation is off
+   call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxDW, Qupstream, Qlat, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
+ end if
 
  END SUBROUTINE dfw_rch
 
