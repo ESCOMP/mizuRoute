@@ -30,13 +30,14 @@ USE globalData, ONLY: meta_PFAF      ! pfafstetter code
 USE globalData, ONLY: meta_rflx      ! reach flux variables
 USE globalData, ONLY: meta_hflx      ! hru flux variables
 USE globalData, ONLY: meta_basinQ    ! reach inflow from basin
-USE globalData, ONLY: meta_basinC    ! reach concentration flux from basin
 USE globalData, ONLY: meta_irf_bas   ! within-basin irf routing fluxes and states
+USE globalData, ONLY: meta_bas_tracer! within-basin tracer mass flux
 USE globalData, ONLY: meta_irf       ! irf routing fluxes and states in a segment
 USE globalData, ONLY: meta_kwt       ! lagrangiankinematic wave routing fluxes and states in a segment
 USE globalData, ONLY: meta_kw        ! kinematic wave routing fluxes and states in a segment
 USE globalData, ONLY: meta_mc        ! muskingum-cunge routing fluxes and states in a segment
 USE globalData, ONLY: meta_dw        ! diffusive wave routing fluxes and states in a segment
+USE globalData, ONLY: meta_tracer    ! tracer state variables
 
 ! indices of named variables
 USE var_lookup, ONLY: ixStruct   , nStructures
@@ -52,8 +53,9 @@ USE var_lookup, ONLY: ixPFAF     , nVarsPFAF
 USE var_lookup, ONLY: ixRFLX
 USE var_lookup, ONLY: ixHFLX
 USE var_lookup, ONLY: ixIRFbas
+USE var_lookup, ONLY: ixBasTracer
 USE var_lookup, ONLY: ixBasinQ
-USE var_lookup, ONLY: ixBasinC
+USE var_lookup, ONLY: ixTracer
 USE var_lookup, ONLY: ixIRF
 USE var_lookup, ONLY: ixKWT
 USE var_lookup, ONLY: ixKW
@@ -303,11 +305,14 @@ contains
  ! Basin Impulse Response Function
  call meta_irf_bas(ixIRFbas%qfuture)%init('qfuture', 'future flow series', 'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%ens], .true.)
 
+ ! Basin Impulse Response Function
+ call meta_bas_tracer(ixBasTracer%tfuture)%init('tfuture', 'future tracer mass series', 'mg/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%ens], .true.)
+
  ! reach inflow from basin
  call meta_basinQ(ixBasinQ%q)%init('basin_q', 'basin routed flow', 'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%ens], .true.)
 
  ! reach concentration flux from basin
- call meta_basinC(ixBasinC%c)%init('basin_c', 'concentration from basin', 'g/s' ,ncd_double, [ixStateDims%seg,ixStateDims%ens], .false.)
+ call meta_tracer(ixTracer%mass)%init('solute_mass', 'mass in reach/lake', 'mg' ,ncd_double, [ixStateDims%seg,ixStateDims%ens], .false.)
 
  end subroutine popMetadat
 

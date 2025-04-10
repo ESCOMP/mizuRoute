@@ -369,6 +369,8 @@ MODULE histVars_data
       integer(i4b)                       :: ixWaterH              ! temporal water height variable index
       integer(i4b)                       :: ixFloodV              ! temporal flood volume variable index
       integer(i4b)                       :: ixInflow              ! temporal inflow variable index
+      integer(i4b)                       :: ixTracerMass          ! temporal tracer mass variable index
+      integer(i4b)                       :: ixTracerFlux          ! temporal tracer flux variable index
       logical(lgt)                       :: FileStatus            ! file open or close
       type(file_desc_t)                  :: pioFileDesc           ! pio file handle
 
@@ -457,6 +459,14 @@ MODULE histVars_data
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%volume]'; return; endif
         end if
 
+        if (tracer) then
+          allocate(this%solute_mass(this%nRch, nRoutes), source=0.0_dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%solute_mass]'; return; endif
+
+          allocate(this%solute_flux(this%nRch, nRoutes), source=0.0_dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%solute_flux]'; return; endif
+        end if
+
         do ixRoute=1,nRoutes
           select case(routeMethods(ixRoute))
             case(accumRunoff)
@@ -491,6 +501,8 @@ MODULE histVars_data
               ixWaterH=ixRFLX%DWheight
               ixFloodV=ixRFLX%DWfloodVolume
               ixInflow=ixRFLX%DWinflow
+              ixTracerFlux=ixRFLX%DWsoluteFlux
+              ixTracerMass=ixRFLX%DWsoluteMass
             case default
               write(message,'(2A,1X,G0,1X,A)') trim(message), 'routing method index:',routeMethods(ixRoute), 'must be 0-5'
               ierr=81; return
@@ -557,6 +569,31 @@ MODULE histVars_data
               this%inflow(:,ixRoute) = array_tmp
             end if
           end if
+
+          if (meta_rflx(ixTracerMass)%varFile) then
+            call read_dist_array(pioFileDesc, meta_rflx(ixTracerMass)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+            ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
+            if (masterproc) then
+              this%solute_mass(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
+              this%solute_mass(nRch_mainstem+nTribOutlet+1:this%nRch, ixRoute) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
+            else
+              this%solute_mass(:,ixRoute) = array_tmp
+            end if
+          end if
+
+          if (meta_rflx(ixTracerFlux)%varFile) then
+            call read_dist_array(pioFileDesc, meta_rflx(ixTracerFlux)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+            ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
+            if (masterproc) then
+              this%solute_flux(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
+              this%solute_flux(nRch_mainstem+nTribOutlet+1:this%nRch, ixRoute) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
+            else
+              this%solute_flux(:,ixRoute) = array_tmp
+            end if
+          end if
+
         end do ! end of ixRoute loop
       end if ! end of nRoute>0 if-statement
 

@@ -61,13 +61,14 @@ MODULE globalData
   USE var_lookup, ONLY: nVarsRFLX    ! number of variables in data structure (river flux/state)
   USE var_lookup, ONLY: nVarsHFLX    ! number of variables in data structure (HRU flux/state)
   USE var_lookup, ONLY: nVarsBasinQ  ! number of variables in data structure (restart vars for
-  USE var_lookup, ONLY: nVarsBasinC  ! number of variables in data structure (restart vars for
   USE var_lookup, ONLY: nVarsIRFbas  ! number of variables in data structure (restart vars for overland unit-hydrograph routing)
+  USE var_lookup, ONLY: nVarsBasTracer ! number of variables in data structure (restart vars for overland tracer routing)
   USE var_lookup, ONLY: nVarsIRF     ! number of variables in data structure (restart vars for unit-hydrograph routing)
   USE var_lookup, ONLY: nVarsKWT     ! number of variables in data structure (restart vars for lagrangian kinematic wave)
   USE var_lookup, ONLY: nVarsKW      ! number of variables in data structure (restart vars for kinematic wave routing)
   USE var_lookup, ONLY: nVarsMC      ! number of variables in data structure (restart vars for muskingum-cunge routing)
   USE var_lookup, ONLY: nVarsDW      ! number of variables in data structure (restart vars for diffusive wave routing)
+  USE var_lookup, ONLY: nVarsTracer  ! number of variables in data structure (restart vars for tracer)
 
   implicit none
 
@@ -209,13 +210,14 @@ MODULE globalData
   type(var_info_new),              public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
   type(var_info_new),              public :: meta_hflx   (nVarsHFLX   ) ! hru flux variables
   type(var_info_new),              public :: meta_basinQ (nVarsBasinQ ) ! reach inflow from basin
-  type(var_info_new),              public :: meta_basinC (nVarsBasinC ) ! reach concentration flux from basin
   type(var_info_new),              public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
+  type(var_info_new),              public :: meta_bas_tracer(nVarsBasTracer) ! basin IRF routing fluxes/states
   type(var_info_new),              public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
   type(var_info_new),              public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
   type(var_info_new),              public :: meta_kw     (nVarsKW     ) ! KW routing fluxes/states
   type(var_info_new),              public :: meta_mc     (nVarsMC     ) ! MC routing restart fluxes/states
   type(var_info_new),              public :: meta_dw     (nVarsDW     ) ! DW routing restart fluxes/states
+  type(var_info_new),              public :: meta_tracer (nVarsTracer ) ! tracer states
 
   ! ---------- shared data structures ----------------------------------------------------------------------
 

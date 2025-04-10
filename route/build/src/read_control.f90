@@ -697,9 +697,11 @@ CONTAINS
 
  ! basin runoff routing option
  if (doesBasinRoute==0) meta_rflx(ixRFLX%instRunoff)%varFile = .false.
- if (tracer) then
-   meta_rflx(ixRFLX%DWsoluteFlux)%varFile = .true.
-   meta_rflx(ixRFLX%DWsoluteMass)%varFile = .true.
+
+ ! tracer mass and flux
+ if (.not. tracer) then
+   meta_rflx(ixRFLX%DWsoluteFlux)%varFile = .false.
+   meta_rflx(ixRFLX%DWsoluteMass)%varFile = .false.
  end if
 
  END SUBROUTINE read_control

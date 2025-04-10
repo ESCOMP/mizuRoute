@@ -1,8 +1,7 @@
 MODULE read_restart
 
 ! Moudle wide external modules
-USE nrtype, ONLY: i4b, dp, &
-                  strLen
+USE nrtype
 USE public_var
 
 implicit none
@@ -27,6 +26,7 @@ CONTAINS
  ! meta data
  USE var_lookup, ONLY: ixStateDims, nStateDims
  USE globalData, ONLY: meta_stateDims            ! dimension for state variables
+ USE globalData, ONLY: idxDW                     ! DW routing method index (now tracer use only dw method)
  USE globalData, ONLY: RCHFLX                    ! reach flux data structure for the entire domain
  USE globalData, ONLY: RCHSTA                    ! reach state data structure for the entire domain
  USE globalData, ONLY: ixRch_order
@@ -35,6 +35,7 @@ CONTAINS
  USE globalData, ONLY: nRoutes                   ! number of active routing methods
  USE public_var, ONLY: impulseResponseFunc
  USE public_var, ONLY: kinematicWaveTracking
+ USE public_var, ONLY: tracer
  USE public_var, ONLY: kinematicWave
  USE public_var, ONLY: muskingumCunge
  USE public_var, ONLY: diffusiveWave
@@ -104,6 +105,10 @@ CONTAINS
  if (doesBasinRoute == 1) then
    call read_IRFbas_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
+   if (tracer) then
+     call read_bas_tracer_state(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
+   end if
  endif
 
  if (onRoute(impulseResponseFunc)) then
@@ -128,6 +133,11 @@ CONTAINS
 
  if (onRoute(diffusiveWave)) then
    call read_DW_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
+ end if
+
+ if (tracer) then
+   call read_tracer_state(idxDW, ierr, message)
    if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
  end if
 
@@ -238,6 +248,61 @@ CONTAINS
     enddo
 
   END SUBROUTINE read_IRFbas_state
+
+  SUBROUTINE read_bas_tracer_state(ierr, message1)
+
+    USE globalData, ONLY: meta_bas_tracer              ! basin tracer states
+    USE var_lookup, ONLY: ixBasTracer, nVarsBasTracer
+    implicit none
+    ! output
+    integer(i4b), intent(out)     :: ierr           ! error code
+    character(*), intent(out)     :: message1       ! error message
+    ! local variables
+    character(len=strLen)         :: cmessage1      ! error message of downwind routine
+    type(states)                  :: state          ! temporal state data structures
+    integer(i4b)                  :: iVar,iens,iSeg ! index loops for variables, ensembles, reaches respectively
+    integer(i4b)                  :: jSeg           ! index loops for reaches respectively
+    integer(i4b)                  :: ntdh           ! dimension size
+
+    ierr=0; message1='read_bas_tracer_state/'
+
+    call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%tdh)%dimName), ntdh, ierr, cmessage1)
+    if(ierr/=0)then;  message1=trim(message1)//trim(cmessage1); return; endif
+
+    allocate(state%var(nVarsBasTracer), stat=ierr, errmsg=cmessage1)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
+
+    do iVar=1,nVarsBasTracer
+      select case(iVar)
+        case(ixBasTracer%tfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh, nens), stat=ierr)
+        case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin tracer state:'//trim(meta_bas_tracer(iVar)%varName); return; endif
+    end do
+
+    do iVar=1,nVarsBasTracer
+      select case(iVar)
+        case(ixBasTracer%tfuture); call get_nc(fname, meta_bas_tracer(iVar)%varName, state%var(iVar)%array_3d_dp, [1,1,1], [nSeg,ntdh,nens], ierr, cmessage1)
+        case default; ierr=20; message1=trim(message1)//'unable to identify basin tracer variable index for nc writing'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_bas_tracer(iVar)%varName); return; endif
+    enddo
+
+    do iens=1,nens
+      do iSeg=1,nSeg
+        jSeg = ixRch_order(iSeg)
+        allocate(RCHFLX(iens,jSeg)%solute_future(ntdh), stat=ierr, errmsg=cmessage1)
+        if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
+        do iVar=1,nVarsBasTracer
+          select case(iVar)
+            case(ixBasTracer%tfuture); RCHFLX(iens,jSeg)%solute_future(:)  = state%var(iVar)%array_3d_dp(iSeg,:,iens)
+            case default; ierr=20; message1=trim(message1)//'unable to identify basin tracer state variable index'; return
+          end select
+        enddo
+      enddo
+    enddo
+
+  END SUBROUTINE read_bas_tracer_state
 
 
   SUBROUTINE read_IRF_state(ierr, message1)
@@ -608,6 +673,55 @@ CONTAINS
     enddo
 
   END SUBROUTINE read_DW_state
+
+  SUBROUTINE read_tracer_state(idxRoute, ierr, message1)
+
+    USE globalData, ONLY: meta_tracer
+    USE var_lookup, ONLY: ixTracer, nVarsTracer
+    implicit none
+    integer(i4b), intent(in)    :: idxRoute        ! routing method
+    integer(i4b), intent(out)   :: ierr           ! error code
+    character(*), intent(out)   :: message1       ! error message
+    ! local variables
+    character(len=strLen)       :: cmessage1      ! error message of downwind routine
+    type(states)                :: state          ! temporal state data structures
+    integer(i4b)                :: iVar,iens,iSeg ! index loops for variables, ensembles, reaches respectively
+    integer(i4b)                :: jSeg           ! index loops for reaches respectively
+
+    ierr=0; message1='read_tracer_state/'
+
+    allocate(state%var(nVarsTracer), stat=ierr, errmsg=cmessage1)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
+
+    do iVar=1,nVarsTracer
+      select case(iVar)
+        case(ixTracer%mass);  allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
+        case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for tracer state:'//trim(meta_tracer(iVar)%varName); return; endif
+    end do
+
+    do iVar=1,nVarsTracer
+      select case(iVar)
+        case(ixTracer%mass); call get_nc(fname, meta_tracer(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg, nens], ierr, cmessage1)
+        case default; ierr=20; message1=trim(message1)//'unable to identify tracer variable index for nc reading'; return
+      end select
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_tracer(iVar)%varName); return; endif
+    end do
+
+    do iens=1,nens
+      do iSeg=1,nSeg
+        jSeg = ixRch_order(iSeg)
+        do iVar=1,nVarsTracer
+          select case(iVar)
+            case(ixTracer%mass); RCHFLX(iens,jSeg)%ROUTE(idxRoute)%reach_solute_mass(1) = state%var(iVar)%array_2d_dp(iSeg,iens)
+            case default; ierr=20; message1=trim(message1)//'unable to identify tracer state variable index'; return
+          end select
+        enddo
+      enddo
+    enddo
+
+  END SUBROUTINE read_tracer_state
 
  END SUBROUTINE read_state_nc
 

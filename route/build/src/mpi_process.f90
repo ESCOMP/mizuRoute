@@ -1139,6 +1139,36 @@ CONTAINS
     end do
   endif ! (onRoute(impulseResponseFunc))
 
+  if (tracer) then
+    ! tracer mass  communication
+    if (masterproc) then
+      do iSeg = 1, nRch
+        vol_global_tmp(iSeg) = RCHFLX(iens,iSeg)%ROUTE(idxDW)%reach_solute_mass(1)
+      enddo
+    else
+      vol_global_tmp(:) = realMissing
+    endif
+    call mpi_comm_single_flux(pid, nNodes,                              &
+                              vol_global_tmp,                           &
+                              vol_local,                                &
+                              rch_per_proc(root:nNodes-1),              &
+                              ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                              arth(1,1,rch_per_proc(pid)),              &
+                              scatter,                                  &
+                              ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    if (masterproc) then
+      do iSeg = 1, rch_per_proc(pid)
+        RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxDW)%reach_solute_mass(1) = vol_local(iSeg)
+      enddo
+    else
+      do iSeg = 1, rch_per_proc(pid)
+        RCHFLX_trib(iens,iSeg)%ROUTE(idxDW)%reach_solute_mass(1) = vol_local(iSeg)
+      end do
+    end if
+  end if ! (tracer)
+
   ! no need for the entire domain flux/state data strucure
   deallocate(RCHFLX, RCHSTA)
 
@@ -2083,6 +2113,7 @@ CONTAINS
   integer(i4b), allocatable               :: ntdh(:)
   integer(i4b), allocatable               :: ntdh_trib(:)
   integer(i4b)                            :: totTdh(0:nNodes-1)
+  character(len=strLen)                   :: varType
 
   ierr=0; message='mpi_comm_irf_bas_state/'
 
@@ -2106,13 +2137,17 @@ CONTAINS
       enddo
 
       ! convert RCHFLX data strucutre to state arrays
+      varType='flow'
       call irf_bas_struc2array(iens, RCHFLX0,  & !input: input state data structure
+                           varType,             & !input: variable type
                            qfuture,            & !output: states array
                            ntdh,               & !output: number of qfuture per reach
                            ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       if (tracer) then
+        varType='tracer'
         call irf_bas_struc2array(iens, RCHFLX0,  & !input: input state data structure
+                             varType,           & !input: variable type
                              solute_future,      & !output: states array
                              ntdh,               & !output: number of qfuture per reach
                              ierr, cmessage)
@@ -2202,10 +2237,12 @@ CONTAINS
     enddo
 
     ! Transfer KWT state data structure to flat arrays
-    call irf_bas_struc2array(iens,RCHFLX0,       &
-                         qfuture_trib,       &
-                         ntdh_trib,          &
-                         ierr, cmessage)
+    varType='flow'
+    call irf_bas_struc2array(iens, RCHFLX0,      &
+                             varType,            & !input: variable type
+                             qfuture_trib,       &
+                             ntdh_trib,          &
+                             ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     call shr_mpi_gatherV(ntdh_trib, nReach, ntdh, ierr, cmessage)
@@ -2792,7 +2829,8 @@ CONTAINS
  ! private subroutine
  ! *********************************************************************
  SUBROUTINE irf_bas_struc2array(iens, RCHFLX_in,    &  ! input:
-                                qfuture_bas,        &  ! output:
+                                varType,            &  ! input:
+                                future_bas,         &  ! output:
                                 ntdh_bas,           &  ! output:
                                 ierr, message)
   USE dataTypes, ONLY: STRFLX              ! reach flux data structure
@@ -2800,8 +2838,9 @@ CONTAINS
   implicit none
   ! argument variables
   integer(i4b),          intent(in)              :: iens           ! ensemble index
+  character(strLen),     intent(in)              :: varType        ! variable in basin routing
   type(STRFLX),          intent(in), allocatable :: RCHFLX_in(:,:) ! reach state data
-  real(dp),              intent(out),allocatable :: qfuture_bas(:) ! flat array for wave Q
+  real(dp),              intent(out),allocatable :: future_bas(:)  ! flat array for wave Q
   integer(i4b),          intent(out),allocatable :: ntdh_bas(:)    ! number of waves at each reach
   integer(i4b),          intent(out)             :: ierr           ! error code
   character(len=strLen), intent(out)             :: message        ! error message
@@ -2824,12 +2863,15 @@ CONTAINS
   enddo
 
   totTdh=sum(ntdh_bas)
-  allocate(qfuture_bas(totTdh), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating array for [qfuture_bas]'; return; endif
+  allocate(future_bas(totTdh), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [future_bas]'; return; endif
 
   ixTdh = 1
   do iSeg=1,nSeg
-   qfuture_bas(ixTdh:ixTdh+ntdh_bas(iSeg)-1) = RCHFLX_in(iens,iSeg)%QFUTURE(1:ntdh_bas(iSeg))
+   select case(trim(varType))
+     case('flow'); future_bas(ixTdh:ixTdh+ntdh_bas(iSeg)-1) = RCHFLX_in(iens,iSeg)%QFUTURE(1:ntdh_bas(iSeg))
+     case('tracer'); future_bas(ixTdh:ixTdh+ntdh_bas(iSeg)-1) = RCHFLX_in(iens,iSeg)%solute_future(1:ntdh_bas(iSeg))
+   end select
    ixTdh = ixTdh+ntdh_bas(iSeg)
   end do
 
