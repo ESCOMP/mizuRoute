@@ -5,12 +5,13 @@
     <hist_file_extension>h_gauge.*\.nc$</hist_file_extension>
     <rest_history_varname>history_file</rest_history_varname>
     <rpointer>
-      <rpointer_file>rpointer.rof</rpointer_file>
+      <rpointer_file>rpointer.rof.$DATENAME</rpointer_file>
       <rpointer_content>./$CASE.mizuroute.r.$DATENAME.nc</rpointer_content>
     </rpointer>
     <!-- Some test cases to make sure the extension regular expressions function correctly -->
     <test_file_names>
-      <tfile disposition="copy">rpointer.rof</tfile>
+      <tfile disposition="copy">rpointer.rof.1976-01-01-00000</tfile>
+      <tfile disposition="ignore">rpointer.rof.1976-01-02-00000</tfile>
       <tfile disposition="copy">casename.mizuroute.r.1976-01-01-00000.nc</tfile>
       <tfile disposition="move">casename.mizuroute.h.1976-01-01.nc</tfile>
       <tfile disposition="move">casename.mizuroute.h.1976-01.nc</tfile>
