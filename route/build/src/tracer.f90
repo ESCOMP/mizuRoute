@@ -1,6 +1,13 @@
 MODULE tracer_module
 
-! solve 1-D advection(-diffusion) equation from upstream to downstream
+! Description:
+! route a solute or constituent in water to downstream reach
+!
+! Note:
+! As of Apr 17, 2025, in-stream processes - advection, dispersion and solute's reaction to environment
+! are not implemented, though a draft subroutine - comp_advec_diffusion exsit.
+! A solute moves with water movement (i.e., reach-to-reach advection),
+! and solute concentration is assumed to be homogeneous within a reach
 
 USE nrtype
 USE dataTypes,     ONLY: STRFLX                ! fluxes in each reach
@@ -33,7 +40,7 @@ integer(i4b), parameter :: bottom_reach=2
 CONTAINS
 
  ! *********************************************************************
- ! subroutine: perform diffusive wave routing for one segment
+ ! subroutine: main subroutine for per-reach solute routing
  ! *********************************************************************
  SUBROUTINE constituent_rch(iens, segIndex,   & ! input: index of runoff ensemble to be processed
                             idxRoute,         & ! input: routing method index
@@ -127,7 +134,7 @@ CONTAINS
                      Cupstream,                  &  ! input: total discharge at top of the reach being processed
                      Clat,                       &  ! input: lateral mass flow [mg/s]
                      isHW,                       &  ! input: is this headwater basin?
-                     subrch_state,               &  ! inout:
+                     subrch_state,               &  ! inout: state data structure at sub-reaches
                      RCHFLX_out(iens,segIndex),  &  ! inout: updated fluxes at reach
                      verbose,                    &  ! input: reach index to be examined
                      ierr, cmessage)                ! output: error control
@@ -157,15 +164,14 @@ CONTAINS
                            Cupstream,      & ! input: discharge from upstream
                            Clat,           & ! input: lateral mass flux into chaneel [mg/s]
                            isHW,           & ! input: is this headwater basin?
-                           subrch_state,   & ! inout: state at a sub-reach
+                           subrch_state,   & ! inout: state data structure at sub-reaches
                            rflux,          & ! inout: reach flux at a reach
                            verbose,        & ! input: reach index to be examined
                            ierr,message)
  ! ----------------------------------------------------------------------------------------
- ! Description
- !
+ ! Description:
+ ! Compute a solute flux out of a reach and update solute mass in a reach
  ! ----------------------------------------------------------------------------------------
- USE globalData, ONLY : nMolecule   ! number of internal nodes for finite difference (including upstream and downstream boundaries)
  implicit none
  ! Argument variables
  integer(i4b), intent(in)        :: idxRoute       ! routing method index
@@ -220,22 +226,22 @@ CONTAINS
 
 
  ! *********************************************************************
- ! subroutine: solve diffuisve wave equation
+ ! subroutine: solve advection-diffusion equation within a reach
  ! *********************************************************************
- SUBROUTINE comp_mass_flux_temp(idxRoute,  & ! input: routing method index
-                           rch_param,      & ! input: river parameter data structure
-                           Cupstream,      & ! input: discharge from upstream
-                           Clat,           & ! input: lateral discharge into chaneel [m3/s]
-                           isHW,           & ! input: is this headwater basin?
-                           subrch_state,   & ! inout: state at a sub-reach
-                           rflux,          & ! inout: reach flux at a reach
-                           verbose,        & ! input: reach index to be examined
-                           ierr,message)
+ SUBROUTINE comp_advec_diffusion(idxRoute,       & ! input: routing method index
+                                 rch_param,      & ! input: river parameter data structure
+                                 Cupstream,      & ! input: discharge from upstream
+                                 Clat,           & ! input: lateral discharge into chaneel [m3/s]
+                                 isHW,           & ! input: is this headwater basin?
+                                 subrch_state,   & ! inout: state at a sub-reach
+                                 rflux,          & ! inout: reach flux at a reach
+                                 verbose,        & ! input: reach index to be examined
+                                 ierr,message)
  ! ----------------------------------------------------------------------------------------
- ! description:
- !  In-stream process - advection, dispersion, and reaction
- !
- !
+ ! Description:
+ !  Compute In-stream process - advection, dispersion, and reaction
+ ! Note:
+ !  Currently not implemented
  ! ----------------------------------------------------------------------------------------
  USE globalData, ONLY : nMolecule   ! number of internal nodes for finite difference (including upstream and downstream boundaries)
  USE advection_diffusion, ONLY: solve_ade
@@ -260,13 +266,12 @@ CONTAINS
  real(dp), allocatable           :: Clocal(:,:)    ! sub-reach & sub-time step discharge at previous and current time step [m3/s]
  real(dp), allocatable           :: Cprev(:)       ! sub-reach discharge at previous time step [m3/s]
  real(dp)                        :: dTsub          ! time inteval for sub time-step [sec]
- real(dp)                        :: max_outCC      ! maximum possible constituent discharge [g]
  integer(i4b)                    :: nMole          ! number of sub-nodes
  integer(i4b)                    :: it             ! loop index
  integer(i4b)                    :: ntSub          ! number of sub time-step
  character(len=strLen)           :: cmessage       ! error message from subroutine
 
- ierr=0; message='comp_mass_flux/'
+ ierr=0; message='comp_advec_diffusion/'
 
  ntSub = 1  ! number of sub-time step
 
@@ -326,39 +331,20 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end do
 
-   ! For very low flow condition, outflow - inflow may exceed current storage, so limit outflow and adjust flow profile
-   max_outCC=rflux%ROUTE(idxRoute)%reach_solute_flux/dt + Clocal(1,1)
-   if (Clocal(nMole-1,1)>max_outCC) then
-     Clocal(2:nMole,1) = max_outCC*0.999
-   end if
-   rflux%ROUTE(idxRoute)%reach_solute_flux = rflux%ROUTE(idxRoute)%reach_solute_flux + (Cupstream - Clocal(nMole-1,1))*dt
-
-   rflux%ROUTE(idxRoute)%reach_solute_flux = Clocal(nMole-1,1) + Clat
-   ! store final outflow in data structure
-   !rflux%ROUTE(idxRoute)%reach_solute_flux = Clat
-   !do ix = 1,nMole-2
-   !  rflux%ROUTE(idxRoute)%reach_solute_flux = rflux%ROUTE(idxRoute)%reach_solute_flux + (Clocal(ix,1)+Clocal(ix+1,1))/2.0_dp
-   !end do
-
    ! update state
    subrch_state%CC = Clocal(:,1)
-   !subrch_state%CC = rflux%ROUTE(idxRoute)%reach_solute_flux
 
  else ! if head-water and pour runnof to the bottom of reach
 
-   rflux%ROUTE(idxRoute)%reach_solute_flux = Clat
-   rflux%ROUTE(idxRoute)%reach_solute_flux = 0._dp
-
    subrch_state%CC(1:nMole) = 0._dp
-   subrch_state%CC(nMole)   = rflux%ROUTE(idxRoute)%reach_solute_flux
-
    if (verbose) then
      write(iulog,'(A)')            ' This is headwater '
    endif
+
  endif
 
  end associate
 
- END SUBROUTINE comp_mass_flux_temp
+ END SUBROUTINE comp_advec_diffusion
 
 END MODULE tracer_module
