@@ -10,11 +10,13 @@ USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: realMissing       ! missing value for real number
 USE public_var,        ONLY: integerMissing    ! missing value for integer number
 USE public_var,        ONLY: dt                ! simulation time step [sec]
-USE globalData,        ONLY: idxIRF            ! routing method index for IRF method
+USE public_var,        ONLY: qmodOption      ! qmod option (use 1==direct insertion)
 USE public_var,        ONLY: hw_drain_point    ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
 USE public_var,        ONLY: min_length_route  ! minimum reach length for routing to be performed.
+USE globalData,        ONLY: idxIRF            ! routing method index for IRF method
 USE water_balance,     ONLY: comp_reach_wb     ! compute water balance error
 USE base_route,        ONLY: base_route_rch    ! base (abstract) reach routing method class
+USE data_assimilation, ONLY: direct_insertion  ! qmod option (use 1==direct insertion)
 
 implicit none
 
@@ -194,7 +196,22 @@ CONTAINS
 !    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = 0._dp
   end if
 
-  call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxIRF, q_upstream, Qlat, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
+  if (qmodOption==1) then
+    call direct_insertion(iens, segIndex, & ! input: reach index
+                          idxIRF,         & ! input: routing method id for Euler kinematic wave
+                          ixDesire,       & ! input: verbose seg index
+                          NETOPO_in,      & ! input: reach topology data structure
+                          RCHSTA_out,     & ! inout: reach state data structure
+                          RCHFLX_out,     & ! inout: reach fluxes datq structure
+                          ierr, cmessage)   ! output: error control
+    if(ierr/=0)then
+      write(message,'(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
+    endif
+  end if
+
+  if (qmodOption==0) then ! check reach water balance only if data assimilation is off
+    call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxIRF, q_upstream, Qlat, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
+  end if
 
  END SUBROUTINE irf_rch
 

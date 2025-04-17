@@ -42,14 +42,6 @@ implicit none
   logical(lgt)           :: varFile  = .true.          ! .true. if the variable should be read from a file
  endtype var_info
 
- ! ---------- gauge metadata structures --------------------------------------------------------------------------
-
- type, public :: gage
-   integer(i4b)                   :: nGage
-   character(len=30), allocatable :: gageID(:)
-   integer(i4b),      allocatable :: reachID(:)
- end type gage
-
  ! ---------- basin data structures ----------------------------------------------------------------------
 
  ! segIndex points to the segment in the entire river network data
@@ -360,6 +352,7 @@ implicit none
    real(dp)        :: REACH_VOL(0:1)         ! water volume at previous and current time steps [m3]
    real(dp)        :: REACH_WM_FLUX_actual   ! water management fluxes to and from each reach [m3/s]
    real(dp)        :: WB                     ! reach water balance error [m3]
+   real(dp)        :: Qerror
  end type hydraulic
 
  ! fluxes and states in each reach
@@ -374,6 +367,7 @@ implicit none
   real(dp)                             :: REACH_WM_FLUX          ! water management fluxes to and from each reach [m3/s]
   real(dp)                             :: REACH_WM_VOL           ! target volume from the second water management file [m3]
   real(dp)                             :: Qobs                   ! observed discharge [m3/s]
+  integer(i4b)                         :: Qelapsed               ! number of time step after observed flow is read [-]
   real(dp)                             :: basinEvapo             ! remapped river network catchment Evaporation [unit] (size: number of nHRU)
   real(dp)                             :: basinPrecip            ! remapped river network catchment Precipitation [unit] (size: number of nHRU)
  end type strflx

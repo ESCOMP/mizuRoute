@@ -178,6 +178,7 @@ CONTAINS
     end if
 
     ! sum water balance components across all the processors
+    wb_global = 0._dp
     call shr_mpi_reduce(wb_local, 'sum', wb_global, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
