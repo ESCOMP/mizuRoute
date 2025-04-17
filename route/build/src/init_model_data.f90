@@ -413,8 +413,8 @@ CONTAINS
       RCHFLX_trib(:,:)%BASIN_QI     = 0._dp
       RCHFLX_trib(:,:)%BASIN_QR(0)  = 0._dp
       RCHFLX_trib(:,:)%BASIN_QR(1)  = 0._dp
-      RCHFLX(:,:)%Qelapsed = 0
-      RCHFLX(:,:)%Qobs = 0._dp
+      RCHFLX_trib(:,:)%Qelapsed = 0
+      RCHFLX_trib(:,:)%Qobs = 0._dp
 
       nRch_root=nRch_mainstem+nTribOutlet+rch_per_proc(0)
       if (onRoute(accumRunoff)) then
@@ -424,9 +424,15 @@ CONTAINS
         end do
       end if
       if (onRoute(impulseResponseFunc)) then
-        do ix = 1,nRch_root
-          ntdh = size(NETOPO_trib(ix)%UH)
+        do ix = 1, nRch_mainstem+nTribOutlet ! mainstem reaches
+          ntdh = size(NETOPO_main(ix)%UH)
           allocate(RCHFLX_trib(iens,ix)%QFUTURE_IRF(ntdh), source=0._dp, stat=ierr, errmsg=cmessage)
+        end do
+        do ix = 1, rch_per_proc(0) ! tributary reaches in main task
+          ntdh = size(NETOPO_trib(ix)%UH)
+          allocate(RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+ix)%QFUTURE_IRF(ntdh), source=0._dp, stat=ierr, errmsg=cmessage)
+        end do
+        do ix = 1,nRch_root
           RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_VOL(0:1) = 0._dp
           RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_Q        = 0._dp
           RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%Qerror         = 0._dp
