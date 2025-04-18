@@ -489,8 +489,8 @@ MODULE process_remap_module
       do iHRU=1,nContrib
         ! error check - runoff depth cannot be negative (no missing value)
         if( basinSolute( hruContribIx(iHRU) ) < 0._dp )then
-         write(iulog,*) 'Negative constituent mass: HRU = ', hruContribId(iHRU), ' CC = ', basinSolute( hruContribIx(iHRU) )
-         write(message,'(a,i12, g12.2)') trim(message)//'Negative constituent mass for HRU ', hruContribId(iHRU)
+         write(iulog,*) 'Negative solute mass flux: HRU = ', hruContribId(iHRU), ' basin solute mass flux = ', basinSolute( hruContribIx(iHRU) )
+         write(message,'(a,i12, g12.2)') trim(message)//'Negative solute mass flux for HRU ', hruContribId(iHRU)
          ierr=20; return
         endif
         ! compute the weighted average mass (mg/s)

@@ -166,7 +166,7 @@ implicit none
    real(dp)                 , allocatable  :: basinRunoff(:)  ! remapped river network catchment runoff [depth/time] (size: number of nHRU)
    real(dp)                 , allocatable  :: basinEvapo(:)   ! remapped river network catchment evaporation [depth/time] (size: number of nHRU)
    real(dp)                 , allocatable  :: basinPrecip(:)  ! remapped river network catchment precipitation [depth/time] (size: number of nHRU)
-   real(dp)                 , allocatable  :: basinCC(:)      ! remapped river network catchment constituent [mass/time] (size: number of nHRU)
+   real(dp)                 , allocatable  :: basinSolute(:)  ! remapped river network catchment solute in water [mass/time] (size: number of nHRU)
  end type runoff
 
  type, public, extends(inputData) :: wm  ! water-management
@@ -318,10 +318,10 @@ implicit none
  end type cMolecule
 
  type, public :: SUBRCH
-   real(dp), allocatable  :: Q(:)        ! Discharge at sub-reaches at current step (m3/s)
-   real(dp), allocatable  :: A(:)        ! Flow area at sub-reach at current step (m2)
-   real(dp), allocatable  :: H(:)        ! Flow height at sub-reach at current step (m)
-   real(dp), allocatable  :: CC(:)       ! Concentration at sub-reach at current step (g/m3)
+   real(dp), allocatable  :: Q(:)           ! Discharge at sub-reaches at current step (m3/s)
+   real(dp), allocatable  :: A(:)           ! Flow area at sub-reach at current step (m2)
+   real(dp), allocatable  :: H(:)           ! Flow height at sub-reach at current step (m)
+   real(dp), allocatable  :: Solute_mass(:) ! solute mass at sub-reach at current step (mg)
  end type SUBRCH
 
  type, public :: kwRch

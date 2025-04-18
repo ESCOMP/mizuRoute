@@ -1366,7 +1366,7 @@ CONTAINS
       select case(iVar)
         case(ixTracer%mass)
           allocate(array_2d_dp(nSeg, nEns),stat=ierr,errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':CC routing state:'//trim(meta_tracer(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':solute routing state:'//trim(meta_tracer(iVar)%varName); return; endif
           do iens=1,nEns
             do iSeg=1,nSeg
               array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxRoute)%reach_solute_mass(1)

@@ -102,7 +102,7 @@ MODULE public_var
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   logical(lgt)         ,public    :: floodplain           = .false.         ! logical if flood water is computed or not (floodplain is added)
   integer(i4b)         ,public    :: hw_drain_point       = 2               ! how to add inst. runoff in reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)
-  logical(lgt)         ,public    :: tracer               = .false.         ! logical if tracer is activated to compute a constituent transport
+  logical(lgt)         ,public    :: tracer               = .false.         ! logical if tracer is activated to compute a solute or constituent transport. NOTE: Currently hardcoded to DOC
   logical(lgt)         ,public    :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
   logical(lgt)         ,public    :: lakeRegulate         = .true.          ! logical: F -> turn all the lakes into natural (lakeType=1) regardless of lakeModelType defined individually
   logical(lgt)         ,public    :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
@@ -129,7 +129,7 @@ MODULE public_var
   character(len=strLen),public    :: vname_qsim           = charMissing     ! variable name for runoff
   character(len=strLen),public    :: vname_evapo          = charMissing     ! variable name for actual evapoartion
   character(len=strLen),public    :: vname_precip         = charMissing     ! variable name for precipitation
-  character(len=strLen),public    :: vname_cc             = charMissing     ! variable name for constituent concentration
+  character(len=strLen),public    :: vname_solute         = charMissing     ! variable name for solute mass flux
   character(len=strLen),public    :: vname_time           = charMissing     ! variable name for time
   character(len=strLen),public    :: vname_hruid          = charMissing     ! variable name for runoff hru id
   character(len=strLen),public    :: dname_time           = charMissing     ! dimension name for time

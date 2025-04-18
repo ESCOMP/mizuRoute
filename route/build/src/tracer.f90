@@ -185,7 +185,7 @@ CONTAINS
  integer(i4b), intent(out)       :: ierr           ! error code
  character(*), intent(out)       :: message        ! error message
  ! Local variables
- real(dp)                        :: max_outCC      ! maximum possible constituent discharge [mg/s]
+ real(dp)                        :: max_outMass    ! maximum possible constituent discharge [mg/s]
  real(dp)                        :: reach_vol      ! water volume [m3]
  real(dp)                        :: reach_mass     ! water volume [m3]
  real(dp)                        :: solute_out     ! mass flux out [mg/s]
@@ -205,9 +205,9 @@ CONTAINS
 
    solute_out = (rflux%ROUTE(idxRoute)%REACH_Q-rflux%BASIN_QR(1))*solute_per_vol
 
-   max_outCC=rflux%ROUTE(idxRoute)%reach_solute_mass(1)/dt + Cupstream
-   if (solute_out>max_outCC) then
-     solute_out = max_outCC
+   max_outMass=rflux%ROUTE(idxRoute)%reach_solute_mass(1)/dt + Cupstream
+   if (solute_out>max_outMass) then
+     solute_out = max_outMass
      rflux%ROUTE(idxRoute)%reach_solute_mass(1) = 0
    else
      rflux%ROUTE(idxRoute)%reach_solute_mass(1) = rflux%ROUTE(idxRoute)%reach_solute_mass(1) + (Cupstream - solute_out)*dt
@@ -290,7 +290,7 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! initialize previous time step flow
-   Cprev(1:nMole) = subrch_state%CC     ! flow state at previous time step
+   Cprev(1:nMole) = subrch_state%solute_mass     ! soltute mass state at previous time step
 
    if (verbose) then
      write(iulog,'(A,1X,G12.5)') ' length [m] =',L
@@ -332,11 +332,11 @@ CONTAINS
    end do
 
    ! update state
-   subrch_state%CC = Clocal(:,1)
+   subrch_state%solute_mass = Clocal(:,1)
 
  else ! if head-water and pour runnof to the bottom of reach
 
-   subrch_state%CC(1:nMole) = 0._dp
+   subrch_state%solute_mass(1:nMole) = 0._dp
    if (verbose) then
      write(iulog,'(A)')            ' This is headwater '
    endif

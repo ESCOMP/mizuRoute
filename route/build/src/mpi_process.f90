@@ -101,8 +101,8 @@ CONTAINS
   USE globalData,          ONLY: basinEvapo_trib          ! tributary only HRU Evaporation
   USE globalData,          ONLY: basinPrecip_main         ! mainstem only HRU Precipitation
   USE globalData,          ONLY: basinPrecip_trib         ! tributary only HRU Precipitation
-  USE globalData,          ONLY: basinCC_main             ! mainstem only HRU constituent mass
-  USE globalData,          ONLY: basinCC_trib             ! tributary only HRU constituent mass
+  USE globalData,          ONLY: basinSolute_main         ! mainstem only HRU solute mass
+  USE globalData,          ONLY: basinSolute_trib         ! tributary only HRU solute mass
   USE globalData,          ONLY: flux_wm_main             ! nRch flux holder for mainstem
   USE globalData,          ONLY: flux_wm_trib             ! nRch flux holder for tributary
   USE globalData,          ONLY: vol_wm_main              ! nRch target vol holder for mainstem
@@ -588,10 +588,10 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       if (tracer) then
-        allocate(basinCC_main(nHRU_mainstem), source=0.0_dp, stat=ierr, errmsg=cmessage)
+        allocate(basinSolute_main(nHRU_mainstem), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-        allocate(basinCC_trib(nHRU_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
+        allocate(basinSolute_trib(nHRU_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
@@ -643,7 +643,7 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       if (tracer) then
-        allocate(basinCC_trib(nHRU_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
+        allocate(basinSolute_trib(nHRU_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
@@ -1199,8 +1199,8 @@ CONTAINS
   USE globalData, ONLY: basinEvapo_trib     ! tributary only HRU Evaporation
   USE globalData, ONLY: basinPrecip_main    ! mainstem only HRU Precipitation
   USE globalData, ONLY: basinPrecip_trib    ! tributary only HRU Precipitation
-  USE globalData, ONLY: basinCC_main        ! mainstem only HRU consitunet mass
-  USE globalData, ONLY: basinCC_trib        ! tributary only HRU consitunet mass
+  USE globalData, ONLY: basinSolute_main    ! mainstem only HRU solute mass
+  USE globalData, ONLY: basinSolute_trib    ! tributary only HRU solute mass
   USE globalData, ONLY: river_basin_trib    ! tributary OMP domain data structure
   USE globalData, ONLY: river_basin_main    ! mainstem OMP domain data structure
   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
@@ -1306,7 +1306,7 @@ CONTAINS
                   basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
                   basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
                   basinPrecip_trib,  &  ! input: basin (i.e. HRU) Precip (m/s)
-                  basinCC_trib,      &  ! input: basin (i.e. HRU) constituent (g)
+                  basinSolute_trib,  &  ! input: basin (i.e. HRU) constituent (mg)
                   flux_wm_trib,      &  ! reach (i.e.,reach) flux (m3/s)
                   vol_wm_trib,       &  ! reach (i.e.,reach) target volume for lakes (m3)
                   ixRchProcessed,    &  ! input: indices of reach to be routed
@@ -1387,7 +1387,7 @@ CONTAINS
                       basinRunoff_main,        &  ! input: basin (i.e.,HRU) runoff (m/s)
                       basinEvapo_main,         &  ! input: basin (i.e. HRU) Evapo  (m/s)
                       basinPrecip_main,        &  ! input: basin (i.e. HRU) Precip (m/s)
-                      basinCC_main,            &  ! input: basin (i.e. HRU) constituent (g)
+                      basinSolute_main,        &  ! input: basin (i.e. HRU) solute (mg)
                       flux_wm_main,            &  ! reach (i.e.,reach) flux (m3/s)
                       vol_wm_main,             &  ! reach (i.e.,reach) target volume for lakes (m3)
                       ixRchProcessed,          &  ! input: indices of reach to be routed
@@ -1451,8 +1451,8 @@ CONTAINS
   USE globalData, ONLY: basinEvapo_trib   ! HRU evaporation holder for tributary
   USE globalData, ONLY: basinPrecip_main  ! HRU precipitation holder for mainstem
   USE globalData, ONLY: basinPrecip_trib  ! HRU precipitation holder for tributary
-  USE globalData, ONLY: basinCC_main      ! HRU consitunet holder for mainstem
-  USE globalData, ONLY: basinCC_trib      ! HRU consitunet holder for tributary
+  USE globalData, ONLY: basinSolute_main  ! HRU consitunet holder for mainstem
+  USE globalData, ONLY: basinSolute_trib  ! HRU consitunet holder for tributary
   USE public_var, ONLY: is_lake_sim       ! logical whether or not lake should be simulated
   USE public_var, ONLY: tracer            ! logical whether or not tracer is on
 
@@ -1465,7 +1465,7 @@ CONTAINS
   real(dp)                                :: basinRunoff_local(nHRU)   ! temporal basin runoff (m/s) for whole domain
   real(dp)                                :: basinEvapo_local(nHRU)    ! temporal basin evaporation (m/s) for whole domain
   real(dp)                                :: basinPrecip_local(nHRU)   ! temporal basin precipitation (m/s) for whole domain
-  real(dp)                                :: basinCC_local(nHRU)       ! temporal basin constituent (g) for whole domain
+  real(dp)                                :: basinSolute_local(nHRU)   ! temporal basin constituent (g) for whole domain
   character(len=strLen)                   :: cmessage                  ! error message from a subroutine
 
   ierr=0; message='scatter_runoff/'
@@ -1482,7 +1482,7 @@ CONTAINS
     end if
 
     if (tracer) then
-      basinCC_local (1:nHRU) = runoff_data%basinCC(1:nHRU)
+      basinSolute_local (1:nHRU) = runoff_data%basinSolute(1:nHRU)
     end if
 
     if (nHRU_mainstem>0) then
@@ -1507,11 +1507,11 @@ CONTAINS
       end if
 
       if (tracer) then
-        if (.not. allocated(basinCC_main)) then
-          allocate(basinCC_main(nHRU_mainstem), stat=ierr)
+        if (.not. allocated(basinSolute_main)) then
+          allocate(basinSolute_main(nHRU_mainstem), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinEvapo_main]'; return; endif
         endif
-        basinCC_main (1:nHRU_mainstem) = basinCC_local (1:nHRU_mainstem)
+        basinSolute_main (1:nHRU_mainstem) = basinSolute_local (1:nHRU_mainstem)
 
       end if
     end if
@@ -1540,9 +1540,9 @@ CONTAINS
   end if
 
   if (tracer) then
-    call shr_mpi_scatterV(basinCC_local(nHRU_mainstem+1:nHRU), &
-                          hru_per_proc(0:nNodes-1),            &
-                          basinCC_trib,                        &
+    call shr_mpi_scatterV(basinSolute_local(nHRU_mainstem+1:nHRU), &
+                          hru_per_proc(0:nNodes-1),                &
+                          basinSolute_trib,                        &
                           ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if

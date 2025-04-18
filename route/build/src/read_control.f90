@@ -132,7 +132,7 @@ CONTAINS
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
    case('<floodplain>');           read(cData,*,iostat=io_error) floodplain            ! logical: floodwater is computed, otherwise, channel is unlimited bank depth
    case('<hw_drain_point>');       read(cData,*,iostat=io_error) hw_drain_point        ! integer: how to add inst. runoff in reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)
-   case('<tracer>');               read(cData,*,iostat=io_error) tracer                ! logical; tracer is activated to compute a constituent transport
+   case('<tracer>');               read(cData,*,iostat=io_error) tracer                ! logical: tracer is activated to compute a solute or constituent transport. Note: currently used for DOC
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
    case('<lakeRegulate>');         read(cData,*,iostat=io_error) lakeRegulate          ! logical: F -> turn all the lakes into natural (lakeType=1) regardless of lakeModelType defined individually. T (default)
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm            ! logical; provided fluxes to or from seg/lakes should be considered
@@ -157,7 +157,7 @@ CONTAINS
    case('<vname_qsim>');           vname_qsim   = trim(cData)                          ! name of runoff variable
    case('<vname_evapo>');          vname_evapo  = trim(cData)                          ! name of actual evapoartion variable
    case('<vname_precip>');         vname_precip = trim(cData)                          ! name of precipitation variable
-   case('<vname_cc>');             vname_cc     = trim(cData)                          ! name of concentration variable
+   case('<vname_solute>');         vname_solute = trim(cData)                          ! name of solute mass flux variable
    case('<vname_time>');           vname_time   = trim(cData)                          ! name of time variable in the runoff file
    case('<vname_hruid>');          vname_hruid  = trim(cData)                          ! name of the HRU id
    case('<dname_time>');           dname_time   = trim(cData)                          ! name of time variable in the runoff file
@@ -254,9 +254,9 @@ CONTAINS
    case('<KWheight>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWheight         )%varFile  ! default: true (turned off if floodplain is inactive)
    case('<MCheight>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCheight         )%varFile  ! default: true (turned off if floodplain is inactive)
    case('<DWheight>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWheight         )%varFile  ! default: true (turned off if floodplain is inactive)
-   case('<localDOC>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%localCC          )%varFile  ! default: faulse (turned off if tracer is inactive)
-   case('<routedDOC>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWsoluteFlux     )%varFile  ! default: faulse (turned off if tracer is inactive)
-   case('<DOCmass>');              read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWsoluteMass     )%varFile  ! default: faulse (turned off if tracer is inactive)
+   case('<localDOC>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%localSolute      )%varFile  ! default: false (turned off if tracer is inactive)
+   case('<routedDOC>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWsoluteFlux     )%varFile  ! default: false (turned off if tracer is inactive)
+   case('<DOCmass>');              read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWsoluteMass     )%varFile  ! default: false (turned off if tracer is inactive)
    case('<outputInflow>');         read(cData,*,iostat=io_error) outputInflow
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)

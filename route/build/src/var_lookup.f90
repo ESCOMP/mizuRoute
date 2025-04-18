@@ -1,6 +1,9 @@
 MODULE var_lookup
 
- ! defines named variables used to index array elements
+ ! Descriptions:
+ ! Defines index of named variables for each data structure, history output, dimension etc
+ ! These variables are also linked to metadata (see popMeta.f90)
+
  USE nrtype,     ONLY: i4b
  USE public_var, ONLY: integerMissing  ! missing value for integers
  implicit none
@@ -234,7 +237,7 @@ MODULE var_lookup
   integer(i4b)     :: KWinflow          = integerMissing  ! 26. KW inflow from upstreams into reach/lake (m3/s)
   integer(i4b)     :: MCinflow          = integerMissing  ! 27. MC inflow from upstreams into reach/lake (m3/s)
   integer(i4b)     :: DWinflow          = integerMissing  ! 28. DW inflow from upstreams into reach/lake (m3/s)
-  integer(i4b)     :: localCC           = integerMissing  ! 29. concentration from local basin (g/m3)
+  integer(i4b)     :: localSolute       = integerMissing  ! 29. solute mass from local basin (mg/s)
   integer(i4b)     :: DWsoluteFlux      = integerMissing  ! 30. DW routed solute flux from upstreams into reach/lake (mg/s)
   integer(i4b)     :: DWsoluteMass      = integerMissing  ! 31. DW routed solute mass in reach/lake (mg)
  endtype iLook_RFLX
