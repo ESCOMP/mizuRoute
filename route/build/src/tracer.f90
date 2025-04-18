@@ -24,7 +24,6 @@ USE public_var,    ONLY: min_length_route      ! minimum reach length for routin
 USE public_var,    ONLY: kinematicWave
 USE public_var,    ONLY: muskingumCunge
 USE public_var,    ONLY: diffusiveWave
-USE globalData,    ONLY: idxKW,idxMC,idxDW
 USE water_balance, ONLY: comp_reach_mb         ! compute water balance error
 USE hydraulic,     ONLY: flow_depth
 USE hydraulic,     ONLY: flow_area
@@ -69,7 +68,6 @@ CONTAINS
  integer(i4b)                                 :: nUps              ! number of upstream segment
  integer(i4b)                                 :: iUps              ! upstream reach index
  integer(i4b)                                 :: iRch_ups          ! index of upstream reach in NETOPO
- type(SUBRCH)                                 :: subrch_state      ! curent states at sub-reaches
  real(dp)                                     :: Clat              ! lateral flow into channel [m3/s]
  real(dp)                                     :: Cupstream         ! total discharge at top of the reach [m3/s]
  character(len=strLen)                        :: cmessage          ! error message from subroutine
@@ -79,16 +77,6 @@ CONTAINS
  verbose = .false.
  if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
    verbose = .true.
- end if
-
- if (idxRoute==idxMC) then
-   subrch_state=RCHSTA_out(iens,segIndex)%MC_ROUTE%molecule
- else if (idxRoute==idxKW) then
-   subrch_state=RCHSTA_out(iens,segIndex)%KW_ROUTE%molecule
- else if (idxRoute==idxDW) then
-   subrch_state=RCHSTA_out(iens,segIndex)%DW_ROUTE%molecule
- else
-   message=trim(message)//'route_method used for tracer needs to be 3(kinematic wave), 4(muskingum cunge), or 5(diffusive wave)'; ierr=81; return
  end if
 
  ! get mass flux from upstream
@@ -134,7 +122,6 @@ CONTAINS
                      Cupstream,                  &  ! input: total discharge at top of the reach being processed
                      Clat,                       &  ! input: lateral mass flow [mg/s]
                      isHW,                       &  ! input: is this headwater basin?
-                     subrch_state,               &  ! inout: state data structure at sub-reaches
                      RCHFLX_out(iens,segIndex),  &  ! inout: updated fluxes at reach
                      verbose,                    &  ! input: reach index to be examined
                      ierr, cmessage)                ! output: error control
@@ -152,7 +139,7 @@ CONTAINS
          'at ', NETOPO_in(segIndex)%REACHID
  end if
 
- call comp_reach_mb(NETOPO_in(segIndex)%REACHID, idxDW, Cupstream, Clat, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
+ call comp_reach_mb(NETOPO_in(segIndex)%REACHID, idxRoute, Cupstream, Clat, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
 
  END SUBROUTINE constituent_rch
 
@@ -164,7 +151,6 @@ CONTAINS
                            Cupstream,      & ! input: discharge from upstream
                            Clat,           & ! input: lateral mass flux into chaneel [mg/s]
                            isHW,           & ! input: is this headwater basin?
-                           subrch_state,   & ! inout: state data structure at sub-reaches
                            rflux,          & ! inout: reach flux at a reach
                            verbose,        & ! input: reach index to be examined
                            ierr,message)
@@ -179,7 +165,6 @@ CONTAINS
  real(dp),     intent(in)        :: Cupstream      ! total discharge at top of the reach being processed
  real(dp),     intent(in)        :: Clat           ! lateral discharge into chaneel [m3/s]
  logical(lgt), intent(in)        :: isHW           ! is this headwater basin?
- type(SUBRCH), intent(inout)     :: subrch_state   ! curent states at sub-reaches
  type(STRFLX), intent(inout)     :: rflux          ! current reach fluxes
  logical(lgt), intent(in)        :: verbose        ! reach index to be examined
  integer(i4b), intent(out)       :: ierr           ! error code
