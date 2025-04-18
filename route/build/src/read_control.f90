@@ -703,6 +703,19 @@ CONTAINS
    meta_rflx(ixRFLX%DWsoluteFlux)%varFile = .false.
    meta_rflx(ixRFLX%DWsoluteMass)%varFile = .false.
  end if
+ ! Temporary tracer output option control as of Apr 18, 2025:
+ ! Curently tracer is computed for any routing methods, but only tracer with DW is properly output in history file
+ ! if multiple routing methods, including DW, are on and tracer is on -> no need to do anything
+ ! if routing methods are not including DW and tracer is on -> turn off solute output options
+ if (all(routeMethods/=diffusiveWave)) then
+   if (tracer) then
+     if (masterproc) then
+       write(iulog,'(1x,a,a,a)') '!!WARNING!! tracer is on without DW routing method. Turn off history outputs for soluteFlux and soluteMass'
+     end if
+   end if
+   meta_rflx(ixRFLX%DWsoluteFlux)%varFile = .false.
+   meta_rflx(ixRFLX%DWsoluteMass)%varFile = .false.
+ endif
 
  END SUBROUTINE read_control
 
