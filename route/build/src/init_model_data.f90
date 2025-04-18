@@ -412,8 +412,8 @@ CONTAINS
       RCHFLX_trib(:,:)%BASIN_QI     = 0._dp
       RCHFLX_trib(:,:)%BASIN_QR(0)  = 0._dp
       RCHFLX_trib(:,:)%BASIN_QR(1)  = 0._dp
-      RCHFLX(:,:)%Qelapsed = 0
-      RCHFLX(:,:)%Qobs = 0._dp
+      RCHFLX_trib(:,:)%Qelapsed     = 0
+      RCHFLX_trib(:,:)%Qobs         = 0._dp
 
       nRch_root=nRch_mainstem+nTribOutlet+rch_per_proc(0)
       if (onRoute(accumRunoff)) then
