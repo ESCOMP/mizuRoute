@@ -266,7 +266,7 @@ contains
  call meta_rflx(ixRFLX%KWinflow         )%init('KWinflow'        ,  'Inflow from upstream lake or streams-kinematic wave'            , 'm3/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%MCinflow         )%init('MCinflow'        ,  'Inflow from upstream lake or streams-muskingum-cunge'           , 'm3/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%DWinflow         )%init('DWinflow'        ,  'Inflow from upstream lake or streams-diffusive wave'            , 'm3/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
- call meta_rflx(ixRFLX%localSolute      )%init('localDOC'         , 'lateral mass flux of solute in water from local basin'          , 'mg/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%localSolute      )%init('localSolute'      , 'lateral mass flux of solute in water from local basin'          , 'mg/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%DWsoluteFlux     )%init('soluteFlux'       , 'mass flux of solute in water from a reach'                      , 'mg/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%DWsoluteMass     )%init('soluteMass'       , 'mass of solute in water at a reach'                             , 'mg' ,  ncd_float, [ixQdims%seg,ixQdims%time], .false.)
 
