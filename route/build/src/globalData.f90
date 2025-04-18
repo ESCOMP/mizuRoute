@@ -174,10 +174,10 @@ MODULE globalData
 
   ! ---------- conversion factors -------------------------------------------------------------------
 
-  real(dp),                        public :: time_conv                  ! time conversion factor -- used to convert to mm/s
-  real(dp),                        public :: length_conv                ! length conversion factor -- used to convert to mm/s
-  real(dp),                        public :: time_conv_solute           ! time conversion factor -- used to convert to dt
-  real(dp),                        public :: mass_conv_solute           ! mass conversion factor -- used to convert to mg
+  real(dp),                        public :: time_conv                  ! time conversion factor for runoff [length/time], converted sec
+  real(dp),                        public :: length_conv                ! length conversion factor for runoff [length/time], converted to m
+  real(dp),                        public :: time_conv_solute           ! time conversion factor for solute mass flux [mass/time], converted to sec
+  real(dp),                        public :: mass_conv_solute           ! mass conversion factor for solute mass flux [mass/time], converted to mg
 
   ! ---------- routing parameter names -------------------------------------------------------------------
   ! spatial constant ....
@@ -202,22 +202,22 @@ MODULE globalData
   ! ---------- metadata structures ------------------------------------------------------------------
 
   ! define vectors of metadata
-  type(var_info),                  public :: meta_HRU    (nVarsHRU    ) ! HRU properties
-  type(var_info),                  public :: meta_HRU2SEG(nVarsHRU2SEG) ! HRU-to-segment mapping
-  type(var_info),                  public :: meta_SEG    (nVarsSEG    ) ! stream segment properties
-  type(var_info),                  public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
-  type(var_info),                  public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
-  type(var_info_new),              public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
-  type(var_info_new),              public :: meta_hflx   (nVarsHFLX   ) ! hru flux variables
-  type(var_info_new),              public :: meta_basinQ (nVarsBasinQ ) ! reach inflow from basin
-  type(var_info_new),              public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
-  type(var_info_new),              public :: meta_bas_tracer(nVarsBasTracer) ! basin IRF routing fluxes/states
-  type(var_info_new),              public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
-  type(var_info_new),              public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
-  type(var_info_new),              public :: meta_kw     (nVarsKW     ) ! KW routing fluxes/states
-  type(var_info_new),              public :: meta_mc     (nVarsMC     ) ! MC routing restart fluxes/states
-  type(var_info_new),              public :: meta_dw     (nVarsDW     ) ! DW routing restart fluxes/states
-  type(var_info_new),              public :: meta_tracer (nVarsTracer ) ! tracer states
+  type(var_info),                  public :: meta_HRU    (nVarsHRU    )      ! HRU properties
+  type(var_info),                  public :: meta_HRU2SEG(nVarsHRU2SEG)      ! HRU-to-segment mapping
+  type(var_info),                  public :: meta_SEG    (nVarsSEG    )      ! stream segment properties
+  type(var_info),                  public :: meta_NTOPO  (nVarsNTOPO  )      ! network topology
+  type(var_info),                  public :: meta_PFAF   (nVarsPFAF   )      ! pfafstetter code
+  type(var_info_new),              public :: meta_rflx   (nVarsRFLX   )      ! reach flux variables
+  type(var_info_new),              public :: meta_hflx   (nVarsHFLX   )      ! hru flux variables
+  type(var_info_new),              public :: meta_basinQ (nVarsBasinQ )      ! reach inflow from basin
+  type(var_info_new),              public :: meta_irf_bas(nVarsIRFbas )      ! basin IRF routing fluxes/states
+  type(var_info_new),              public :: meta_bas_solute(nVarsBasTracer) ! basin IRF routing for solute mass flux
+  type(var_info_new),              public :: meta_irf    (nVarsIRF    )      ! IRF routing fluxes/states
+  type(var_info_new),              public :: meta_kwt    (nVarsKWT    )      ! KWT routing fluxes/states
+  type(var_info_new),              public :: meta_kw     (nVarsKW     )      ! KW routing fluxes/states
+  type(var_info_new),              public :: meta_mc     (nVarsMC     )      ! MC routing restart fluxes/states
+  type(var_info_new),              public :: meta_dw     (nVarsDW     )      ! DW routing restart fluxes/states
+  type(var_info_new),              public :: meta_solute (nVarsTracer )      ! solute mass fluxes states
 
   ! ---------- shared data structures ----------------------------------------------------------------------
 

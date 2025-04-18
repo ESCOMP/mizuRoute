@@ -106,7 +106,7 @@ CONTAINS
    call read_IRFbas_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
    if (tracer) then
-     call read_bas_tracer_state(ierr, cmessage)
+     call read_bas_solute_state(ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
    end if
  endif
@@ -137,7 +137,7 @@ CONTAINS
  end if
 
  if (tracer) then
-   call read_tracer_state(idxDW, ierr, message)
+   call read_solute_state(idxDW, ierr, message)
    if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
  end if
 
@@ -249,9 +249,9 @@ CONTAINS
 
   END SUBROUTINE read_IRFbas_state
 
-  SUBROUTINE read_bas_tracer_state(ierr, message1)
+  SUBROUTINE read_bas_solute_state(ierr, message1)
 
-    USE globalData, ONLY: meta_bas_tracer              ! basin tracer states
+    USE globalData, ONLY: meta_bas_solute           ! basin tracer states
     USE var_lookup, ONLY: ixBasTracer, nVarsBasTracer
     implicit none
     ! output
@@ -264,7 +264,7 @@ CONTAINS
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
     integer(i4b)                  :: ntdh           ! dimension size
 
-    ierr=0; message1='read_bas_tracer_state/'
+    ierr=0; message1='read_bas_solute_state/'
 
     call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%tdh)%dimName), ntdh, ierr, cmessage1)
     if(ierr/=0)then;  message1=trim(message1)//trim(cmessage1); return; endif
@@ -277,15 +277,15 @@ CONTAINS
         case(ixBasTracer%tfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh, nens), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
       end select
-      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin tracer state:'//trim(meta_bas_tracer(iVar)%varName); return; endif
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin tracer state:'//trim(meta_bas_solute(iVar)%varName); return; endif
     end do
 
     do iVar=1,nVarsBasTracer
       select case(iVar)
-        case(ixBasTracer%tfuture); call get_nc(fname, meta_bas_tracer(iVar)%varName, state%var(iVar)%array_3d_dp, [1,1,1], [nSeg,ntdh,nens], ierr, cmessage1)
+        case(ixBasTracer%tfuture); call get_nc(fname, meta_bas_solute(iVar)%varName, state%var(iVar)%array_3d_dp, [1,1,1], [nSeg,ntdh,nens], ierr, cmessage1)
         case default; ierr=20; message1=trim(message1)//'unable to identify basin tracer variable index for nc writing'; return
       end select
-      if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_bas_tracer(iVar)%varName); return; endif
+      if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_bas_solute(iVar)%varName); return; endif
     enddo
 
     do iens=1,nens
@@ -302,7 +302,7 @@ CONTAINS
       enddo
     enddo
 
-  END SUBROUTINE read_bas_tracer_state
+  END SUBROUTINE read_bas_solute_state
 
 
   SUBROUTINE read_IRF_state(ierr, message1)
@@ -674,9 +674,9 @@ CONTAINS
 
   END SUBROUTINE read_DW_state
 
-  SUBROUTINE read_tracer_state(idxRoute, ierr, message1)
+  SUBROUTINE read_solute_state(idxRoute, ierr, message1)
 
-    USE globalData, ONLY: meta_tracer
+    USE globalData, ONLY: meta_solute
     USE var_lookup, ONLY: ixTracer, nVarsTracer
     implicit none
     integer(i4b), intent(in)    :: idxRoute        ! routing method
@@ -688,7 +688,7 @@ CONTAINS
     integer(i4b)                :: iVar,iens,iSeg ! index loops for variables, ensembles, reaches respectively
     integer(i4b)                :: jSeg           ! index loops for reaches respectively
 
-    ierr=0; message1='read_tracer_state/'
+    ierr=0; message1='read_solute_state/'
 
     allocate(state%var(nVarsTracer), stat=ierr, errmsg=cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
@@ -698,15 +698,15 @@ CONTAINS
         case(ixTracer%mass);  allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
-      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for tracer state:'//trim(meta_tracer(iVar)%varName); return; endif
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for tracer state:'//trim(meta_solute(iVar)%varName); return; endif
     end do
 
     do iVar=1,nVarsTracer
       select case(iVar)
-        case(ixTracer%mass); call get_nc(fname, meta_tracer(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg, nens], ierr, cmessage1)
+        case(ixTracer%mass); call get_nc(fname, meta_solute(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg, nens], ierr, cmessage1)
         case default; ierr=20; message1=trim(message1)//'unable to identify tracer variable index for nc reading'; return
       end select
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_tracer(iVar)%varName); return; endif
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_solute(iVar)%varName); return; endif
     end do
 
     do iens=1,nens
@@ -721,7 +721,7 @@ CONTAINS
       enddo
     enddo
 
-  END SUBROUTINE read_tracer_state
+  END SUBROUTINE read_solute_state
 
  END SUBROUTINE read_state_nc
 

@@ -369,8 +369,8 @@ MODULE histVars_data
       integer(i4b)                       :: ixWaterH              ! temporal water height variable index
       integer(i4b)                       :: ixFloodV              ! temporal flood volume variable index
       integer(i4b)                       :: ixInflow              ! temporal inflow variable index
-      integer(i4b)                       :: ixTracerMass          ! temporal tracer mass variable index
-      integer(i4b)                       :: ixTracerFlux          ! temporal tracer flux variable index
+      integer(i4b)                       :: ixSoluteMass          ! temporal solute mass variable index
+      integer(i4b)                       :: ixSoluteFlux          ! temporal solute flux variable index
       logical(lgt)                       :: FileStatus            ! file open or close
       type(file_desc_t)                  :: pioFileDesc           ! pio file handle
 
@@ -501,8 +501,8 @@ MODULE histVars_data
               ixWaterH=ixRFLX%DWheight
               ixFloodV=ixRFLX%DWfloodVolume
               ixInflow=ixRFLX%DWinflow
-              ixTracerFlux=ixRFLX%DWsoluteFlux
-              ixTracerMass=ixRFLX%DWsoluteMass
+              ixSoluteFlux=ixRFLX%DWsoluteFlux
+              ixSoluteMass=ixRFLX%DWsoluteMass
             case default
               write(message,'(2A,1X,G0,1X,A)') trim(message), 'routing method index:',routeMethods(ixRoute), 'must be 0-5'
               ierr=81; return
@@ -570,8 +570,8 @@ MODULE histVars_data
             end if
           end if
 
-          if (meta_rflx(ixTracerMass)%varFile) then
-            call read_dist_array(pioFileDesc, meta_rflx(ixTracerMass)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+          if (meta_rflx(ixSoluteMass)%varFile) then
+            call read_dist_array(pioFileDesc, meta_rflx(ixSoluteMass)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
             ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
             if (masterproc) then
@@ -582,8 +582,8 @@ MODULE histVars_data
             end if
           end if
 
-          if (meta_rflx(ixTracerFlux)%varFile) then
-            call read_dist_array(pioFileDesc, meta_rflx(ixTracerFlux)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+          if (meta_rflx(ixSoluteFlux)%varFile) then
+            call read_dist_array(pioFileDesc, meta_rflx(ixSoluteFlux)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
             ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
             if (masterproc) then
