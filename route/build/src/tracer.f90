@@ -16,8 +16,6 @@ USE dataTypes,     ONLY: STRSTA                ! state in each reach
 USE dataTypes,     ONLY: RCHTOPO               ! Network topology
 USE dataTypes,     ONLY: RCHPRP                ! Reach parameter
 USE public_var,    ONLY: iulog                 ! i/o logical unit number
-USE public_var,    ONLY: realMissing           ! missing value for real number
-USE public_var,    ONLY: integerMissing        ! missing value for integer number
 USE public_var,    ONLY: dt                    ! simulation time step [sec]
 USE public_var,    ONLY: hw_drain_point        ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
 USE public_var,    ONLY: min_length_route      ! minimum reach length for routing to be performed.
