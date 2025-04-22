@@ -152,7 +152,7 @@ CONTAINS
   if (present(tolerance)) then
     mb_tol=tolerance
   else
-    mb_tol=2.e-5_dp
+    mb_tol=2.e-5_dp ! in mg
   end if
 
   ! mass change
@@ -179,10 +179,10 @@ CONTAINS
     write(iulog,'(A,1PG15.7)') '  6 influx [mg]       = ', Cin
     write(iulog,'(A,1PG15.7)') '  7 lateral flux [mg] = ', Clateral
     write(iulog,'(A,1PG15.7)') '  8 outflux [mg]      = ', Cout
-    if (abs(MBerr) > mb_tol) then
-      write(iulog,'(A,1PG15.7,1X,A,1X,1PG15.7)') ' WARNING: abs. MB error [m3] = ', abs(MBerr), '>',mb_tol
-    end if
   endif
+  if (abs(MBerr) > mb_tol) then
+    write(iulog,'(A,1PG15.7,1X,A,1X,1PG15.7)') ' WARNING: abs. MB error [m3] = ', abs(MBerr), '>',mb_tol
+  end if
 
   END SUBROUTINE comp_reach_mb
 
