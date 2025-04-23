@@ -18,7 +18,10 @@ MODULE globalData
   USE objTypes,  ONLY: var_info_new  ! metadata type - variable
 
   USE dataTypes, ONLY: inFileInfo    ! data strture - information of input files
-  USE dataTypes, ONLY: gage          ! data structure - gauge metadata
+
+  ! gage data strucuture
+  USE gageMeta_data, ONLY: gageMeta
+  USE obs_data,      ONLY: gageObs
 
   USE dataTypes, ONLY: RCHPRP        ! data structure - Reach parameters (properties)
   USE dataTypes, ONLY: RCHTOPO       ! data structure - Network topology
@@ -113,6 +116,10 @@ MODULE globalData
   type(datetime),                  public :: roBegDatetime        ! forcing data start date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: wmBegDatetime        ! water management data start date/time (yyyy:mm:dd:hh:mm:ss)
 
+  ! obs data - gage data, watertake etc.
+  type(gageMeta),                  public :: gage_meta_data             ! gauge metadata
+  type(gageObs),                   public :: gage_obs_data_trib         ! gauge observed data for tributary
+  type(gageObs),                   public :: gage_obs_data_main         ! gauge observed data for mainstem
   ! ---------- input file information -------------------------------------------------------------------
 
   type(infileinfo), allocatable,   public :: inFileInfo_ro(:)    ! input runoff/evapo/precipi file information
@@ -207,7 +214,6 @@ MODULE globalData
   type(var_info_new),              public :: meta_dw     (nVarsDW     ) ! DW routing restart fluxes/states
 
   ! ---------- shared data structures ----------------------------------------------------------------------
-  type(gage),                      public :: gage_data              ! gauge metadata
 
   ! river topology and parameter structures
   type(RCHPRP),       allocatable, public :: RPARAM(:)              ! Reach Parameters for whole domain

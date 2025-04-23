@@ -352,15 +352,59 @@ CONTAINS
      zf1 = zf0
    end if
 
-   if (floodplain) then ! if floodplain exists
+   flow_depth=0._dp
+   if (Qin>0._dp) then
+     if (floodplain) then ! if floodplain exists
 
-     ! compute flow area, wetted perimeter, top width, and uniform flow at bankful depth
-     Abf = flow_area(bankDepth1, b, zc, zf=zf1, bankDepth=bankDepth1)
-     Pbf = Pwet(bankDepth1, b, zc, zf=zf1, bankDepth=bankDepth1)
-     Bbf = Btop(bankDepth1, b, zc, zf=zf1, bankDepth=bankDepth1)
-     Qbf = Abf*(Abf/Pbf)**const23*sqrt(S)/n
+       ! compute flow area, wetted perimeter, top width, and uniform flow at bankful depth
+       Abf = flow_area(bankDepth1, b, zc, zf=zf1, bankDepth=bankDepth1)
+       Pbf = Pwet(bankDepth1, b, zc, zf=zf1, bankDepth=bankDepth1)
+       Bbf = Btop(bankDepth1, b, zc, zf=zf1, bankDepth=bankDepth1)
+       Qbf = Abf*(Abf/Pbf)**const23*sqrt(S)/n
 
-     if (Qin < Qbf) then ! if Q < than Bankfull uniform flow (only channel)
+       if (Qin < Qbf) then ! if Q < than Bankfull uniform flow (only channel)
+
+         Coef1 = (sqrt(S)/n/Qin)**3
+         Coef2 = 2*sqrt(zc*zc+1._dp) ! derivative of P w.r.t. y
+
+         y0 = (1._dp/Coef1/b**3)**(1._dp/5._dp) ! first guess - based on rectanglur and b>>y
+
+         do while (error > err_thresh) ! Newton–Raphson for flow depth below bankfull depth
+           A  = flow_area(y0, b, zc, zf=zf1, bankDepth=bankDepth1)
+           Bt = Btop(y0, b, zc, zf=zf1, bankDepth=bankDepth1)
+           P  = Pwet(y0, b ,zc, zf=zf1, bankDepth=bankDepth1)
+
+           h    = Coef1*A**5/P**2 -1._dp
+           dhdy = Coef1*(5*A**4*Bt*P - 2*Coef2*A**5)/P**3
+
+           flow_depth = y0 - h/dhdy
+           error = abs((flow_depth-y0)/flow_depth)
+
+           y0 = flow_depth
+         end do
+
+       else ! if Q > than Bankfull uniform flow
+
+         y0 = bankDepth1 + 2._dp ! first guess - add 2 meter to bankfull depth
+
+         ! some constants in manning equation and its derivative given channel parameter
+         Coef1 = sqrt(S)/n/Pbf**const23
+         Coef2 = 2*(zf1/2)**const53*sqrt(S)/n/(zf1*zf1+1._dp)**const13
+
+         do while (error > err_thresh)
+           y_excess = y0-bankDepth1 ! Newton–Raphson for flow depth above bankfull depth
+           h    = Coef1*(Abf+Bbf*y_excess)**const53+ Coef2*y_excess**const103/y_excess**const23 -Qin
+           dhdy = Coef1*const53*Bbf*(Abf+Bbf*y_excess)**const23 + Coef2*(const103-const23)*y_excess**const53
+
+           flow_depth = y0 - h/dhdy
+           error = abs((flow_depth-y0)/flow_depth)
+
+           y0=flow_depth
+         end do
+
+       end if
+
+     else ! no floodplain (only chaneel)
 
        Coef1 = (sqrt(S)/n/Qin)**3
        Coef2 = 2*sqrt(zc*zc+1._dp) ! derivative of P w.r.t. y
@@ -368,9 +412,9 @@ CONTAINS
        y0 = (1._dp/Coef1/b**3)**(1._dp/5._dp) ! first guess - based on rectanglur and b>>y
 
        do while (error > err_thresh) ! Newton–Raphson for flow depth below bankfull depth
-         A  = flow_area(y0, b, zc, zf=zf1, bankDepth=bankDepth1)
-         Bt = Btop(y0, b, zc, zf=zf1, bankDepth=bankDepth1)
-         P  = Pwet(y0, b ,zc, zf=zf1, bankDepth=bankDepth1)
+         A  = flow_area(y0, b, zc)
+         Bt = Btop(y0, b, zc)
+         P  = Pwet(y0, b ,zc)
 
          h    = Coef1*A**5/P**2 -1._dp
          dhdy = Coef1*(5*A**4*Bt*P - 2*Coef2*A**5)/P**3
@@ -381,48 +425,7 @@ CONTAINS
          y0 = flow_depth
        end do
 
-     else ! if Q > than Bankfull uniform flow
-
-       y0 = bankDepth1 + 2._dp ! first guess - add 2 meter to bankfull depth
-
-       ! some constants in manning equation and its derivative given channel parameter
-       Coef1 = sqrt(S)/n/Pbf**const23
-       Coef2 = 2*(zf1/2)**const53*sqrt(S)/n/(zf1*zf1+1._dp)**const13
-
-       do while (error > err_thresh)
-         y_excess = y0-bankDepth1 ! Newton–Raphson for flow depth above bankfull depth
-         h    = Coef1*(Abf+Bbf*y_excess)**const53+ Coef2*y_excess**const103/y_excess**const23 -Qin
-         dhdy = Coef1*const53*Bbf*(Abf+Bbf*y_excess)**const23 + Coef2*(const103-const23)*y_excess**const53
-
-         flow_depth = y0 - h/dhdy
-         error = abs((flow_depth-y0)/flow_depth)
-
-         y0=flow_depth
-       end do
-
      end if
-
-   else ! no floodplain (only chaneel)
-
-     Coef1 = (sqrt(S)/n/Qin)**3
-     Coef2 = 2*sqrt(zc*zc+1._dp) ! derivative of P w.r.t. y
-
-     y0 = (1._dp/Coef1/b**3)**(1._dp/5._dp) ! first guess - based on rectanglur and b>>y
-
-     do while (error > err_thresh) ! Newton–Raphson for flow depth below bankfull depth
-       A  = flow_area(y0, b, zc)
-       Bt = Btop(y0, b, zc)
-       P  = Pwet(y0, b ,zc)
-
-       h    = Coef1*A**5/P**2 -1._dp
-       dhdy = Coef1*(5*A**4*Bt*P - 2*Coef2*A**5)/P**3
-
-       flow_depth = y0 - h/dhdy
-       error = abs((flow_depth-y0)/flow_depth)
-
-       y0 = flow_depth
-     end do
-
    end if
 
  END FUNCTION flow_depth

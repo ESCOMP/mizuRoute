@@ -176,6 +176,8 @@ DATATYPES = \
     var_lookup.f90 \
     base_route.f90 \
     csv_data.f90 \
+    gageMeta_data.f90 \
+    obs_data.f90 \
     globalData.f90 \
     popMetadat.f90 \
     histVars_data.f90 \
@@ -212,6 +214,7 @@ IO = \
     write_restart_pio.f90
 # CORE
 CORE = \
+    advection_diffusion.f90 \
     accum_runoff.f90 \
     basinUH.f90 \
     water_balance.f90 \

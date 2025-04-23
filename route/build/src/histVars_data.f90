@@ -437,10 +437,14 @@ MODULE histVars_data
             case(impulseResponseFunc)
               ixFlow=ixRFLX%IRFroutedRunoff
               ixVol=ixRFLX%IRFvolume
+              ixWaterH=ixRFLX%IRFheight
+              ixFloodV=ixRFLX%IRFfloodVolume
               ixInflow=ixRFLX%IRFinflow
             case(kinematicWaveTracking)
               ixFlow=ixRFLX%KWTroutedRunoff
               ixVol=ixRFLX%KWTvolume
+              ixWaterH=ixRFLX%KWTheight
+              ixFloodV=ixRFLX%KWTfloodVolume
               ixInflow=ixRFLX%KWTinflow
             case(kinematicWave)
               ixFlow=ixRFLX%KWroutedRunoff

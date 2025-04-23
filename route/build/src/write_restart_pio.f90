@@ -468,6 +468,7 @@ CONTAINS
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    do iVar=1,nVarsIRF
+     if (.not. meta_irf(iVar)%varFile) cycle
      nDims = size(meta_irf(iVar)%varDim)
      if (allocated(dim_set)) deallocate(dim_set)
      allocate(dim_set(nDims))
@@ -540,6 +541,7 @@ CONTAINS
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsKW
+     if (.not. meta_kw(iVar)%varFile) cycle
      nDims = size(meta_KW(iVar)%varDim)
      if (allocated(dim_set)) deallocate(dim_set)
      allocate(dim_set(nDims))
@@ -571,6 +573,7 @@ CONTAINS
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsMC
+     if (.not. meta_mc(iVar)%varFile) cycle
      nDims = size(meta_mc(iVar)%varDim)
      if (allocated(dim_set)) deallocate(dim_set)
      allocate(dim_set(nDims))
@@ -602,6 +605,7 @@ CONTAINS
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsDW
+     if (.not. meta_dw(iVar)%varFile) cycle
      nDims = size(meta_dw(iVar)%varDim)
      if (allocated(dim_set)) deallocate(dim_set)
      allocate(dim_set(nDims))
@@ -875,6 +879,7 @@ CONTAINS
     character(*), intent(out)  :: message1        ! error message
     ! local variables
     real(dp), allocatable      :: array_3d_dp(:,:,:)
+    real(dp), allocatable      :: array_2d_dp(:,:)
     integer(i4b)               :: iVar,iens,iSeg     ! index loops for variables, ensembles and segments respectively
     integer(i4b), allocatable  :: numQF(:,:)         ! number of future Q time steps for each ensemble and segment
 
@@ -902,7 +907,7 @@ CONTAINS
       select case(iVar)
         case(ixIRF%qfuture)
           allocate(array_3d_dp(nSeg,ntdh_irf,nEns), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':IRF routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':IRF routing state:'//trim(meta_irf(iVar)%varName); return; endif
           do iens=1,nEns
             do iSeg=1,nSeg
               array_3d_dp(iSeg,1:numQF(iens,iSeg),iens) = RCHFLX_local(iSeg)%QFUTURE_IRF
@@ -913,7 +918,7 @@ CONTAINS
           deallocate(array_3d_dp)
         case(ixIRF%vol)
           allocate(array_3d_dp(nSeg,nTbound,nEns), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':IRF routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':IRF routing state:'//trim(meta_irf(iVar)%varName); return; endif
           do iens=1,nEns
             do iSeg=1,nSeg
               array_3d_dp(iSeg,1:nTbound,iens) = RCHFLX_local(iSeg)%ROUTE(idxIRF)%REACH_VOL(0:1)
@@ -921,6 +926,18 @@ CONTAINS
           end do
           call write_pnetcdf(pioFileDesc, meta_irf(iVar)%varName, array_3d_dp, ioDesc_vol_double, ierr, cmessage)
           deallocate(array_3d_dp)
+        case(ixIRF%qerror) ! if data assimilation is off, no need to be written
+          if (meta_irf(iVar)%varFile) then
+            allocate(array_2d_dp(nSeg,nEns), stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':IRF routing state:'//trim(meta_irf(iVar)%varName); return; endif
+            do iens=1,nEns
+              do iSeg=1,nSeg
+                array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxIRF)%Qerror
+              end do
+            end do
+            call write_pnetcdf(pioFileDesc, meta_irf(iVar)%varName, array_2d_dp, ioDesc_vol_double, ierr, cmessage)
+            deallocate(array_2d_dp)
+          end if
         case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
       end select
     end do
@@ -1062,7 +1079,7 @@ CONTAINS
       select case(iVar)
         case(ixKW%qsub)
           allocate(array_3d_dp(nSeg, nMesh, nEns), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KW routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KW routing state:'//trim(meta_kw(iVar)%varName); return; endif
           do iens=1,nEns
             do iSeg=1,nSeg
               array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%KW_ROUTE%molecule%Q(1:nMesh)
@@ -1072,7 +1089,7 @@ CONTAINS
           deallocate(array_3d_dp)
         case(ixKW%vol)
           allocate(array_2d_dp(nSeg, nEns), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KW routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KW routing state:'//trim(meta_kw(iVar)%varName); return; endif
           do iens=1,nEns
             do iSeg=1,nSeg
               array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxKW)%REACH_VOL(1)
@@ -1080,6 +1097,18 @@ CONTAINS
           end do
           call write_pnetcdf(pioFileDesc, meta_kw(iVar)%varName, array_2d_dp, ioDesc_rch_double, ierr, cmessage)
           deallocate(array_2d_dp)
+        case(ixKW%qerror)! if data assimilation is off, no need to be written
+          if (meta_kw(iVar)%varFile) then
+            allocate(array_2d_dp(nSeg, nEns), stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KW routing state:'//trim(meta_kw(iVar)%varName); return; endif
+            do iens=1,nEns
+              do iSeg=1,nSeg
+                array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxKW)%Qerror
+              end do
+            end do
+            call write_pnetcdf(pioFileDesc, meta_kw(iVar)%varName, array_2d_dp, ioDesc_rch_double, ierr, cmessage)
+            deallocate(array_2d_dp)
+          end if
         case default; ierr=20; message1=trim(message1)//'unable to identify KW routing state variable index'; return
       end select
     end do
@@ -1127,6 +1156,18 @@ CONTAINS
           end do
           call write_pnetcdf(pioFileDesc, meta_mc(iVar)%varName, array_2d_dp, ioDesc_rch_double, ierr, cmessage)
           deallocate(array_2d_dp, stat=ierr)
+        case(ixMC%qerror) ! if data assimilation is off, no need to be written
+          if (meta_kw(iVar)%varFile) then
+            allocate(array_2d_dp(nSeg, nEns),stat=ierr,errmsg=cmessage)
+            if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':MC routing state:'//trim(meta_mc(iVar)%varName); return; endif
+            do iens=1,nEns
+              do iSeg=1,nSeg
+                array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxMC)%Qerror
+              end do
+            end do
+            call write_pnetcdf(pioFileDesc, meta_mc(iVar)%varName, array_2d_dp, ioDesc_rch_double, ierr, cmessage)
+            deallocate(array_2d_dp, stat=ierr)
+          end if
         case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
       end select
     end do
@@ -1156,7 +1197,7 @@ CONTAINS
       select case(iVar)
         case(ixDW%qsub)
           allocate(array_3d_dp(nSeg,nMesh,nEns),stat=ierr,errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':DW routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':DW routing state:'//trim(meta_dw(iVar)%varName); return; endif
           do iens=1,nEns
             do iSeg=1,nSeg
               array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%DW_ROUTE%molecule%Q(1:nMesh)
@@ -1166,7 +1207,7 @@ CONTAINS
           deallocate(array_3d_dp)
         case(ixDW%vol)
           allocate(array_2d_dp(nSeg, nEns),stat=ierr,errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':DW routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':DW routing state:'//trim(meta_dw(iVar)%varName); return; endif
           do iens=1,nEns
             do iSeg=1,nSeg
               array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxDW)%REACH_VOL(1)
@@ -1174,6 +1215,18 @@ CONTAINS
           end do
           call write_pnetcdf(pioFileDesc, meta_dw(iVar)%varName, array_2d_dp, ioDesc_rch_double, ierr, cmessage)
           deallocate(array_2d_dp)
+        case(ixDW%qerror) ! if data assimilation is off, no need to be written
+          if (meta_dw(iVar)%varFile) then
+            allocate(array_2d_dp(nSeg, nEns),stat=ierr,errmsg=cmessage)
+            if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':DW routing state:'//trim(meta_dw(iVar)%varName); return; endif
+            do iens=1,nEns
+              do iSeg=1,nSeg
+                array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxDW)%Qerror
+              end do
+            end do
+            call write_pnetcdf(pioFileDesc, meta_dw(iVar)%varName, array_2d_dp, ioDesc_rch_double, ierr, cmessage)
+            deallocate(array_2d_dp)
+          end if
         case default; ierr=20; message1=trim(message1)//'unable to identify DW routing state variable index'; return
       end select
     enddo ! variable loop

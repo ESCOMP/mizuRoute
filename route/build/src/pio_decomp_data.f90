@@ -44,7 +44,7 @@ CONTAINS
     USE globalData, ONLY: nHRU                   !
     USE globalData, ONLY: nEns                   !
     USE globalData, ONLY: onRoute                !
-    USE globalData, ONLY: gage_data
+    USE globalData, ONLY: gage_meta_data
     USE globalData, ONLY: pioSystem              !
     USE pio_utils,  ONLY: pio_decomp
     USE pio_utils,  ONLY: ncd_int
@@ -62,6 +62,7 @@ CONTAINS
     integer(i4b),   intent(out)     :: ierr                ! error code
     character(*),   intent(out)     :: message             ! error message
     ! local variables
+    integer(i4b)                    :: nGage               ! total number of gauges
     integer(i4b), allocatable       :: compdof_rch(:)      !
     integer(i4b), allocatable       :: compdof_rch_gage(:) !
     integer(i4b), allocatable       :: compdof_hru(:)      !
@@ -105,9 +106,10 @@ CONTAINS
     if (outputAtGage) then
       call get_compdof_gage(compdof_rch_gage, ierr, cmessage)
 
+      nGage=gage_meta_data%gage_num()
       call pio_decomp(pioSystem,         & ! inout: pio system descriptor
                       ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                      [gage_data%nGage], & ! input: dimension length == global array size
+                      [nGage],           & ! input: dimension length == global array size
                       compdof_rch_gage,  & ! input: local->global mapping
                       ioDesc_gauge_float)
     end if
@@ -282,7 +284,7 @@ CONTAINS
     USE globalData, ONLY: nTribOutlet         ! number of tributary outlets flowing to the mainstem
     USE globalData, ONLY: NETOPO_main         ! mainstem Reach neteork
     USE globalData, ONLY: NETOPO_trib         ! tributary Reach network
-    USE globalData, ONLY: gage_data
+    USE globalData, ONLY: gage_meta_data
     USE process_gage_meta, ONLY: reach_subset
 
     implicit none
@@ -313,7 +315,7 @@ CONTAINS
       reachID_local = NETOPO_trib(:)%REACHID
     endif
 
-    call reach_subset(reachID_local, gage_data, ierr, cmessage, compdof=compdof_rch, index2=index_write_gage)
+    call reach_subset(reachID_local, gage_meta_data, ierr, cmessage, compdof=compdof_rch, index2=index_write_gage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! Need to adjust tributary indices in root processor

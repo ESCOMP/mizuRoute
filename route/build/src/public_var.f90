@@ -14,6 +14,8 @@ MODULE public_var
 
   ! physical constants
   real(dp),    parameter,public   :: pi=3.14159265359_dp    ! pi
+  real(dp),    parameter,public   :: Cw=4190.0_dp           ! heat capacity of water [J/kg/K]
+  real(dp),    parameter,public   :: RoW=0.99975_dp         ! density of water [kg/m³] at 10 C-degree
 
   ! some common constant variables (not likely to change value)
   real(dp),    parameter,public   :: secprmin=60._dp        ! number of seconds in a minute
@@ -101,9 +103,7 @@ MODULE public_var
   logical(lgt)         ,public    :: floodplain           = .false.         ! logical if flood water is computed or not (floodplain is added)
   integer(i4b)         ,public    :: hw_drain_point       = 2               ! how to add inst. runoff in reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)
   logical(lgt)         ,public    :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
-  logical(lgt)         ,public    :: lake_model_D03       = .false.         ! logical if Doll 2003 model is used, specify as 1 in lake_model_type in network topology
-  logical(lgt)         ,public    :: lake_model_H06       = .false.         ! logical if Hanasaki 2006 model is used, specify as 2 in lake_model_type in network topology
-  logical(lgt)         ,public    :: lake_model_HYPE      = .false.         ! logical if HYPE model is used, specify as 3 in lake_model_type in network topology
+  logical(lgt)         ,public    :: lakeRegulate         = .true.          ! logical: F -> turn all the lakes into natural (lakeType=1) regardless of lakeModelType defined individually
   logical(lgt)         ,public    :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
   logical(lgt)         ,public    :: is_vol_wm            = .false.         ! logical if target volume is considered for a lake
   logical(lgt)         ,public    :: is_vol_wm_jumpstart  = .false.         ! logical if true the volume is reset to target volume for the first time step of modeling
@@ -172,18 +172,20 @@ MODULE public_var
   ! GAUGE DATA
   character(len=strLen),public    :: gageMetaFile         = charMissing     ! name of the gauge metadata csv
   logical(lgt),public             :: outputAtGage         = .false.         ! logical; T-> history file output at only gauge points
-  character(len=strLen),public    :: fname_gageObs        = ''              ! gauge data netcdf name
-  character(len=strLen),public    :: vname_gageFlow       = ''              ! variable name for gauge flow data
-  character(len=strLen),public    :: vname_gageSite       = ''              ! variable name for site name data
-  character(len=strLen),public    :: vname_gageTime       = ''              ! variable name for time data
-  character(len=strLen),public    :: dname_gageSite       = ''              ! dimension name for gauge site
-  character(len=strLen),public    :: dname_gageTime       = ''              ! dimension name for time
+  character(len=strLen),public    :: fname_gageObs        = charMissing     ! gauge data netcdf name
+  character(len=strLen),public    :: vname_gageFlow       = charMissing     ! variable name for gauge flow data
+  character(len=strLen),public    :: vname_gageSite       = charMissing     ! variable name for site name data
+  character(len=strLen),public    :: vname_gageTime       = charMissing     ! variable name for time data
+  character(len=strLen),public    :: dname_gageSite       = charMissing     ! dimension name for gauge site
+  character(len=strLen),public    :: dname_gageTime       = charMissing     ! dimension name for time
   integer(i4b)         ,public    :: strlen_gageSite      = 30              ! maximum character length for site name
   ! OUTPUT OPTIONS
   real(dp)             ,public    :: histTimeStamp_offset = 0._dp           ! time stamp offset [second] from a start of time step
   logical(lgt)         ,public    :: outputInflow         = .false.         ! logical; T-> write upstream inflow in history file output
   ! USER OPTIONS
-  integer(i4b)         ,public    :: qmodOption           = 0               ! option for streamflow modification
+  integer(i4b)         ,public    :: qmodOption           = 0               ! options for streamflow modification (DA): 0-> no DA, 1->direct insertion
+  integer(i4b)         ,public    :: QerrTrend            = 1               ! temporal discharge error decreasing trend: 1->constant, 2->linear, 3->logistic, 4->exponential
+  integer(i4b)         ,public    :: qBlendPeriod         = 10              ! number of time steps for which streamflow modification is performed through blending observation
   integer(i4b)         ,public    :: hydGeometryOption    = readFromFile    ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)

@@ -1146,6 +1146,8 @@ CONTAINS
   USE globalData, ONLY: RPARAM_main         ! mainstem reach parameter structure
   USE globalData, ONLY: RCHFLX_trib         ! tributary reach flux structure
   USE globalData, ONLY: RCHSTA_trib         ! tributary reach state data structure
+  USE globalData, ONLY: gage_obs_data_trib  ! instantiated gage obs data for tributary reaches
+  USE globalData, ONLY: gage_obs_data_main  ! instantiated gage obs data for mainstem reaches
   USE globalData, ONLY: basinRunoff_main    ! mainstem only HRU runoff
   USE globalData, ONLY: basinRunoff_trib    ! tributary only HRU runoff
   USE globalData, ONLY: basinEvapo_main     ! mainstem only HRU Evaporation
@@ -1266,6 +1268,7 @@ CONTAINS
                   ixPrint(2),        &  ! input: reach index to be checked by on-screen pringing
                   RCHFLX_trib(:,ix1:ix2),   &  ! inout: reach flux data structure
                   RCHSTA_trib(:,ix1:ix2),   &  ! inout: reach state data structure
+                  gage_obs_data_trib, &  ! inout: gage obs data for tributary reaches
                   ierr, cmessage)        ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call t_stopf ('route/tributary-route')
@@ -1346,6 +1349,7 @@ CONTAINS
                       ixPrint(1),              &  ! input: reach index to be checked by on-screen pringing
                       RCHFLX_trib(:,1:nRch_mainstem+nTribOutlet),  &  ! inout: reach flux data structure
                       RCHSTA_trib(:,1:nRch_mainstem+nTribOutlet),  &  ! inout: reach state data structure
+                      gage_obs_data_main,      &  ! inout: gage obs data for mainstem reaches
                       ierr, cmessage)              ! output: error control
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 

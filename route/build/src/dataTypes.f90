@@ -42,14 +42,6 @@ implicit none
   logical(lgt)           :: varFile  = .true.          ! .true. if the variable should be read from a file
  endtype var_info
 
- ! ---------- gauge metadata structures --------------------------------------------------------------------------
-
- type, public :: gage
-   integer(i4b)                   :: nGage
-   character(len=30), allocatable :: gageID(:)
-   integer(i4b),      allocatable :: reachID(:)
- end type gage
-
  ! ---------- basin data structures ----------------------------------------------------------------------
 
  ! segIndex points to the segment in the entire river network data
@@ -215,6 +207,7 @@ implicit none
   integer(i4b)                               :: HYP_Qrate_phs  ! HYPE; phase of the Qrate_main based on the day of the year [-]; default 100
   logical(lgt)                               :: HYP_prim_F     ! HYPE; if the reservoir has a primary spillway then set to 1 otherwise 0
   real(dp)                                   :: HYP_A_avg      ! HYPE; average area for the lake; this might not be used if bathymetry is provided [m]
+  logical(lgt)                               :: HYP_Qsim_mode  ! HYPE; the outflow is sum of emergency and primary spillways if 1, otherwise the maximum
 
   real(dp)                                   :: H06_Smax       ! Hanasaki 2006; maximume reservoir storage [m3]
   real(dp)                                   :: H06_alpha      ! Hanasaki 2006; fraction of active storage compared to total storage [-]
@@ -359,6 +352,7 @@ implicit none
    real(dp)        :: REACH_VOL(0:1)         ! water volume at previous and current time steps [m3]
    real(dp)        :: REACH_WM_FLUX_actual   ! water management fluxes to and from each reach [m3/s]
    real(dp)        :: WB                     ! reach water balance error [m3]
+   real(dp)        :: Qerror
  end type hydraulic
 
  ! fluxes and states in each reach
@@ -373,6 +367,7 @@ implicit none
   real(dp)                             :: REACH_WM_FLUX          ! water management fluxes to and from each reach [m3/s]
   real(dp)                             :: REACH_WM_VOL           ! target volume from the second water management file [m3]
   real(dp)                             :: Qobs                   ! observed discharge [m3/s]
+  integer(i4b)                         :: Qelapsed               ! number of time step after observed flow is read [-]
   real(dp)                             :: basinEvapo             ! remapped river network catchment Evaporation [unit] (size: number of nHRU)
   real(dp)                             :: basinPrecip            ! remapped river network catchment Precipitation [unit] (size: number of nHRU)
  end type strflx
