@@ -392,7 +392,11 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  CONTAINS
-
+  ! *******************************************************************************
+  ! private subroutines: Define the state variables for each specific variable type
+  ! *******************************************************************************
+  ! Description: There is a separate subroutine for each variable type, such as basinQ, bas_solute, IRF, etc.
+  ! They all work the same in how they read in the state data, but just operate on a different type.
   SUBROUTINE define_basinQ_state(ierr, message1)
    implicit none
    ! output
@@ -873,11 +877,14 @@ CONTAINS
  call write_history_state(ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! close netCDF
  call closeFile(pioFileDesc, restartOpen)
 
  CONTAINS
-
+  ! ****************************************************************************************
+  ! private subroutines: Write the state variables for each specific variable type in netcdf
+  ! ****************************************************************************************
+  ! Description: There is a separate subroutine for each variable type, such as basinQ, bas_solute, IRF, etc.
+  ! They all work the same in how they read in the state data, but just operate on a different type.
   SUBROUTINE write_basinQ_state(ierr, message1)
     implicit none
     ! output

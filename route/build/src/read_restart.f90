@@ -142,7 +142,11 @@ CONTAINS
  end if
 
  CONTAINS
-
+  ! *********************************************************************
+  ! private subroutines: read the state for each specific variable type
+  ! *********************************************************************
+  ! Description: There is a separate subroutine for each variable type, such as basinQ, bas_solute, IRF, etc.
+  ! They all work the same in how they read in the state data, but just operate on a different type.
   SUBROUTINE read_basinQ_state(ierr, message1)
 
     USE globalData, ONLY: meta_basinQ              ! reach inflow from basin at previous time step

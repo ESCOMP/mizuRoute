@@ -173,11 +173,11 @@ MODULE globalData
   integer(i4b),   allocatable,     public :: index_write_gage(:)                ! reach indices to gauge points w.r.t. distributed domains
 
   ! ---------- conversion factors -------------------------------------------------------------------
-
-  real(dp),                        public :: time_conv                  ! time conversion factor for runoff [length/time], converted sec
-  real(dp),                        public :: length_conv                ! length conversion factor for runoff [length/time], converted to m
-  real(dp),                        public :: time_conv_solute           ! time conversion factor for solute mass flux [mass/time], converted to sec
-  real(dp),                        public :: mass_conv_solute           ! mass conversion factor for solute mass flux [mass/time], converted to mg
+  ! runoff and solute mass flux unit conversion. Time conversion factor is also needed for solute because the time unit of solute flux MAY be different than runoff's
+  real(dp),                        public :: time_conv                  ! conversion factor for time units (days, hours, sec) for runoff, converted to sec
+  real(dp),                        public :: length_conv                ! conversion factor for depth or length units (mm, or m) for runoff, converted to m
+  real(dp),                        public :: time_conv_solute           ! conversion factor for time units (days, hours, sec) for solute mass flux, converted to sec
+  real(dp),                        public :: mass_conv_solute           ! conversion factor for mass units (mg, g, kg) for solute mass flux, converted to mg
 
   ! ---------- routing parameter names -------------------------------------------------------------------
   ! spatial constant ....
