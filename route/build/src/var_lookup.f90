@@ -1,6 +1,9 @@
 MODULE var_lookup
 
- ! defines named variables used to index array elements
+ ! Descriptions:
+ ! Defines index of named variables for each data structure, history output, dimension etc
+ ! These variables are also linked to metadata (see popMeta.f90)
+
  USE nrtype,     ONLY: i4b
  USE public_var, ONLY: integerMissing  ! missing value for integers
  implicit none
@@ -234,6 +237,9 @@ MODULE var_lookup
   integer(i4b)     :: KWinflow          = integerMissing  ! 26. KW inflow from upstreams into reach/lake (m3/s)
   integer(i4b)     :: MCinflow          = integerMissing  ! 27. MC inflow from upstreams into reach/lake (m3/s)
   integer(i4b)     :: DWinflow          = integerMissing  ! 28. DW inflow from upstreams into reach/lake (m3/s)
+  integer(i4b)     :: localSolute       = integerMissing  ! 29. solute mass from local basin (mg/s)
+  integer(i4b)     :: DWsoluteFlux      = integerMissing  ! 30. DW routed solute flux from upstreams into reach/lake (mg/s)
+  integer(i4b)     :: DWsoluteMass      = integerMissing  ! 31. DW routed solute mass in reach/lake (mg)
  endtype iLook_RFLX
  ! HRU fluxes
  type, public  ::  iLook_HFLX
@@ -246,10 +252,18 @@ MODULE var_lookup
  type, public  ::  iLook_basinQ
   integer(i4b)     :: q              = integerMissing  ! 1. final discharge (m3/s)
  endtype iLook_basinQ
+ ! tracer states
+ type, public  ::  iLook_tracer
+  integer(i4b)     :: mass           = integerMissing  ! 1. constituent mass (mg)
+ endtype iLook_tracer
  ! Basin IRF state/fluxes
  type, public  ::  iLook_IRFbas
   integer(i4b)     :: qfuture        = integerMissing  ! 1. future routed flow (m3/s)
  endtype iLook_IRFbas
+ ! Basin IRF tracer state/fluxes
+ type, public  ::  iLook_basTracer
+  integer(i4b)     :: tfuture        = integerMissing  ! 1. future mass flux (mg/s)
+ endtype iLook_basTracer
  !IRF state/fluxes
  type, public  ::  iLook_IRF
   integer(i4b)     :: qfuture        = integerMissing  ! 1. future routed flow (m3/s)
@@ -307,11 +321,14 @@ MODULE var_lookup
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     ( 1)
  type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     ( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &
                                                                          11,12,13,14,15,16,17,18,19,20, &
-                                                                         21,22,23,24,25,26,27,28)
+                                                                         21,22,23,24,25,26,27,28,29,30, &
+                                                                         31)
  type(iLook_HFLX)     ,public,parameter :: ixHFLX      = iLook_HFLX     ( 1)
  type(iLook_basinQ)   ,public,parameter :: ixBasinQ    = iLook_basinQ   ( 1)
+ type(iLook_tracer)   ,public,parameter :: ixTracer    = iLook_tracer   ( 1)
  type(iLook_IRFbas)   ,public,parameter :: ixIRFbas    = iLook_IRFbas   ( 1)
  type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      ( 1, 2, 3)
+ type(iLook_basTracer),public,parameter :: ixBasTracer = iLook_basTracer( 1)
  type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      ( 1, 2, 3, 4, 5, 6)
  type(iLook_KW)       ,public,parameter :: ixKW        = iLook_KW       ( 1, 2, 3)
  type(iLook_DW)       ,public,parameter :: ixDW        = iLook_DW       ( 1, 2, 3)
@@ -336,7 +353,9 @@ MODULE var_lookup
  integer(i4b),parameter,public    :: nVarsMC       = storage_size(ixMC      )/iLength
  integer(i4b),parameter,public    :: nVarsIRF      = storage_size(ixIRF     )/iLength
  integer(i4b),parameter,public    :: nVarsIRFbas   = storage_size(ixIRFbas  )/iLength
+ integer(i4b),parameter,public    :: nVarsBasTracer= storage_size(ixBasTracer)/iLength
  integer(i4b),parameter,public    :: nVarsBasinQ   = storage_size(ixBasinQ  )/iLength
+ integer(i4b),parameter,public    :: nVarsTracer   = storage_size(ixTracer  )/iLength
  ! ***********************************************************************************************************
 
 END MODULE var_lookup

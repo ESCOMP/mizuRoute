@@ -6,7 +6,6 @@ USE nrtype,    ONLY: strLen               ! string length
 USE dataTypes, ONLY: var_ilength          ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_dlength          ! double precision type: var(:)%dat
 USE dataTypes, ONLY: var_clength          ! character type:        var(:)%dat
-USE dataTypes, ONLY: var_info             ! metadata
 
 ! global data
 USE public_var

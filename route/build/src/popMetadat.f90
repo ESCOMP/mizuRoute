@@ -31,11 +31,13 @@ USE globalData, ONLY: meta_rflx      ! reach flux variables
 USE globalData, ONLY: meta_hflx      ! hru flux variables
 USE globalData, ONLY: meta_basinQ    ! reach inflow from basin
 USE globalData, ONLY: meta_irf_bas   ! within-basin irf routing fluxes and states
+USE globalData, ONLY: meta_bas_solute! within-basin tracer mass flux
 USE globalData, ONLY: meta_irf       ! irf routing fluxes and states in a segment
 USE globalData, ONLY: meta_kwt       ! lagrangiankinematic wave routing fluxes and states in a segment
 USE globalData, ONLY: meta_kw        ! kinematic wave routing fluxes and states in a segment
 USE globalData, ONLY: meta_mc        ! muskingum-cunge routing fluxes and states in a segment
 USE globalData, ONLY: meta_dw        ! diffusive wave routing fluxes and states in a segment
+USE globalData, ONLY: meta_solute    ! tracer state variables
 
 ! indices of named variables
 USE var_lookup, ONLY: ixStruct   , nStructures
@@ -51,7 +53,9 @@ USE var_lookup, ONLY: ixPFAF     , nVarsPFAF
 USE var_lookup, ONLY: ixRFLX
 USE var_lookup, ONLY: ixHFLX
 USE var_lookup, ONLY: ixIRFbas
+USE var_lookup, ONLY: ixBasTracer
 USE var_lookup, ONLY: ixBasinQ
+USE var_lookup, ONLY: ixTracer
 USE var_lookup, ONLY: ixIRF
 USE var_lookup, ONLY: ixKWT
 USE var_lookup, ONLY: ixKW
@@ -262,6 +266,9 @@ contains
  call meta_rflx(ixRFLX%KWinflow         )%init('KWinflow'        ,  'Inflow from upstream lake or streams-kinematic wave'            , 'm3/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%MCinflow         )%init('MCinflow'        ,  'Inflow from upstream lake or streams-muskingum-cunge'           , 'm3/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%DWinflow         )%init('DWinflow'        ,  'Inflow from upstream lake or streams-diffusive wave'            , 'm3/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%localSolute      )%init('localSolute'      , 'lateral mass flux of solute in water from local basin'          , 'mg/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%DWsoluteFlux     )%init('soluteFlux'       , 'mass flux of solute in water from a reach'                      , 'mg/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%DWsoluteMass     )%init('soluteMass'       , 'mass of solute in water at a reach'                             , 'mg' ,  ncd_float, [ixQdims%seg,ixQdims%time], .false.)
 
  ! HRU flux                                    varName              varDesc                                                  unit,   varType,  varDim,                     writeOut
  call meta_hflx(ixHFLX%basRunoff        )%init('basRunoff'        , 'basin runoff'                                         , 'm/s' , ncd_float, [ixQdims%hru,ixQdims%time], .true.)
@@ -298,8 +305,14 @@ contains
  ! Basin Impulse Response Function
  call meta_irf_bas(ixIRFbas%qfuture)%init('qfuture', 'future flow series', 'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%ens], .true.)
 
+ ! Basin Impulse Response Function
+ call meta_bas_solute(ixBasTracer%tfuture)%init('tfuture', 'future tracer mass series', 'mg/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%ens], .true.)
+
  ! reach inflow from basin
  call meta_basinQ(ixBasinQ%q)%init('basin_q', 'basin routed flow', 'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%ens], .true.)
+
+ ! reach concentration flux from basin
+ call meta_solute(ixTracer%mass)%init('solute_mass', 'mass in reach/lake', 'mg' ,ncd_double, [ixStateDims%seg,ixStateDims%ens], .false.)
 
  end subroutine popMetadat
 

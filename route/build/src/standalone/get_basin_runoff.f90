@@ -23,9 +23,11 @@ CONTAINS
   USE public_var,           ONLY: vname_qsim          ! varibale runoff in netCDF file
   USE public_var,           ONLY: vname_evapo         ! varibale actual evaporation in netCDF file
   USE public_var,           ONLY: vname_precip        ! varibale precipitation in netCDF file
+  USE public_var,           ONLY: vname_solute        ! varibale name of a solute mass flux [mass/time] in netCDF file
   USE public_var,           ONLY: vname_flux_wm       ! varibale precipitation in netCDF file
   USE public_var,           ONLY: vname_vol_wm        ! varibale precipitation in netCDF file
   USE public_var,           ONLY: is_remap            ! logical runnoff needs to be mapped to river network HRU
+  USE public_var,           ONLY: tracer              ! logical to activate a constituent transport simulation
   USE public_var,           ONLY: is_lake_sim         ! logical lake should be simulated
   USE public_var,           ONLY: LakeInputOption     ! lake input fluxes option
   USE public_var,           ONLY: is_flux_wm          ! logical water management components fluxes should be read
@@ -103,6 +105,31 @@ CONTAINS
   if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
     call timeMap_sim_forc(tmap_sim_wm, begDatetime, wmBegDatetime, dt_wm, iTime, inFileInfo_wm, ierr, cmessage)
     if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  ! Optional: reading constituent
+  if (tracer) then
+    call read_forcing_data(inFileInfo_ro,         & ! input: meta for runoff input files
+                           vname_solute,          & ! input: solute mass flux varname
+                           tmap_sim_ro,           & ! input: ro-sim time mapping at current simulation step
+                           runoff_data,           & ! inout: constituent conentration data structure
+                           ierr, cmessage)          ! output: error control
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! Get river network HRU constituent into runoff_data data structure
+    if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
+      call remap_runoff(runoff_data, remap_data, runoff_data%basinSolute, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    else ! runoff is already remapped to river network HRUs
+      remove_negatives = .true.
+      call sort_flux (runoff_data%hru_id,         &
+                      runoff_data%hru_ix,         &
+                      runoff_data%sim,            &
+                      remove_negatives,           &
+                      runoff_data%basinSolute,    &
+                      ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
   end if
 
   ! Optional: lake module on -> read actual evaporation and preciptation

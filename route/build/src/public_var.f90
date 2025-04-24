@@ -102,6 +102,7 @@ MODULE public_var
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   logical(lgt)         ,public    :: floodplain           = .false.         ! logical if flood water is computed or not (floodplain is added)
   integer(i4b)         ,public    :: hw_drain_point       = 2               ! how to add inst. runoff in reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)
+  logical(lgt)         ,public    :: tracer               = .false.         ! logical if tracer is activated to compute a solute or constituent transport.
   logical(lgt)         ,public    :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
   logical(lgt)         ,public    :: lakeRegulate         = .true.          ! logical: F -> turn all the lakes into natural (lakeType=1) regardless of lakeModelType defined individually
   integer(i4b)         ,public    :: LakeInputOption      = 0               ! fluxes for lake simulation; 0->evaporation+precipitation, 1->runoff, 3->evaporation+precipitation+runoff
@@ -116,7 +117,7 @@ MODULE public_var
   real(dp)             ,public    :: scale_factor_prec    = realMissing     ! float scale to scale the precipitation
   real(dp)             ,public    :: offset_value_prec    = realMissing     ! float offset for precipitation
   real(dp)             ,public    :: min_length_route     = 0.0_dp          ! float; minimum reach length for routing to be performed. pass-through is performed for length less than this threshold
-  logical(lgt)         ,public    :: compWB               = .false.         ! logical if entire domain water balance is computed
+  logical(lgt)         ,public    :: checkMassBalance     = .false.         ! logical if entire domain water balance is computed
   real(dp)             ,public    :: dt                   = realMissing     ! simulation time step (seconds)
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
@@ -129,6 +130,7 @@ MODULE public_var
   character(len=strLen),public    :: vname_qsim           = charMissing     ! variable name for runoff
   character(len=strLen),public    :: vname_evapo          = charMissing     ! variable name for actual evapoartion
   character(len=strLen),public    :: vname_precip         = charMissing     ! variable name for precipitation
+  character(len=strLen),public    :: vname_solute         = charMissing     ! variable name for solute mass flux
   character(len=strLen),public    :: vname_time           = charMissing     ! variable name for time
   character(len=strLen),public    :: vname_hruid          = charMissing     ! variable name for runoff hru id
   character(len=strLen),public    :: dname_time           = charMissing     ! dimension name for time
@@ -136,6 +138,7 @@ MODULE public_var
   character(len=strLen),public    :: dname_xlon           = charMissing     ! dimension name for x (j, longitude) dimension
   character(len=strLen),public    :: dname_ylat           = charMissing     ! dimension name for y (i, latitude) dimension
   character(len=strLen),public    :: units_qsim           = charMissing     ! units of runoff data
+  character(len=strLen),public    :: units_cc             = charMissing     ! units of concentration data
   real(dp)             ,public    :: dt_ro                = realMissing     ! runoff time step (seconds)
   real(dp)             ,public    :: input_fillvalue      = realMissing     ! fillvalue used for input variables (runoff, precipitation, evaporation)
   character(len=strLen),public    :: ro_time_units        = charMissing     ! time units used in ro netcdf. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
