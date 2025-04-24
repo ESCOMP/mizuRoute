@@ -696,6 +696,7 @@ CONTAINS
    USE public_var,  ONLY: dname_segid_wm       ! name of dimension hruid
    USE public_var,  ONLY: fname_remap          ! name of runoff mapping netCDF name
    USE public_var,  ONLY: is_remap             ! logical whether or not runnoff needs to be mapped to river network HRU
+   USE public_var,  ONLY: tracer               ! logical if tracer simulations are activated
    USE public_var,  ONLY: is_lake_sim          ! logical if lakes simulations are activated
    USE public_var,  ONLY: is_flux_wm           ! logical whether or not abstraction or injection should be read
    USE public_var,  ONLY: is_vol_wm            ! logical whether or not target volume should be read
@@ -760,6 +761,11 @@ CONTAINS
    allocate(runoff_data%basinRunoff(nHRU), stat=ierr, errmsg=cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    runoff_data%basinRunoff(:) = realMissing
+
+   if (tracer) then
+     allocate(runoff_data%basinSolute(nHRU), source=realMissing,  stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
    if (is_lake_sim) then
      allocate(runoff_data%basinEvapo(nHRU), stat=ierr, errmsg=cmessage)

@@ -78,6 +78,7 @@ CONTAINS
 
  USE globalData, ONLY: FRAC_FUTURE     !
  USE public_var, ONLY: is_lake_sim     ! logical whether or not lake should be simulated
+ USE public_var, ONLY: tracer          ! logical whether or not tracer is on
 
  implicit none
  ! Argument variables
@@ -104,6 +105,12 @@ CONTAINS
    RCHFLX_out(iens,iSeg)%QFUTURE(:) = 0._dp
   end if
 
+  if (.not.allocated(RCHFLX_out(iens,iSeg)%solute_future) .and. tracer)then
+    ntdh = size(FRAC_FUTURE)
+    allocate(RCHFLX_out(iens,iSeg)%solute_future(ntdh), source=0._dp, stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'unable to allocate space for RCHFLX_out(iens,segIndex)%solute_future'; return; endif
+  end if
+
   allocate(FRAC_FUTURE_local, source=FRAC_FUTURE, stat=ierr)
   if(ierr/=0)then; message=trim(message)//'unable to allocate space for FRAC_FUTURE_local'; return; endif
 
@@ -114,12 +121,23 @@ CONTAINS
   endif
 
   ! perform river network UH routing
-  call irf_conv(FRAC_FUTURE_local,               &    ! input: unit hydrograph
-                RCHFLX_out(iens,iSeg)%BASIN_QI,  &    ! input: upstream fluxes
-                RCHFLX_out(iens,iSeg)%QFUTURE,   &    ! inout: updated q future time series
-                RCHFLX_out(iens,iSeg)%BASIN_QR,  &    ! inout: updated fluxes at reach
+  RCHFLX_out(iens,iSeg)%BASIN_QR(0) = RCHFLX_out(iens,iSeg)%BASIN_QR(1)
+  call irf_conv(FRAC_FUTURE_local,                 &    ! input: unit hydrograph
+                RCHFLX_out(iens,iSeg)%BASIN_QI,    &    ! input: upstream fluxes
+                RCHFLX_out(iens,iSeg)%QFUTURE,     &    ! inout: updated q future time series
+                RCHFLX_out(iens,iSeg)%BASIN_QR(1), &    ! inout: updated fluxes at reach
                ierr, message)                            ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  if(tracer) then
+    ! perform river network UH routing
+    call irf_conv(FRAC_FUTURE_local,                       &  ! input: unit hydrograph
+                  RCHFLX_out(iens,iSeg)%BASIN_solute_inst, &  ! input: upstream fluxes
+                  RCHFLX_out(iens,iSeg)%solute_future,     &  ! inout: updated solute future time series
+                  RCHFLX_out(iens,iSeg)%BASIN_solute,      &  ! inout: updated fluxes at reach
+                 ierr, message)                               ! output: error control
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
 
  END SUBROUTINE hru_irf
 
@@ -137,7 +155,7 @@ CONTAINS
   real(dp),             intent(in)     :: uh(:)         ! normalized unit hydrograph
   real(dp),             intent(in)     :: inq           ! basin instantaneous runoff
   real(dp),             intent(inout)  :: qfuture(:)    ! convoluted runoff including future time steps
-  real(dp),             intent(inout)  :: delayq(0:1)   ! delayed runoff to a segment at a current and previous time step
+  real(dp),             intent(inout)  :: delayq        ! delayed runoff to a segment at a current and previous time step
   integer(I4B),         intent(out)    :: ierr          ! error code
   character(*),         intent(out)    :: message       ! error message
   ! local variables
@@ -154,8 +172,7 @@ CONTAINS
   end do
 
   ! save the routed runoff
-  delayq(0) = delayq(1)  ! (save the runoff from the previous time step)
-  delayq(1) = qfuture(1)
+  delayq = qfuture(1)
 
   ! move array back
   do itdh=2,ntdh

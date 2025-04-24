@@ -11,8 +11,11 @@ USE obs_data,             ONLY: gageObs
 USE globalData,           ONLY: routeMethods    ! Active routing method IDs
 USE public_var,           ONLY: is_lake_sim     ! lake simulation flag
 USE public_var,           ONLY: integerMissing  ! missing integer value
-USE process_remap_module, ONLY: basin2reach     ! remap HRU variable to reach
+USE public_var,           ONLY: tracer          ! logical whether or not tracer is on
+USE process_remap_module, ONLY: basin2reach     ! remap HRU variable to reach for volume
+USE process_remap_module, ONLY: basin2reach_mass! remap HRU variable to reach for mass concentration
 USE basinUH_module,       ONLY: IRF_route_basin ! perform UH convolution for basin routing
+USE tracer_module,        ONLY: constituent_rch ! constituent routing per segment
 
 implicit none
 
@@ -28,6 +31,7 @@ CONTAINS
                        basinRunoff_in, &  ! input: basin (i.e.,HRU) runoff (m/s)
                        basinEvapo_in,  &  ! input: basin (i.e.,HRU) evaporation (m/s)
                        basinPrecip_in, &  ! input: basin (i.e.,HRU) precipitation (m/s)
+                       basinSolute_in, &  ! input: basin (i.e.,HRU) constituent mass fluw (mg/s/m2)
                        reachflux_in,   &  ! input: reach (i.e.,reach) flux (m3/s)
                        reachvol_in,    &  ! input: reach (i.e.,reach) target volume for lakes (m3)
                        ixRchProcessed, &  ! input: indices of reach to be routed
@@ -61,6 +65,7 @@ CONTAINS
    real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    real(dp),           allocatable, intent(in)    :: basinEvapo_in(:)     ! basin (i.e.,HRU) evaporation (m/s)
    real(dp),           allocatable, intent(in)    :: basinPrecip_in(:)    ! basin (i.e.,HRU) precipitation (m/s)
+   real(dp),           allocatable, intent(in)    :: basinSolute_in(:)    ! basin (i.e.,HRU) constituent (mg/s/m2)
    real(dp),           allocatable, intent(in)    :: reachflux_in(:)      ! reach (i.e.,reach) flux (m3/s)
    real(dp),           allocatable, intent(in)    :: reachvol_in(:)       ! reach (i.e.,reach) target volume for lakes (m3)
    integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
@@ -75,10 +80,11 @@ CONTAINS
    character(len=strLen),           intent(out)   :: message              ! error message
    ! local variables
    character(len=strLen)                          :: cmessage             ! error message of downwind routine
-   real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
-   real(dp),           allocatable                :: reachEvapo_local(:)  ! reach evaporation (m/s)
-   real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m/s)
    real(dp)                                       :: qobs                 ! observed discharge at a time step and site
+   real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m3/s)
+   real(dp),           allocatable                :: reachSolute_local(:) ! reach constituent (mg/s)
+   real(dp),           allocatable                :: reachEvapo_local(:)  ! reach evaporation (m3/s)
+   real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m3/s)
    integer(i4b)                                   :: nSeg                 ! number of reach to be processed
    integer(i4b)                                   :: iSeg                 ! index of reach
    integer(i4b)                                   :: ix,jx                ! loop index
@@ -137,7 +143,6 @@ CONTAINS
       ierr=1; message=trim(message)//"Error: qmodOption invalid"; return
   end select
 
-  ! 1. subroutine: map basin runoff to river network HRUs
   ! map the basin runoff to the stream network...
   call basin2reach(basinRunoff_in,     & ! input: basin runoff (m/s)
                    NETOPO_in,          & ! input: reach topology
@@ -147,9 +152,21 @@ CONTAINS
                    ixRchProcessed)       ! optional input: indices of reach to be routed
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+   if(tracer) then
+     allocate(reachSolute_local(nSeg), source=0._dp, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachSolute_local]'; return; endif
+
+     call basin2reach_mass(basinSolute_in,     & ! input: basin total constitunet (mg/s/m2)
+                           NETOPO_in,          & ! input: reach topology
+                           RPARAM_in,          & ! input: reach parameter
+                           reachSolute_local,  & ! output:total constituent going to reach (mg/s)
+                           ierr, cmessage,     & ! output: error control
+                           ixRchProcessed)       ! optional input: indices of reach to be routed
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
+
   if (is_lake_sim) then
 
-    ! allocate evaporation
     allocate(reachEvapo_local(nSeg), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachEvapo_local]'; return; endif
 
@@ -162,7 +179,6 @@ CONTAINS
                       ixRchProcessed)       ! optional input: indices of reach to be routed
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-     ! allocate precipitaiton
      allocate(reachPrecip_local(nSeg), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachPrecip_local]'; return; endif
 
@@ -179,9 +195,16 @@ CONTAINS
 
    ! 2. subroutine: basin route
    if (doesBasinRoute == 1) then
-     ! instantaneous runoff volume (m3/s) to data structure
+     ! instantaneous runoff volume (m3/s) and solute mass (mg/s) to data structure
      do iSeg = 1,nSeg
        RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QI = reachRunoff_local(iSeg)
+       if (tracer) then
+         if (RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QI>0) then ! this may cause mass inbalance between input and output. so may need to feed flag to land surface model
+           RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_solute_inst = reachSolute_local(iSeg)
+         else
+           RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_solute_inst = 0._dp
+         endif
+       end if
      enddo
      ! perform Basin routing
      call IRF_route_basin(iens,              &  ! input:  ensemble index
@@ -196,6 +219,16 @@ CONTAINS
        RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(0) = RCHFLX_out(iens,iSeg)%BASIN_QR(1)   ! streamflow from previous step
        RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1) = reachRunoff_local(iSeg)             ! streamflow (m3/s)
      end do
+
+     if (tracer) then
+       do iSeg = 1,nSeg
+         if (RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1)>0) then
+           RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_solute = reachSolute_local(iSeg)     ! total constituent going to reach (mg/s)
+         else
+           RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_solute = 0._dp
+         endif
+       end do
+     end if
    end if
 
    ! allocating precipitation and evaporation for
@@ -272,7 +305,7 @@ CONTAINS
     ! local variables
     character(len=strLen)                             :: cmessage             ! error message for downwind routine
     logical(lgt),                      allocatable    :: doRoute(:)           ! logical to indicate which reaches are processed
-    integer(i4b)                                      :: iRoute               ! routing method index
+    integer(i4b)                                      :: idxRoute             ! routing method index
     integer(i4b)                                      :: nOrder               ! number of stream order
     integer(i4b)                                      :: nTrib                ! number of tributary basins
     integer(i4b)                                      :: nSeg                 ! number of reaches in the network
@@ -283,12 +316,12 @@ CONTAINS
     ierr=0; message='route_network/'
 
     select case(idRoute)
-      case(accumRunoff);           iRoute = idxSUM
-      case(kinematicWaveTracking); iRoute = idxKWT
-      case(impulseResponseFunc);   iRoute = idxIRF
-      case(muskingumCunge);        iRoute = idxMC
-      case(kinematicWave);         iRoute = idxKW
-      case(diffusiveWave);         iRoute = idxDW
+      case(accumRunoff);           idxRoute = idxSUM
+      case(kinematicWaveTracking); idxRoute = idxKWT
+      case(impulseResponseFunc);   idxRoute = idxIRF
+      case(muskingumCunge);        idxRoute = idxMC
+      case(kinematicWave);         idxRoute = idxKW
+      case(diffusiveWave);         idxRoute = idxDW
       case default
         message=trim(message)//'routing method id expect digits 0-5. Check <outOpt> in control file'; ierr=81; return
     end select
@@ -327,15 +360,15 @@ CONTAINS
 !$OMP          shared(RPARAM_in)                        & ! data structure shared
 !$OMP          shared(RCHSTA_out)                       & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
-!$OMP          shared(ix, iEns, ixDesire, iRoute)       & ! indices shared
+!$OMP          shared(ix, iEns, ixDesire, idxRoute)     & ! indices shared
 !$OMP          firstprivate(nTrib)
       do iTrib = 1,nTrib
         do iSeg = 1,river_basin(ix)%branch(iTrib)%nRch
           jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
           if (.not. doRoute(jSeg)) cycle
-          if ((NETOPO_in(jseg)%islake).and.(is_lake_sim).and.iRoute/=idxSUM) then
+          if ((NETOPO_in(jseg)%islake).and.(is_lake_sim).and.idxRoute/=idxSUM) then
             call lake_route(iEns, jSeg,    & ! input: ensemble and reach indices
-                            iRoute,        & ! input: routing method index
+                            idxRoute,      & ! input: routing method index
                             ixDesire,      & ! input: index of verbose reach
                             NETOPO_in,     & ! input: reach topology data structure
                             RPARAM_in,     & ! input: reach parameter data structure
@@ -352,6 +385,17 @@ CONTAINS
                                  ierr,cmessage)    ! output: error control
           end if
           if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
+          if (tracer .and. idxRoute/=idxSUM) then
+            call constituent_rch(iEns,jSeg ,    & ! input: index of runoff ensemble to be processed
+                                 idxRoute,      & ! input: routing method index
+                                 ixDesire,      & ! input: reachID to be checked by on-screen pringing
+                                 NETOPO_in,     & ! input: reach topology data structure
+                                 RPARAM_in,     & ! input: reach parameter data structure
+                                 RCHSTA_out,    & ! inout: reach state data structure
+                                 RCHFLX_out,    & ! inout: reach flux data structure
+                                 ierr, message)   ! output: error control
+            if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
+          end if
         end do ! reach index
       end do ! tributary
 !$OMP END PARALLEL DO

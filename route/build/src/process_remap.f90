@@ -23,12 +23,14 @@ MODULE process_remap_module
   USE public_var, ONLY: negRunoffTol
   USE public_var, ONLY: integerMissing, realMissing
   USE globalData, ONLY: time_conv, length_conv ! conversion factors
+  USE globalData, ONLY: time_conv_solute, mass_conv_solute ! conversion factors
 
   implicit none
   private
   public ::remap_runoff
   public ::sort_flux
   public ::basin2reach
+  public ::basin2reach_mass
 
   CONTAINS
 
@@ -423,80 +425,87 @@ MODULE process_remap_module
 
   END SUBROUTINE basin2reach
 
+  ! *****
+  ! * public subroutine: used to obtain streamflow for each stream segment...
+  !   !!!! this routine should be able to be removed, and instead basin2reach can be used !!!!
+  ! *************************************************************************
+  SUBROUTINE basin2reach_mass(basinSolute,       & ! basin constituent mass flux per unit area(mg/s/m2)
+                              NETOPO_in,         & ! reach topology data structure
+                              RPARAM_in,         & ! reach parameter data structure
+                              reachSolute,       & ! intent(out): constituent mass flux into reach (mg/s)
+                              ierr, message,     & ! intent(out): error control
+                              ixSubRch)            ! optional input: subset of reach indices to be processed
+  USE nr_utils, ONLY : arth
+  implicit none
+  ! Argument variables
+  real(dp)                  , intent(in)  :: basinSolute(:)   ! constituent mass flux per unit area (mg/s/m2)
+  type(RCHTOPO), allocatable, intent(in)  :: NETOPO_in(:)     ! River Network topology
+  type(RCHPRP),  allocatable, intent(in)  :: RPARAM_in(:)     ! River (non-)physical parameters
+  real(dp)                  , intent(out) :: reachSolute(:)   ! constitunet mass flux into reach (g/s)
+  integer(i4b)              , intent(out) :: ierr             ! error code
+  character(len=strLen)     , intent(out) :: message          ! error message
+  integer(i4b),  optional   , intent(in)  :: ixSubRch(:)      ! subset of reach indices to be processed
+  ! local variables
+  integer(i4b)                            :: nContrib         ! number of contributing HRUs
+  integer(i4b)                            :: nSeg             ! number of reaches to be processed
+  integer(i4b)                            :: iHRU             ! array index for contributing HRUs
+  integer(i4b), allocatable               :: ixRch(:)         ! a list of reach indices to be processed
+  integer(i4b)                            :: iSeg, jSeg       ! array index for reaches
 
-!   ! *****
-!   ! * public subroutine: used to obtain streamflow for each stream segment...
-!   ! *************************************************************************
-!   subroutine basin2reach_old(&
-!                          ! input
-!                          basinRunoff,       & ! intent(in):  basin runoff (m/s)
-!                          structNTOPO,       & ! intent(in):  Network topology structure
-!                          structSEG,         & ! intent(in):  Network attributes structure
-!                          ! output
-!                          reachRunoff,       & ! intent(out): reach runoff (m/s)
-!                          ierr, message)       ! intent(out): error control
-!   implicit none
-!   ! input
-!   real(dp)             , intent(in)  :: basinRunoff(:)   ! basin runoff (m/s)
-!   type(var_ilength)    , intent(in)  :: structNTOPO(:)   ! Network topology structure
-!   type(var_dlength)    , intent(in)  :: structSEG(:)     ! Network attributes structure
-!   ! output
-!   real(dp)             , intent(out) :: reachRunoff(:)   ! reach runoff (m/s)
-!   integer(i4b)         , intent(out) :: ierr             ! error code
-!   character(len=strLen), intent(out) :: message          ! error message
-!   ! ----------------------------------------------------------------------------------------------
-!   ! local
-!   integer(i4b)                       :: iHRU             ! array index for contributing HRU
-!   integer(i4b)                       :: iSeg             ! array index for stream segment
-!   ! initialize error control
-!   ierr=0; message='basin2reach_old/'
-!
-!   ! interpolate the data to the basins
-!   do iSeg=1,size(structSEG)
-!
-!    ! associate variables in data structure
-!    associate(nContrib       => structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1),      & ! contributing HRUs
-!              hruContribIx   => structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat, & ! index of contributing HRU
-!              hruContribId   => structNTOPO(iSeg)%var(ixNTOPO%hruContribId)%dat, & ! unique ids of contributing HRU
-!              basArea        => structSEG(  iSeg)%var(ixSEG%basArea)%dat(1),     & ! basin (total contributing HRU) area
-!              hruWeight      => structSEG(  iSeg)%var(ixSEG%weight)%dat          ) ! weight assigned to each HRU
-!
-!    ! * case where HRUs drain into the segment
-!    if(nContrib > 0)then
-!
-!     ! intialize the streamflow
-!     reachRunoff(iSeg) = 0._dp
-!
-!     ! loop through the HRUs
-!     do iHRU=1,nContrib
-!
-!      ! error check - runoff depth cannot be negative (no missing value)
-!      if( basinRunoff( hruContribIx(iHRU) ) < negRunoffTol )then
-!       write(message,'(a,i0)') trim(message)//'exceeded negative runoff tolerance for HRU ', hruContribId(iHRU)
-!       ierr=20; return
-!      endif
-!
-!      ! compute the weighted average runoff depth (m/s)
-!      reachRunoff(iSeg) = reachRunoff(iSeg) + hruWeight(iHRU)*basinRunoff( hruContribIx(iHRU) )*time_conv*length_conv
-!
-!     end do  ! (looping through contributing HRUs)
-!
-!     ! ensure that routed streamflow is non-zero
-!     if(reachRunoff(iSeg) < runoffMin) reachRunoff(iSeg) = runoffMin
-!
-!     ! convert basin average runoff volume (m3/s)
-!     reachRunoff(iSeg) = reachRunoff(iSeg)*basArea
-!
-!    ! * special case where no HRUs drain into the segment
-!    else
-!     reachRunoff(iSeg) = runoffMin
-!    endif
-!
-!    ! end association to data structures
-!    end associate
-!
-!   end do  ! looping through stream segments
-!
-!   end subroutine basin2reach_old
+  ierr=0; message='basin2reach_mass/'
+
+  ! optional: if a subset of reaches is processed
+  if (present(ixSubRch))then
+    nSeg=size(ixSubRch)
+    allocate(ixRch(nSeg), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'unable to allocate space for [ixRch]'; return; endif
+    ixRch = ixSubRch
+  ! default: if all the reaches are processed
+  else
+    nSeg = size(NETOPO_in)
+    allocate(ixRch(nSeg), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'unable to allocate space for [ixRch]'; return; endif
+    ixRch = arth(1,1,nSeg)
+  endif
+
+  ! interpolate the data to the basins
+  do iSeg=1,nSeg
+
+    jSeg = ixRch(iSeg)
+
+    ! associate variables in data structure
+    nContrib       = size(NETOPO_in(jSeg)%HRUID)
+    associate(hruContribId   => NETOPO_in(jSeg)%HRUID,   & ! unique ids of contributing HRU
+              hruContribIx   => NETOPO_in(jSeg)%HRUIX,   & ! index of contributing HRU
+              basArea        => RPARAM_in(jSeg)%BASAREA, & ! basin (total contributing HRU) area
+              hruWeight      => NETOPO_in(jSeg)%HRUWGT   ) ! weight assigned to each HRU
+
+    ! * case where HRUs drain into the segment
+    if(nContrib > 0)then
+
+      ! intialize the streamflow
+      reachSolute(jSeg) = 0._dp
+      ! loop through the HRUs
+      do iHRU=1,nContrib
+        ! error check - runoff depth cannot be negative (no missing value)
+        if( basinSolute( hruContribIx(iHRU) ) < 0._dp )then
+         write(iulog,*) 'Negative solute mass flux: HRU = ', hruContribId(iHRU), ' basin solute mass flux = ', basinSolute( hruContribIx(iHRU) )
+         write(message,'(a,i12, g12.2)') trim(message)//'Negative solute mass flux for HRU ', hruContribId(iHRU)
+         ierr=20; return
+        endif
+        ! compute the weighted average mass (mg/s)
+        reachSolute(jSeg) = reachSolute(jSeg) + hruWeight(iHRU)*basinSolute( hruContribIx(iHRU) )*time_conv_solute*mass_conv_solute
+     end do  ! (looping through contributing HRUs)
+
+    ! convert basin average runoff volume (mg/s)
+    reachSolute(jSeg) = reachSolute(jSeg)*basArea
+
+    endif
+
+    end associate
+
+  end do  ! looping through stream segments
+
+  END SUBROUTINE basin2reach_mass
 
 END MODULE process_remap_module
