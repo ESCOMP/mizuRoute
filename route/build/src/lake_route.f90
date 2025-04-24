@@ -422,10 +422,15 @@ CONTAINS
             Q_spill = RPARAM_in(segIndex)%HYP_Qrate_emr* (RCHFLX_out(segIndex)%ROUTE(idxRoute)%REACH_ELE &
                       - RPARAM_in(segIndex)%HYP_E_emr)**RPARAM_in(segIndex)%HYP_Erate_emr
           end if
-          ! Q_sim
-          Q_sim = Q_prim + Q_spill
-          !! original implementation picks the maximume value of output from primary spillway and emergency spillway
-          Q_sim = max(Q_prim, Q_spill)
+
+          if (RPARAM_in(segIndex)%HYP_Qsim_mode) then
+            ! Q_sim
+            Q_sim = Q_prim + Q_spill
+          else
+            ! Original implementation picks the maximum value of output
+            ! from primary spillway and emergency spillway
+            Q_sim = max(Q_prim, Q_spill)
+          end if
 
           ! check if the output is not more than the existing stored water
           RCHFLX_out(segIndex)%ROUTE(idxRoute)%REACH_Q = min(Q_sim, max(0._dp,(RCHFLX_out(segIndex)%ROUTE(idxRoute)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)*RPARAM_in(segIndex)%HYP_A_avg)/dt)
@@ -464,15 +469,6 @@ CONTAINS
 
     call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxRoute, q_upstream, RCHFLX_out(segIndex)%BASIN_QR(1), RCHFLX_out(segIndex), &
                        verbose, lakeFlag=.true.,tolerance=lakeWBtol)
-
-    ! assign the zero value as lake do not have a QFUTURE_IRF
-    ! TO-DO: Need to handle this when construct unit-hydrograph
-    if (.not.allocated(RCHFLX_out(segIndex)%QFUTURE_IRF))then
-      ntdh = size(NETOPO_in(segIndex)%UH)
-      allocate(RCHFLX_out(segIndex)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_out(segIndex)%QFUTURE_IRF'; return; endif
-      RCHFLX_out(segIndex)%QFUTURE_IRF(1:ntdh) = 0._dp
-    end if
 
   END SUBROUTINE lake_route
 

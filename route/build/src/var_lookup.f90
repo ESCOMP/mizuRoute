@@ -1,6 +1,9 @@
 MODULE var_lookup
 
- ! defines named variables used to index array elements
+ ! Descriptions:
+ ! Defines index of named variables for each data structure, history output, dimension etc
+ ! These variables are also linked to metadata (see popMeta.f90)
+
  USE nrtype,     ONLY: i4b
  USE public_var, ONLY: integerMissing  ! missing value for integers
  implicit none
@@ -111,49 +114,50 @@ MODULE var_lookup
   integer(i4b)     :: HYP_Qrate_phs    = integerMissing  ! 29.
   integer(i4b)     :: HYP_prim_F       = integerMissing  ! 30.
   integer(i4b)     :: HYP_A_avg        = integerMissing  ! 31.
+  integer(i4b)     :: HYP_Qsim_mode    = integerMissing  ! 32.
   ! Hanasaki 2006 parameter (reservoir outlfow)
-  integer(i4b)     :: H06_Smax         = integerMissing  ! 32.
-  integer(i4b)     :: H06_alpha        = integerMissing  ! 33.
-  integer(i4b)     :: H06_envfact      = integerMissing  ! 34.
-  integer(i4b)     :: H06_S_ini        = integerMissing  ! 35.
-  integer(i4b)     :: H06_c1           = integerMissing  ! 36.
-  integer(i4b)     :: H06_c2           = integerMissing  ! 37.
-  integer(i4b)     :: H06_exponent     = integerMissing  ! 38.
-  integer(i4b)     :: H06_denominator  = integerMissing  ! 39.
-  integer(i4b)     :: H06_c_compare    = integerMissing  ! 40.
-  integer(i4b)     :: H06_frac_Sdead   = integerMissing  ! 41.
-  integer(i4b)     :: H06_E_rel_ini    = integerMissing  ! 42.
-  integer(i4b)     :: H06_I_Jan        = integerMissing  ! 43.
-  integer(i4b)     :: H06_I_Feb        = integerMissing  ! 44.
-  integer(i4b)     :: H06_I_Mar        = integerMissing  ! 45.
-  integer(i4b)     :: H06_I_Apr        = integerMissing  ! 46.
-  integer(i4b)     :: H06_I_May        = integerMissing  ! 47.
-  integer(i4b)     :: H06_I_Jun        = integerMissing  ! 48.
-  integer(i4b)     :: H06_I_Jul        = integerMissing  ! 49.
-  integer(i4b)     :: H06_I_Aug        = integerMissing  ! 50.
-  integer(i4b)     :: H06_I_Sep        = integerMissing  ! 51.
-  integer(i4b)     :: H06_I_Oct        = integerMissing  ! 52.
-  integer(i4b)     :: H06_I_Nov        = integerMissing  ! 53.
-  integer(i4b)     :: H06_I_Dec        = integerMissing  ! 54.
-  integer(i4b)     :: H06_D_Jan        = integerMissing  ! 55.
-  integer(i4b)     :: H06_D_Feb        = integerMissing  ! 56.
-  integer(i4b)     :: H06_D_Mar        = integerMissing  ! 57.
-  integer(i4b)     :: H06_D_Apr        = integerMissing  ! 58.
-  integer(i4b)     :: H06_D_May        = integerMissing  ! 59.
-  integer(i4b)     :: H06_D_Jun        = integerMissing  ! 60.
-  integer(i4b)     :: H06_D_Jul        = integerMissing  ! 61.
-  integer(i4b)     :: H06_D_Aug        = integerMissing  ! 62.
-  integer(i4b)     :: H06_D_Sep        = integerMissing  ! 63.
-  integer(i4b)     :: H06_D_Oct        = integerMissing  ! 64.
-  integer(i4b)     :: H06_D_Nov        = integerMissing  ! 65.
-  integer(i4b)     :: H06_D_Dec        = integerMissing  ! 66.
-  integer(i4b)     :: H06_purpose      = integerMissing  ! 67.
-  integer(i4b)     :: H06_I_mem_F      = integerMissing  ! 68.
-  integer(i4b)     :: H06_D_mem_F      = integerMissing  ! 69.
-  integer(i4b)     :: H06_I_mem_L      = integerMissing  ! 70.
-  integer(i4b)     :: H06_D_mem_L      = integerMissing  ! 71.
+  integer(i4b)     :: H06_Smax         = integerMissing  ! 33.
+  integer(i4b)     :: H06_alpha        = integerMissing  ! 34.
+  integer(i4b)     :: H06_envfact      = integerMissing  ! 35.
+  integer(i4b)     :: H06_S_ini        = integerMissing  ! 36.
+  integer(i4b)     :: H06_c1           = integerMissing  ! 37.
+  integer(i4b)     :: H06_c2           = integerMissing  ! 38.
+  integer(i4b)     :: H06_exponent     = integerMissing  ! 39.
+  integer(i4b)     :: H06_denominator  = integerMissing  ! 40.
+  integer(i4b)     :: H06_c_compare    = integerMissing  ! 41.
+  integer(i4b)     :: H06_frac_Sdead   = integerMissing  ! 42.
+  integer(i4b)     :: H06_E_rel_ini    = integerMissing  ! 43.
+  integer(i4b)     :: H06_I_Jan        = integerMissing  ! 44.
+  integer(i4b)     :: H06_I_Feb        = integerMissing  ! 45.
+  integer(i4b)     :: H06_I_Mar        = integerMissing  ! 46.
+  integer(i4b)     :: H06_I_Apr        = integerMissing  ! 47.
+  integer(i4b)     :: H06_I_May        = integerMissing  ! 48.
+  integer(i4b)     :: H06_I_Jun        = integerMissing  ! 49.
+  integer(i4b)     :: H06_I_Jul        = integerMissing  ! 50.
+  integer(i4b)     :: H06_I_Aug        = integerMissing  ! 51.
+  integer(i4b)     :: H06_I_Sep        = integerMissing  ! 52.
+  integer(i4b)     :: H06_I_Oct        = integerMissing  ! 53.
+  integer(i4b)     :: H06_I_Nov        = integerMissing  ! 54.
+  integer(i4b)     :: H06_I_Dec        = integerMissing  ! 55.
+  integer(i4b)     :: H06_D_Jan        = integerMissing  ! 56.
+  integer(i4b)     :: H06_D_Feb        = integerMissing  ! 57.
+  integer(i4b)     :: H06_D_Mar        = integerMissing  ! 58.
+  integer(i4b)     :: H06_D_Apr        = integerMissing  ! 59.
+  integer(i4b)     :: H06_D_May        = integerMissing  ! 60.
+  integer(i4b)     :: H06_D_Jun        = integerMissing  ! 61.
+  integer(i4b)     :: H06_D_Jul        = integerMissing  ! 62.
+  integer(i4b)     :: H06_D_Aug        = integerMissing  ! 63.
+  integer(i4b)     :: H06_D_Sep        = integerMissing  ! 64.
+  integer(i4b)     :: H06_D_Oct        = integerMissing  ! 65.
+  integer(i4b)     :: H06_D_Nov        = integerMissing  ! 66.
+  integer(i4b)     :: H06_D_Dec        = integerMissing  ! 67.
+  integer(i4b)     :: H06_purpose      = integerMissing  ! 68.
+  integer(i4b)     :: H06_I_mem_F      = integerMissing  ! 69.
+  integer(i4b)     :: H06_D_mem_F      = integerMissing  ! 70.
+  integer(i4b)     :: H06_I_mem_L      = integerMissing  ! 71.
+  integer(i4b)     :: H06_D_mem_L      = integerMissing  ! 72.
   ! constraints
-  integer(i4b)     :: minFlow       = integerMissing     ! 72. minimum environmental flow (m3/s)
+  integer(i4b)     :: minFlow       = integerMissing     ! 73. minimum environmental flow (m3/s)
  endtype iLook_SEG
  ! ***********************************************************************************************************
  ! ** define variables for the network topology (all are unitless)
@@ -216,17 +220,24 @@ MODULE var_lookup
   integer(i4b)     :: KWvolume          = integerMissing  ! 11. KW water volume in reach/lake (m3)
   integer(i4b)     :: MCvolume          = integerMissing  ! 12. MC water volume in reach/lake (m3)
   integer(i4b)     :: DWvolume          = integerMissing  ! 13. DW water volume in reach/lake (m3)
-  integer(i4b)     :: KWheight          = integerMissing  ! 14. KW water height from bottom in reach/lake (m)
-  integer(i4b)     :: MCheight          = integerMissing  ! 15. MC water height from bottom in reach/lake (m)
-  integer(i4b)     :: DWheight          = integerMissing  ! 16. DW water height from bottom in reach/lake (m)
-  integer(i4b)     :: KWfloodVolume     = integerMissing  ! 17. KW water volume in floodplain (m3)
-  integer(i4b)     :: MCfloodVolume     = integerMissing  ! 18. MC water volume in floodplain (m3)
-  integer(i4b)     :: DWfloodVolume     = integerMissing  ! 19. DW water volume in floodplain (m3)
-  integer(i4b)     :: IRFinflow         = integerMissing  ! 20. IRF inflow from upstreams into reach/lake (m3/s)
-  integer(i4b)     :: KWTinflow         = integerMissing  ! 21. KWT inflow flow upstreams into reach/lake (m3/s)
-  integer(i4b)     :: KWinflow          = integerMissing  ! 22. KW inflow from upstreams into reach/lake (m3/s)
-  integer(i4b)     :: MCinflow          = integerMissing  ! 23. MC inflow from upstreams into reach/lake (m3/s)
-  integer(i4b)     :: DWinflow          = integerMissing  ! 24. DW inflow from upstreams into reach/lake (m3/s)
+  integer(i4b)     :: IRFheight         = integerMissing  ! 14. KW water volume in floodplain (m3)
+  integer(i4b)     :: KWTheight         = integerMissing  ! 15. KW water volume in floodplain (m3)
+  integer(i4b)     :: KWheight          = integerMissing  ! 16. KW water height from bottom in reach/lake (m)
+  integer(i4b)     :: MCheight          = integerMissing  ! 17. MC water height from bottom in reach/lake (m)
+  integer(i4b)     :: DWheight          = integerMissing  ! 18. DW water height from bottom in reach/lake (m)
+  integer(i4b)     :: IRFfloodVolume    = integerMissing  ! 19. KW water volume in floodplain (m3)
+  integer(i4b)     :: KWTfloodVolume    = integerMissing  ! 20. KW water volume in floodplain (m3)
+  integer(i4b)     :: KWfloodVolume     = integerMissing  ! 21. KW water volume in floodplain (m3)
+  integer(i4b)     :: MCfloodVolume     = integerMissing  ! 22. MC water volume in floodplain (m3)
+  integer(i4b)     :: DWfloodVolume     = integerMissing  ! 23. DW water volume in floodplain (m3)
+  integer(i4b)     :: IRFinflow         = integerMissing  ! 24. IRF inflow from upstreams into reach/lake (m3/s)
+  integer(i4b)     :: KWTinflow         = integerMissing  ! 25. KWT inflow flow upstreams into reach/lake (m3/s)
+  integer(i4b)     :: KWinflow          = integerMissing  ! 26. KW inflow from upstreams into reach/lake (m3/s)
+  integer(i4b)     :: MCinflow          = integerMissing  ! 27. MC inflow from upstreams into reach/lake (m3/s)
+  integer(i4b)     :: DWinflow          = integerMissing  ! 28. DW inflow from upstreams into reach/lake (m3/s)
+  integer(i4b)     :: localSolute       = integerMissing  ! 29. solute mass from local basin (mg/s)
+  integer(i4b)     :: DWsoluteFlux      = integerMissing  ! 30. DW routed solute flux from upstreams into reach/lake (mg/s)
+  integer(i4b)     :: DWsoluteMass      = integerMissing  ! 31. DW routed solute mass in reach/lake (mg)
  endtype iLook_RFLX
  ! HRU fluxes
  type, public  ::  iLook_HFLX
@@ -239,14 +250,23 @@ MODULE var_lookup
  type, public  ::  iLook_basinQ
   integer(i4b)     :: q              = integerMissing  ! 1. final discharge (m3/s)
  endtype iLook_basinQ
+ ! tracer states
+ type, public  ::  iLook_tracer
+  integer(i4b)     :: mass           = integerMissing  ! 1. constituent mass (mg)
+ endtype iLook_tracer
  ! Basin IRF state/fluxes
  type, public  ::  iLook_IRFbas
   integer(i4b)     :: qfuture        = integerMissing  ! 1. future routed flow (m3/s)
  endtype iLook_IRFbas
+ ! Basin IRF tracer state/fluxes
+ type, public  ::  iLook_basTracer
+  integer(i4b)     :: tfuture        = integerMissing  ! 1. future mass flux (mg/s)
+ endtype iLook_basTracer
  !IRF state/fluxes
  type, public  ::  iLook_IRF
   integer(i4b)     :: qfuture        = integerMissing  ! 1. future routed flow (m3/s)
   integer(i4b)     :: vol            = integerMissing  ! 2. reach volume (m3)
+  integer(i4b)     :: qerror         = integerMissing  ! 3. discharge error (m3/s): optional
  endtype iLook_IRF
  ! KWT state/fluxes
  type, public  ::  iLook_KWT
@@ -261,16 +281,19 @@ MODULE var_lookup
  type, public  ::  iLook_KW
   integer(i4b)     :: qsub           = integerMissing  ! 1. discharge (m3/s)
   integer(i4b)     :: vol            = integerMissing  ! 2. reach volume (m3)
+  integer(i4b)     :: qerror         = integerMissing  ! 3. discharge error (m3/s): optional
  endtype iLook_KW
  ! DW state/fluxes
  type, public  ::  iLook_DW
   integer(i4b)     :: qsub           = integerMissing  ! 1. discharge (m3/s)
   integer(i4b)     :: vol            = integerMissing  ! 2. reach volume (m3)
+  integer(i4b)     :: qerror         = integerMissing  ! 3. discharge error (m3/s): optional
  endtype iLook_DW
  ! MC state/fluxes
  type, public  ::  iLook_MC
   integer(i4b)     :: qsub           = integerMissing  ! 1. discharge (m3/s)
   integer(i4b)     :: vol            = integerMissing  ! 2. reach volume (m3)
+  integer(i4b)     :: qerror         = integerMissing  ! 3. discharge error (m3/s): optional
  endtype iLook_MC
  ! ***********************************************************************************************************
  ! ** define data vectors
@@ -289,22 +312,25 @@ MODULE var_lookup
                                                                          41,42,43,44,45,46,47,48,49,50, &
                                                                          51,52,53,54,55,56,57,58,59,60, &
                                                                          61,62,63,64,65,66,67,68,69,70, &
-                                                                         71,72)
+                                                                         71,72,73)
  type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    ( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &
                                                                          11,12,13,14,15,16,17,18,19,20, &
                                                                          21,22)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     ( 1)
  type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     ( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &
                                                                          11,12,13,14,15,16,17,18,19,20, &
-                                                                         21,22,23,24)
+                                                                         21,22,23,24,25,26,27,28,29,30, &
+                                                                         31)
  type(iLook_HFLX)     ,public,parameter :: ixHFLX      = iLook_HFLX     ( 1)
  type(iLook_basinQ)   ,public,parameter :: ixBasinQ    = iLook_basinQ   ( 1)
+ type(iLook_tracer)   ,public,parameter :: ixTracer    = iLook_tracer   ( 1)
  type(iLook_IRFbas)   ,public,parameter :: ixIRFbas    = iLook_IRFbas   ( 1)
- type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      ( 1, 2)
+ type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      ( 1, 2, 3)
+ type(iLook_basTracer),public,parameter :: ixBasTracer = iLook_basTracer( 1)
  type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      ( 1, 2, 3, 4, 5, 6)
- type(iLook_KW)       ,public,parameter :: ixKW        = iLook_KW       ( 1, 2)
- type(iLook_DW)       ,public,parameter :: ixDW        = iLook_DW       ( 1, 2)
- type(iLook_MC)       ,public,parameter :: ixMC        = iLook_MC       ( 1, 2)
+ type(iLook_KW)       ,public,parameter :: ixKW        = iLook_KW       ( 1, 2, 3)
+ type(iLook_DW)       ,public,parameter :: ixDW        = iLook_DW       ( 1, 2, 3)
+ type(iLook_MC)       ,public,parameter :: ixMC        = iLook_MC       ( 1, 2, 3)
  ! ***********************************************************************************************************
  ! ** define size of data vectors
  ! ***********************************************************************************************************
@@ -325,7 +351,9 @@ MODULE var_lookup
  integer(i4b),parameter,public    :: nVarsMC       = storage_size(ixMC      )/iLength
  integer(i4b),parameter,public    :: nVarsIRF      = storage_size(ixIRF     )/iLength
  integer(i4b),parameter,public    :: nVarsIRFbas   = storage_size(ixIRFbas  )/iLength
+ integer(i4b),parameter,public    :: nVarsBasTracer= storage_size(ixBasTracer)/iLength
  integer(i4b),parameter,public    :: nVarsBasinQ   = storage_size(ixBasinQ  )/iLength
+ integer(i4b),parameter,public    :: nVarsTracer   = storage_size(ixTracer  )/iLength
  ! ***********************************************************************************************************
 
 END MODULE var_lookup

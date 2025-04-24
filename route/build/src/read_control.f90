@@ -19,6 +19,8 @@ CONTAINS
 
  ! global vars
  USE globalData, ONLY: time_conv,length_conv   ! conversion factors
+ USE globalData, ONLY: time_conv_solute        ! time conversion factor for solute mass
+ USE globalData, ONLY: mass_conv_solute        ! mass conversion factors
  USE globalData, ONLY: masterproc              ! procs id and number of procs
  ! metadata structures
  USE globalData, ONLY: meta_HRU                ! HRU properties
@@ -58,6 +60,7 @@ CONTAINS
  character(len=strLen),allocatable :: cLines(:)               ! vector of character strings
  character(len=strLen)             :: cName,cData             ! name and data from cLines(iLine)
  character(len=strLen)             :: cLength,cTime           ! length and time units
+ character(len=strLen)             :: cMass                   ! mass units needed only when tracer is on
  logical(lgt)                      :: isGeneric               ! temporal logical scalar
  logical(lgt)                      :: onlyOneRouting          ! temporal logical scalar
  integer(i4b)                      :: ipos                    ! index of character string
@@ -129,6 +132,7 @@ CONTAINS
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
    case('<floodplain>');           read(cData,*,iostat=io_error) floodplain            ! logical: floodwater is computed, otherwise, channel is unlimited bank depth
    case('<hw_drain_point>');       read(cData,*,iostat=io_error) hw_drain_point        ! integer: how to add inst. runoff in reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)
+   case('<tracer>');               read(cData,*,iostat=io_error) tracer                ! logical: tracer is activated to compute a solute or constituent transport.
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
    case('<lakeRegulate>');         read(cData,*,iostat=io_error) lakeRegulate          ! logical: F -> turn all the lakes into natural (lakeType=1) regardless of lakeModelType defined individually. T (default)
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm            ! logical; provided fluxes to or from seg/lakes should be considered
@@ -153,6 +157,7 @@ CONTAINS
    case('<vname_qsim>');           vname_qsim   = trim(cData)                          ! name of runoff variable
    case('<vname_evapo>');          vname_evapo  = trim(cData)                          ! name of actual evapoartion variable
    case('<vname_precip>');         vname_precip = trim(cData)                          ! name of precipitation variable
+   case('<vname_solute>');         vname_solute = trim(cData)                          ! name of solute mass flux variable
    case('<vname_time>');           vname_time   = trim(cData)                          ! name of time variable in the runoff file
    case('<vname_hruid>');          vname_hruid  = trim(cData)                          ! name of the HRU id
    case('<dname_time>');           dname_time   = trim(cData)                          ! name of time variable in the runoff file
@@ -160,6 +165,7 @@ CONTAINS
    case('<dname_xlon>');           dname_xlon   = trim(cData)                          ! name of x (j,lon) dimension
    case('<dname_ylat>');           dname_ylat   = trim(cData)                          ! name of y (i,lat) dimension
    case('<units_qsim>');           units_qsim   = trim(cData)                          ! units of runoff
+   case('<units_cc>');             units_cc     = trim(cData)                          ! units of concentration
    case('<dt_ro>');                read(cData,*,iostat=io_error) dt_ro                 ! time interval of the runoff data [sec]
    case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue       ! fillvalue used for input variable
    case('<ro_calendar>');          ro_calendar  = trim(cData)                          ! name of calendar used in runoff input netcdfs
@@ -195,6 +201,9 @@ CONTAINS
    ! SPATIAL CONSTANT PARAMETERS
    case('<param_nml>');            param_nml            = trim(cData)                  ! name of namelist including routing parameter value
    ! USER OPTIONS: Define options to include/skip calculations
+   case('<qmodOption>');           read(cData,*,iostat=io_error) qmodOption            ! option for streamflow modification (DA): 0->no DA, 1->direct insertion
+   case('<qBlendPeriod>');         read(cData,*,iostat=io_error) qBlendPeriod          ! number of time steps for which streamflow modification is performed through blending observation
+   case('<QerrTrend>');            read(cData,*,iostat=io_error) QerrTrend             ! temporal dischargge error decreasing trend. 1->constant, 2->linear, 3->logistic, 4->exponential
    case('<hydGeometryOption>');    read(cData,*,iostat=io_error) hydGeometryOption     ! option for hydraulic geometry calculations (0=read from file, 1=compute)
    case('<topoNetworkOption>');    read(cData,*,iostat=io_error) topoNetworkOption     ! option for network topology calculations (0=read from file, 1=compute)
    case('<computeReachList>');     read(cData,*,iostat=io_error) computeReachList      ! option to compute list of upstream reaches (0=do not compute, 1=compute)
@@ -215,6 +224,7 @@ CONTAINS
    case('<debug>');                read(cData,*,iostat=io_error) debug                 ! print out detailed information throught the probram
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut              ! desired outlet reach id (if -9999 --> route over the entire network)
    case('<desireId>'   );          read(cData,*,iostat=io_error) desireId              ! turn off checks or speficy reach ID if necessary to print on screen
+   case('<checkMassBalance>');     read(cData,*,iostat=io_error) checkMassBalance      ! turn on/off domain wide water balance printing on screen
    ! PFAFCODE
    case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen            ! maximum digit of pfafstetter code (default 32)
    case('<pfafMissing>');          pfafMissing = trim(cData)                           ! missing pfafcode (e.g., reach without any upstream area)
@@ -244,6 +254,9 @@ CONTAINS
    case('<KWheight>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWheight         )%varFile  ! default: true (turned off if floodplain is inactive)
    case('<MCheight>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCheight         )%varFile  ! default: true (turned off if floodplain is inactive)
    case('<DWheight>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWheight         )%varFile  ! default: true (turned off if floodplain is inactive)
+   case('<localSolute>');          read(cData,*,iostat=io_error) meta_rflx(ixRFLX%localSolute      )%varFile  ! default: false (turned off if tracer is inactive)
+   case('<soluteFlux>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWsoluteFlux     )%varFile  ! default: false (turned off if tracer is inactive)
+   case('<soluteMass>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWsoluteMass     )%varFile  ! default: false (turned off if tracer is inactive)
    case('<outputInflow>');         read(cData,*,iostat=io_error) outputInflow
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
@@ -259,7 +272,9 @@ CONTAINS
    case('<varname_slope>'          ); meta_SEG    (ixSEG%slope           )%varName =trim(cData)   ! slope of segment   (-)
    case('<varname_width>'          ); meta_SEG    (ixSEG%width           )%varName =trim(cData)   ! width of segment   (m)
    case('<varname_depth>'          ); meta_SEG    (ixSEG%depth           )%varName =trim(cData)   ! bankful depth of segment   (m)
+   case('<varname_sideSlope>'      ); meta_SEG    (ixSEG%sideSlope       )%varName =trim(cData)   ! River channel side slope (-): v:h=1:sideSlope
    case('<varname_man_n>'          ); meta_SEG    (ixSEG%man_n           )%varName =trim(cData)   ! Manning's n        (weird units)
+   case('<varname_floodplainSlope>'); meta_SEG    (ixSEG%floodplainSlope )%varName =trim(cData)   ! Floodplain slope (-): v:h=1:floodplainSlope
    case('<varname_hruArea>'        ); meta_SEG    (ixSEG%hruArea         )%varName =trim(cData)   ! local basin area (m2)
    case('<varname_weight>'         ); meta_SEG    (ixSEG%weight          )%varName =trim(cData)   ! HRU weight
    case('<varname_timeDelayHist>'  ); meta_SEG    (ixSEG%timeDelayHist   )%varName =trim(cData)   ! time delay histogram for each reach (s)
@@ -283,6 +298,7 @@ CONTAINS
    case('<varname_HYP_Qrate_phs>'  ); meta_SEG    (ixSEG%HYP_Qrate_phs   )%varName =trim(cData)   ! HYPE; phase of the Qrate_main based on the day of the year [-]; default 100
    case('<varname_HYP_prim_F>'     ); meta_SEG    (ixSEG%HYP_prim_F      )%varName =trim(cData)   ! HYPE; if the reservoir has a primary spillway then set to 1 otherwise 0
    case('<varname_HYP_A_avg>'      ); meta_SEG    (ixSEG%HYP_A_avg       )%varName =trim(cData)   ! HYPE; average area for the lake; this might not be used if bathymetry is provided [m]
+   case('<varname_HYP_Qsim_mode>'  ); meta_SEG    (ixSEG%HYP_Qsim_mode   )%varName =trim(cData)   ! HYPE; the outflow is sum of emergency and primary spillways if 1, otherwise the maximum
 
    case('<varname_H06_Smax>'       ); meta_SEG    (ixSEG%H06_Smax        )%varName =trim(cData)   ! Hanasaki 2006; maximume reservoir storage [m3]
    case('<varname_H06_alpha>'      ); meta_SEG    (ixSEG%H06_alpha       )%varName =trim(cData)   ! Hanasaki 2006; fraction of active storage compared to total storage [-]
@@ -450,6 +466,39 @@ CONTAINS
      message=trim(message)//'expect the time units of runoff to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
      err=81; return
  end select
+
+ if (tracer) then
+   ! find the position of the "/" character
+   ipos = index(trim(units_cc),'/')
+   if(ipos==0)then
+     message=trim(message)//'expect the character "/" exists in the mass flux units string [units='//trim(units_qsim)//']'
+     err=80; return
+   endif
+
+   ! get the mass and time units
+   cMass = units_cc(1:ipos-1)
+   cTime = units_cc(ipos+1:len_trim(units_cc))
+
+   ! get the conversion factor for length
+   select case(trim(cMass))
+     case('mg');  mass_conv_solute = 1._dp
+     case('g');   mass_conv_solute = 1000._dp
+     case('kg');  mass_conv_solute = 1000000._dp
+     case default
+       message=trim(message)//'expect the mass units of solute to be "mg" [units='//trim(cMass)//']'
+       err=81; return
+   end select
+
+   ! get the conversion factor for time
+   select case(trim(cTime))
+     case('d','day');          time_conv_solute = 1._dp/secprday
+     case('h','hr','hour');    time_conv_solute = 1._dp/secprhour
+     case('s','sec','second'); time_conv_solute = 1._dp
+     case default
+       message=trim(message)//'expect the time units of mass flux to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
+       err=81; return
+   end select
+ end if
 
  ! ---------- I/O time stamp -------
  if (masterproc) then
@@ -648,6 +697,23 @@ CONTAINS
 
  ! basin runoff routing option
  if (doesBasinRoute==0) meta_rflx(ixRFLX%instRunoff)%varFile = .false.
+
+ ! tracer mass and flux
+ if (.not. tracer) then
+   meta_rflx(ixRFLX%DWsoluteFlux)%varFile = .false.
+   meta_rflx(ixRFLX%DWsoluteMass)%varFile = .false.
+ end if
+ ! Temporary tracer output option control as of Apr 18, 2025:
+ ! Curently tracer is computed using discharge based on any routing methods, but only tracer with DW is properly output in history file
+ ! if routing methods are not including DW and tracer is on, execution is aborted and instruct user to include 5(DW) in route_opt
+ if (all(routeMethods/=diffusiveWave)) then
+   if (tracer) then
+     message=trim(message)//'Tracer is on without DW routig method included. Please include 5 (==DW method) in route_opt when tracer is on.'
+     err=20; return
+   end if
+   meta_rflx(ixRFLX%DWsoluteFlux)%varFile = .false.
+   meta_rflx(ixRFLX%DWsoluteMass)%varFile = .false.
+ endif
 
  END SUBROUTINE read_control
 

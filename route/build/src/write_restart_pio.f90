@@ -12,7 +12,9 @@ USE var_lookup,        ONLY: ixKWT, nVarsKWT
 USE var_lookup,        ONLY: ixKW, nVarsKW
 USE var_lookup,        ONLY: ixMC, nVarsMC
 USE var_lookup,        ONLY: ixDW, nVarsDW
+USE var_lookup,        ONLY: ixTracer, nVarsTracer
 USE var_lookup,        ONLY: ixIRFbas, nVarsIRFbas
+USE var_lookup,        ONLY: ixBasTracer, nVarsBasTracer
 USE var_lookup,        ONLY: ixBasinQ, nVarsBasinQ
 ! data daype
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
@@ -23,18 +25,21 @@ USE datetime_data,     ONLY: datetime
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
-! meta data
-USE globalData,        ONLY: meta_stateDims  ! states dimension meta
-USE globalData,        ONLY: meta_qDims
-USE globalData,        ONLY: meta_irf_bas
-USE globalData,        ONLY: meta_basinQ
-USE globalData,        ONLY: meta_irf
-USE globalData,        ONLY: meta_kwt
-USE globalData,        ONLY: meta_kw
-USE globalData,        ONLY: meta_mc
-USE globalData,        ONLY: meta_dw
-USE globalData,        ONLY: meta_rflx
-USE globalData,        ONLY: meta_hflx
+USE public_var,        ONLY: tracer            ! tracer logical
+! variable meta data - see popMeta.f90
+USE globalData,        ONLY: meta_stateDims    ! states output dimensions
+USE globalData,        ONLY: meta_qDims        ! history output dimensions
+USE globalData,        ONLY: meta_irf_bas      ! h2o catchment routing variables
+USE globalData,        ONLY: meta_bas_solute   ! solute catchment (hru) routing variables
+USE globalData,        ONLY: meta_basinQ       ! catchment runoff variables
+USE globalData,        ONLY: meta_irf          ! impulse response function routing variables
+USE globalData,        ONLY: meta_kwt          ! lagrangian kinemative wave routing variables
+USE globalData,        ONLY: meta_kw           ! kinematic wave routing variables
+USE globalData,        ONLY: meta_mc           ! muskingum-cunge routing variables
+USE globalData,        ONLY: meta_dw           ! diffusive wave routing variables
+USE globalData,        ONLY: meta_solute       ! reach solute variables
+USE globalData,        ONLY: meta_rflx         ! reach history output variables
+USE globalData,        ONLY: meta_hflx         ! hru history output variables
 ! pio stuff
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: masterproc
@@ -253,7 +258,7 @@ CONTAINS
 
 
  ! *********************************************************************
- ! subroutine: define restart NetCDF file
+ ! subroutine: define restart variables in NetCDF file
  ! *********************************************************************
  SUBROUTINE define_state_nc(fname,           &  ! input: filename
                             pioFileDesc,     &  ! inout: pio file descriptor
@@ -340,6 +345,10 @@ CONTAINS
  if (doesBasinRoute==1) then
    call define_IRFbas_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (tracer) then
+     call define_bas_solute_state(ierr,cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
  end if
 
  if (onRoute(impulseResponseFunc))then
@@ -367,6 +376,11 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
+ if (tracer) then
+   call define_solute_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
  ! accumulated history variables
  call define_history_state(ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -376,7 +390,11 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  CONTAINS
-
+  ! *******************************************************************************
+  ! private subroutines: Define the state variables for each specific variable type
+  ! *******************************************************************************
+  ! Description: There is a separate subroutine for each variable type, such as basinQ, bas_solute, IRF, etc.
+  ! They all work the same in how they read in the state data, but just operate on a different type.
   SUBROUTINE define_basinQ_state(ierr, message1)
    implicit none
    ! output
@@ -408,7 +426,6 @@ CONTAINS
 
   END SUBROUTINE define_basinQ_state
 
-
   SUBROUTINE define_IRFbas_state(ierr, message1)
    implicit none
    ! output
@@ -425,7 +442,6 @@ CONTAINS
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsIRFbas
-
      nDims = size(meta_irf_bas(iVar)%varDim)
      if (allocated(dim_IRFbas)) then
        deallocate(dim_IRFbas)
@@ -438,10 +454,38 @@ CONTAINS
      call def_var(pioFileDesc, meta_irf_bas(iVar)%varName, meta_irf_bas(iVar)%varType, ierr, cmessage, &
                   pioDimId=dim_IRFbas, vdesc=meta_irf_bas(iVar)%varDesc, vunit=meta_irf_bas(iVar)%varUnit)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
-
    end do
 
   END SUBROUTINE define_IRFbas_state
+
+  SUBROUTINE define_bas_solute_state(ierr, message1)
+   implicit none
+   ! output
+   integer(i4b), intent(out)   :: ierr              ! error code
+   character(*), intent(out)   :: message1          ! error message
+   ! local
+   integer(i4b)                :: iVar, ixDim       ! index loop
+   integer(i4b)                :: nDims             ! number of dimensions
+   integer(i4b),allocatable    :: dim_bas_tracer(:) ! dimension id array
+
+   ierr=0; message1='define_bas_solute_state/'
+
+   do iVar=1,nVarsBasTracer
+     nDims = size(meta_bas_solute(iVar)%varDim)
+     if (allocated(dim_bas_tracer)) then
+       deallocate(dim_bas_tracer)
+     end if
+     allocate(dim_bas_tracer(nDims))
+     do ixDim = 1, nDims
+       dim_bas_tracer(ixDim) = meta_stateDims(meta_bas_solute(iVar)%varDim(ixDim))%dimId
+     end do
+
+     call def_var(pioFileDesc, meta_bas_solute(iVar)%varName, meta_bas_solute(iVar)%varType, ierr, cmessage, &
+                  pioDimId=dim_bas_tracer, vdesc=meta_bas_solute(iVar)%varDesc, vunit=meta_bas_solute(iVar)%varUnit)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+   end do
+
+  END SUBROUTINE define_bas_solute_state
 
   SUBROUTINE define_IRF_state(ierr, message1)
    implicit none
@@ -465,6 +509,7 @@ CONTAINS
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    do iVar=1,nVarsIRF
+     if (.not. meta_irf(iVar)%varFile) cycle
      nDims = size(meta_irf(iVar)%varDim)
      if (allocated(dim_set)) deallocate(dim_set)
      allocate(dim_set(nDims))
@@ -536,6 +581,7 @@ CONTAINS
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsKW
+     if (.not. meta_kw(iVar)%varFile) cycle
      nDims = size(meta_KW(iVar)%varDim)
      if (allocated(dim_set)) deallocate(dim_set)
      allocate(dim_set(nDims))
@@ -567,6 +613,7 @@ CONTAINS
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsMC
+     if (.not. meta_mc(iVar)%varFile) cycle
      nDims = size(meta_mc(iVar)%varDim)
      if (allocated(dim_set)) deallocate(dim_set)
      allocate(dim_set(nDims))
@@ -598,6 +645,7 @@ CONTAINS
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsDW
+     if (.not. meta_dw(iVar)%varFile) cycle
      nDims = size(meta_dw(iVar)%varDim)
      if (allocated(dim_set)) deallocate(dim_set)
      allocate(dim_set(nDims))
@@ -612,6 +660,34 @@ CONTAINS
    end do
 
   END SUBROUTINE define_DW_state
+
+  SUBROUTINE define_solute_state(ierr, message1)
+   implicit none
+   ! output
+   integer(i4b), intent(out)         :: ierr          ! error code
+   character(*), intent(out)         :: message1      ! error message
+   ! local
+   integer(i4b)                      :: iVar,ixDim    ! index loop for variables
+   integer(i4b)                      :: nDims         ! number of dimensions
+   integer(i4b),allocatable          :: dim_set(:)    ! dimension Id array
+
+   ierr=0; message1='define_solute_state/'
+
+   do iVar=1,nVarsTracer
+     nDims = size(meta_solute(iVar)%varDim)
+     if (allocated(dim_set)) deallocate(dim_set)
+     allocate(dim_set(nDims))
+
+     do ixDim = 1, nDims
+       dim_set(ixDim) = meta_stateDims(meta_solute(iVar)%varDim(ixDim))%dimId
+     end do
+
+     call def_var(pioFileDesc, meta_solute(iVar)%varName, meta_solute(iVar)%varType, ierr, cmessage, &
+                  pioDimId=dim_set, vdesc=meta_solute(iVar)%varDesc, vunit=meta_solute(iVar)%varUnit)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+   end do
+
+  END SUBROUTINE define_solute_state
 
   SUBROUTINE define_history_state(ierr, message1)
    implicit none
@@ -646,7 +722,7 @@ CONTAINS
 
 
  ! *********************************************************************
- ! public subroutine: writing routing state NetCDF file
+ ! public subroutine: writing restart or state variable in NetCDF file
  ! *********************************************************************
  SUBROUTINE write_state_nc(fname,                &  ! Input: state netcdf name
                            pioFileDesc,          &  ! inout: pio file descriptor
@@ -753,8 +829,12 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  if (doesBasinRoute == 1) then
-  call write_IRFbas_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call write_IRFbas_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (tracer) then
+     call write_bas_solute_state(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
  end if
 
  if (onRoute(impulseResponseFunc)) then
@@ -782,14 +862,22 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
+ if (tracer) then
+   call write_solute_state(idxDW, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
  call write_history_state(ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! close netCDF
  call closeFile(pioFileDesc, restartOpen)
 
  CONTAINS
-
+  ! ****************************************************************************************
+  ! private subroutines: Write the state variables for each specific variable type in netcdf
+  ! ****************************************************************************************
+  ! Description: There is a separate subroutine for each variable type, such as basinQ, bas_solute, IRF, etc.
+  ! They all work the same in how they read in the state data, but just operate on a different type.
   SUBROUTINE write_basinQ_state(ierr, message1)
     implicit none
     ! output
@@ -808,7 +896,7 @@ CONTAINS
       select case(iVar)
         case(ixBasinQ%q)
           allocate(array_1d_dp(nSeg), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':basin runoff:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':basin runoff:'//trim(meta_basinQ(iVar)%varName); return; endif
           do iSeg=1,nSeg
             array_1d_dp(iSeg) = RCHFLX_local(iSeg)%BASIN_QR(1)
           enddo
@@ -840,7 +928,7 @@ CONTAINS
       select case(iVar)
         case(ixIRFbas%qfuture)
           allocate(array_2d_dp(nSeg, ntdh), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':basin IRF routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':basin IRF routing state:'//trim(meta_irf_bas(iVar)%varName); return; endif
           do iSeg=1,nSeg
              array_2d_dp(iSeg,:) = RCHFLX_local(iSeg)%QFUTURE
           end do
@@ -854,6 +942,39 @@ CONTAINS
 
   END SUBROUTINE write_IRFbas_state
 
+  SUBROUTINE write_bas_solute_state(ierr, message1)
+    implicit none
+    ! output
+    integer(i4b), intent(out)  :: ierr            ! error code
+    character(*), intent(out)  :: message1        ! error message
+    ! local variables
+    real(dp), allocatable      :: array_2d_dp(:,:)
+    integer(i4b)               :: iVar,iSeg       ! index loops for variables, ensembles and segments respectively
+
+    ierr=0; message1='write_bas_solute_state/'
+
+    associate(nSeg     => size(RCHFLX_local),                         &
+              nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
+              ntdh     => meta_stateDims(ixStateDims%tdh)%dimLength)      ! maximum future q time steps among basins
+
+    do iVar=1,nVarsBasTracer
+      select case(iVar)
+        case(ixBasTracer%tfuture)
+          allocate(array_2d_dp(nSeg, ntdh), stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':basin basin tracer state:'//trim(meta_bas_solute(iVar)%varName); return; endif
+          do iSeg=1,nSeg
+             array_2d_dp(iSeg,:) = RCHFLX_local(iSeg)%solute_future
+          end do
+          call write_pnetcdf(pioFileDesc, meta_bas_solute(iVar)%varName, array_2d_dp, ioDesc_irf_bas_double, ierr, cmessage)
+          deallocate(array_2d_dp)
+        case default; ierr=20; message1=trim(message1)//'unable to identify basin tracer state variable index'; return
+      end select
+    end do
+
+    end associate
+
+  END SUBROUTINE write_bas_solute_state
+
   SUBROUTINE write_IRF_state(ierr, message1)
     USE globalData, ONLY: idxIRF
     implicit none
@@ -861,9 +982,10 @@ CONTAINS
     integer(i4b), intent(out)  :: ierr            ! error code
     character(*), intent(out)  :: message1        ! error message
     ! local variables
+    real(dp), allocatable      :: array_1d_dp(:)
     real(dp), allocatable      :: array_2d_dp(:,:)
-    integer(i4b)               :: iVar,iSeg          ! index loops for variables, segments respectively
-    integer(i4b), allocatable  :: numQF(:)           ! number of future Q time steps for each segment
+    integer(i4b)               :: iVar,iSeg          ! index loops for variables, ensembles and segments respectively
+    integer(i4b), allocatable  :: numQF(:)           ! number of future Q time steps for each ensemble and segment
 
     ierr=0; message1='write_IRF_state/'
 
@@ -886,21 +1008,31 @@ CONTAINS
       select case(iVar)
         case(ixIRF%qfuture)
           allocate(array_2d_dp(nSeg,ntdh_irf), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':IRF routing state:'//trim(meta_mc(iVar)%varName); return; endif
-            do iSeg=1,nSeg
-              array_2d_dp(iSeg,1:numQF(iSeg)) = RCHFLX_local(iSeg)%QFUTURE_IRF
-              array_2d_dp(iSeg,numQF(iSeg)+1:ntdh_irf) = realMissing
-            end do
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':IRF routing state:'//trim(meta_irf(iVar)%varName); return; endif
+          do iSeg=1,nSeg
+            array_2d_dp(iSeg,1:numQF(iSeg)) = RCHFLX_local(iSeg)%QFUTURE_IRF
+            array_2d_dp(iSeg,numQF(iSeg)+1:ntdh_irf) = realMissing
+          end do
           call write_pnetcdf(pioFileDesc, meta_irf(iVar)%varName, array_2d_dp, ioDesc_irf_double, ierr, cmessage)
           deallocate(array_2d_dp)
         case(ixIRF%vol)
           allocate(array_2d_dp(nSeg,nTbound), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':IRF routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':IRF routing state:'//trim(meta_irf(iVar)%varName); return; endif
           do iSeg=1,nSeg
             array_2d_dp(iSeg,1:nTbound) = RCHFLX_local(iSeg)%ROUTE(idxIRF)%REACH_VOL(0:1)
           end do
           call write_pnetcdf(pioFileDesc, meta_irf(iVar)%varName, array_2d_dp, ioDesc_vol_double, ierr, cmessage)
           deallocate(array_2d_dp)
+        case(ixIRF%qerror) ! if data assimilation is off, no need to be written
+          if (meta_irf(iVar)%varFile) then
+            allocate(array_1d_dp(nSeg), stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':IRF routing state:'//trim(meta_irf(iVar)%varName); return; endif
+            do iSeg=1,nSeg
+              array_1d_dp(iSeg) = RCHFLX_local(iSeg)%ROUTE(idxIRF)%Qerror
+            end do
+            call write_pnetcdf(pioFileDesc, meta_irf(iVar)%varName, array_1d_dp, ioDesc_vol_double, ierr, cmessage)
+            deallocate(array_1d_dp)
+          end if
         case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
       end select
     end do
@@ -943,19 +1075,19 @@ CONTAINS
       select case(iVar)
         case(ixKWT%routed)
           allocate(array_2d_int(nSeg, nWave), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KWT routing state:'//trim(meta_mc(iVar)%varName); return; endif
-            do iSeg=1,nSeg
-              if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
-              allocate(RFvec(numWaves(iSeg)),stat=ierr); RFvec=0_i4b
-              where (RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%RF) RFvec=1_i4b
-              array_2d_int(iSeg,1:numWaves(iSeg)) = RFvec
-              array_2d_int(iSeg,numWaves(iSeg)+1:) = integerMissing
-            end do
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KWT routing state:'//trim(meta_kwt(iVar)%varName); return; endif
+          do iSeg=1,nSeg
+            if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
+            allocate(RFvec(numWaves(iSeg)),stat=ierr); RFvec=0_i4b
+            where (RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%RF) RFvec=1_i4b
+            array_2d_int(iSeg,1:numWaves(iSeg)) = RFvec
+            array_2d_int(iSeg,numWaves(iSeg)+1:) = integerMissing
+          end do
           call write_pnetcdf(pioFileDesc, meta_kwt(iVar)%varName, array_2d_int, ioDesc_wave_int, ierr, cmessage)
           deallocate(array_2d_int)
         case(ixKWT%tentry)
           allocate(array_2d_dp(nSeg, nWave), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KWT routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KWT routing state:'//trim(meta_kwt(iVar)%varName); return; endif
           do iSeg=1,nSeg
             array_2d_dp(iSeg,1:numWaves(iSeg)) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%TI
             array_2d_dp(iSeg,numWaves(iSeg)+1:) = realMissing
@@ -964,7 +1096,7 @@ CONTAINS
           deallocate(array_2d_dp)
         case(ixKWT%texit)
           allocate(array_2d_dp(nSeg, nWave), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KWT routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KWT routing state:'//trim(meta_kwt(iVar)%varName); return; endif
           do iSeg=1,nSeg
             array_2d_dp(iSeg,1:numWaves(iSeg)) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%TR
             array_2d_dp(iSeg,numWaves(iSeg)+1:) = realMissing
@@ -973,7 +1105,7 @@ CONTAINS
           deallocate(array_2d_dp)
         case(ixKWT%qwave)
           allocate(array_2d_dp(nSeg, nWave), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KWT routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KWT routing state:'//trim(meta_kwt(iVar)%varName); return; endif
           do iSeg=1,nSeg
             array_2d_dp(iSeg,1:numWaves(iSeg)) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%QF
             array_2d_dp(iSeg,numWaves(iSeg)+1:) = realMissing
@@ -982,7 +1114,7 @@ CONTAINS
           deallocate(array_2d_dp)
         case(ixKWT%qwave_mod)
           allocate(array_2d_dp(nSeg, nWave), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KWT routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KWT routing state:'//trim(meta_kwt(iVar)%varName); return; endif
           do iSeg=1,nSeg
             array_2d_dp(iSeg,1:numWaves(iSeg)) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%QM
             array_2d_dp(iSeg,numWaves(iSeg)+1:) = realMissing
@@ -991,7 +1123,7 @@ CONTAINS
           deallocate(array_2d_dp)
         case(ixKWT%vol)
           allocate(array_1d_dp(nSeg), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KWT routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KWT routing state:'//trim(meta_kwt(iVar)%varName); return; endif
           do iSeg=1,nSeg
             array_1d_dp(iSeg) = RCHFLX_local(iSeg)%ROUTE(idxKWT)%REACH_VOL(1)
           end do
@@ -1026,7 +1158,7 @@ CONTAINS
       select case(iVar)
         case(ixKW%qsub)
           allocate(array_2d_dp(nSeg, nMesh), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KW routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KW routing state:'//trim(meta_kw(iVar)%varName); return; endif
           do iSeg=1,nSeg
             array_2d_dp(iSeg,1:nMesh) = RCHSTA_local(iSeg)%KW_ROUTE%molecule%Q(1:nMesh)
           end do
@@ -1034,12 +1166,22 @@ CONTAINS
           deallocate(array_2d_dp)
         case(ixKW%vol)
           allocate(array_1d_dp(nSeg), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KW routing state:'//trim(meta_mc(iVar)%varName); return; endif
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KW routing state:'//trim(meta_kw(iVar)%varName); return; endif
           do iSeg=1,nSeg
             array_1d_dp(iSeg) = RCHFLX_local(iSeg)%ROUTE(idxKW)%REACH_VOL(1)
           end do
           call write_pnetcdf(pioFileDesc, meta_kw(iVar)%varName, array_1d_dp, ioDesc_rch_double, ierr, cmessage)
           deallocate(array_1d_dp)
+        case(ixKW%qerror)! if data assimilation is off, no need to be written
+          if (meta_kw(iVar)%varFile) then
+            allocate(array_1d_dp(nSeg), stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':KW routing state:'//trim(meta_kw(iVar)%varName); return; endif
+            do iSeg=1,nSeg
+              array_1d_dp(iSeg) = RCHFLX_local(iSeg)%ROUTE(idxKW)%Qerror
+            end do
+            call write_pnetcdf(pioFileDesc, meta_kw(iVar)%varName, array_1d_dp, ioDesc_rch_double, ierr, cmessage)
+            deallocate(array_1d_dp)
+          end if
         case default; ierr=20; message1=trim(message1)//'unable to identify KW routing state variable index'; return
       end select
     end do
@@ -1082,6 +1224,16 @@ CONTAINS
           end do
           call write_pnetcdf(pioFileDesc, meta_mc(iVar)%varName, array_1d_dp, ioDesc_rch_double, ierr, cmessage)
           deallocate(array_1d_dp, stat=ierr)
+        case(ixMC%qerror) ! if data assimilation is off, no need to be written
+          if (meta_kw(iVar)%varFile) then
+            allocate(array_1d_dp(nSeg, nEns),stat=ierr,errmsg=cmessage)
+            if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':MC routing state:'//trim(meta_mc(iVar)%varName); return; endif
+            do iSeg=1,nSeg
+              array_1d_dp(iSeg) = RCHFLX_local(iSeg)%ROUTE(idxMC)%Qerror
+            end do
+            call write_pnetcdf(pioFileDesc, meta_mc(iVar)%varName, array_1d_dp, ioDesc_rch_double, ierr, cmessage)
+            deallocate(array_1d_dp, stat=ierr)
+          end if
         case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
       end select
     end do
@@ -1124,6 +1276,16 @@ CONTAINS
           end do
           call write_pnetcdf(pioFileDesc, meta_dw(iVar)%varName, array_1d_dp, ioDesc_rch_double, ierr, cmessage)
           deallocate(array_1d_dp)
+        case(ixDW%qerror) ! if data assimilation is off, no need to be written
+          if (meta_dw(iVar)%varFile) then
+            allocate(array_1d_dp(nSeg),stat=ierr,errmsg=cmessage)
+            if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':DW routing state:'//trim(meta_dw(iVar)%varName); return; endif
+            do iSeg=1,nSeg
+              array_1d_dp(iSeg) = RCHFLX_local(iSeg)%ROUTE(idxDW)%Qerror
+            end do
+            call write_pnetcdf(pioFileDesc, meta_dw(iVar)%varName, array_1d_dp, ioDesc_rch_double, ierr, cmessage)
+            deallocate(array_1d_dp)
+          end if
         case default; ierr=20; message1=trim(message1)//'unable to identify DW routing state variable index'; return
       end select
     enddo ! variable loop
@@ -1131,6 +1293,39 @@ CONTAINS
     end associate
 
   END SUBROUTINE write_DW_state
+
+  SUBROUTINE write_solute_state(idxRoute, ierr, message1)
+    implicit none
+    ! output
+    integer(i4b), intent(in)   :: idxRoute        ! routing method
+    integer(i4b), intent(out)  :: ierr            ! error code
+    character(*), intent(out)  :: message1        ! error message
+    ! local variables
+    real(dp),     allocatable  :: array_1d_dp(:)
+    integer(i4b)               :: iVar,iSeg       ! index loops for variables, ensembles and segments respectively
+
+    ierr=0; message1='write_solute_state/'
+
+    associate(nSeg     => size(RCHFLX_local),                         &
+              nEns     => meta_stateDims(ixStateDims%ens)%dimLength)
+
+    do iVar=1,nVarsTracer
+      select case(iVar)
+        case(ixTracer%mass)
+          allocate(array_1d_dp(nSeg),stat=ierr,errmsg=cmessage)
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':solute routing state:'//trim(meta_solute(iVar)%varName); return; endif
+          do iSeg=1,nSeg
+            array_1d_dp(iSeg) = RCHFLX_local(iSeg)%ROUTE(idxRoute)%reach_solute_mass(1)
+          end do
+          call write_pnetcdf(pioFileDesc, meta_solute(iVar)%varName, array_1d_dp, ioDesc_rch_double, ierr, cmessage)
+          deallocate(array_1d_dp)
+        case default; ierr=20; message1=trim(message1)//'unable to identify tracer state variable index'; return
+      end select
+    enddo ! variable loop
+
+    end associate
+
+  END SUBROUTINE write_solute_state
 
   SUBROUTINE write_history_state(ierr, message1)
     implicit none
@@ -1279,6 +1474,17 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
+    if (meta_rflx(ixRFLX%DWsoluteFlux)%varFile) then
+      array_dp = hVars%solute_flux(index_write, idxDW)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%DWsoluteFlux)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    if (meta_rflx(ixRFLX%DWsoluteMass)%varFile) then
+      array_dp = hVars%solute_mass(index_write, idxDW)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%DWsoluteMass)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
 
   END SUBROUTINE write_history_state
 

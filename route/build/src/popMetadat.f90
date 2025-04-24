@@ -31,11 +31,13 @@ USE globalData, ONLY: meta_rflx      ! reach flux variables
 USE globalData, ONLY: meta_hflx      ! hru flux variables
 USE globalData, ONLY: meta_basinQ    ! reach inflow from basin
 USE globalData, ONLY: meta_irf_bas   ! within-basin irf routing fluxes and states
+USE globalData, ONLY: meta_bas_solute! within-basin tracer mass flux
 USE globalData, ONLY: meta_irf       ! irf routing fluxes and states in a segment
 USE globalData, ONLY: meta_kwt       ! lagrangiankinematic wave routing fluxes and states in a segment
 USE globalData, ONLY: meta_kw        ! kinematic wave routing fluxes and states in a segment
 USE globalData, ONLY: meta_mc        ! muskingum-cunge routing fluxes and states in a segment
 USE globalData, ONLY: meta_dw        ! diffusive wave routing fluxes and states in a segment
+USE globalData, ONLY: meta_solute    ! tracer state variables
 
 ! indices of named variables
 USE var_lookup, ONLY: ixStruct   , nStructures
@@ -51,7 +53,9 @@ USE var_lookup, ONLY: ixPFAF     , nVarsPFAF
 USE var_lookup, ONLY: ixRFLX
 USE var_lookup, ONLY: ixHFLX
 USE var_lookup, ONLY: ixIRFbas
+USE var_lookup, ONLY: ixBasTracer
 USE var_lookup, ONLY: ixBasinQ
+USE var_lookup, ONLY: ixTracer
 USE var_lookup, ONLY: ixIRF
 USE var_lookup, ONLY: ixKWT
 USE var_lookup, ONLY: ixKW
@@ -159,6 +163,7 @@ contains
  meta_SEG    (ixSEG%HYP_Qrate_phs    ) = var_info('HYP_Qrate_phs'  , 'HYPE; phase of the Qrate_main based on the day of the year'                              ,'-'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%HYP_prim_F       ) = var_info('HYP_prim_F'     , 'HYPE; if the reservoir has a primary spillway then set to 1 otherwise 0'                 ,'-'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%HYP_A_avg        ) = var_info('HYP_A_avg'      , 'HYPE; average area for the lake; this might not be used if bathymetry is provided'       ,'m2'    ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%HYP_Qsim_mode    ) = var_info('HYP_Qsim_mode'  , 'HYPE; the outflow is sum of emergency and primary spillways if 1, otherwise the maximum' ,'-'     ,ixDims%seg   , .false.)
 
  meta_SEG    (ixSEG%H06_Smax         ) = var_info('H06_Smax'       , 'Hanasaki 2006; maximume reservoir storage'                                               ,'m3'    ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%H06_alpha        ) = var_info('H06_alpha'      , 'Hanasaki 2006; fraction of active storage compared to total storage'                     ,'-'     ,ixDims%seg   , .false.)
@@ -243,9 +248,13 @@ contains
  call meta_rflx(ixRFLX%KWvolume         )%init('KWvolume'         , 'Volume in lake or stream-kinematic wave'                        , 'm3'  , ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%MCvolume         )%init('MCvolume'         , 'Volume in lake or stream-muskingum-cunge'                       , 'm3'  , ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%DWvolume         )%init('DWvolume'         , 'Volume in lake or stream-diffusive wave'                        , 'm3'  , ncd_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%IRFheight        )%init('IRFheight'        , 'Water height Implus response function'                          , 'm'   , ncd_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%KWTheight        )%init('KWTheight'        , 'Water height lagrangian kinematic wave'                         , 'm'   , ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%KWheight         )%init('KWheight'         , 'Water height kinematic wave'                                    , 'm'   , ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%MCheight         )%init('MCheight'         , 'Water height muskingum-cunge'                                   , 'm'   , ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%DWheight         )%init('DWheight'         , 'Water height diffusive wave'                                    , 'm'   , ncd_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%IRFfloodVolume   )%init('IRffloodVolume'   , 'Volume in floodplain Implus response function'                  , 'm3'  , ncd_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%KWTfloodVolume   )%init('KWTfloodVolume'   , 'Volume in floodplain lagrangian kinematic wave'                 , 'm3'  , ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%KWfloodVolume    )%init('KWfloodVolume'    , 'Volume in floodplain kinematic wave'                            , 'm3'  , ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%MCfloodVolume    )%init('MCfloodVolume'    , 'Volume in floodplain muskingum-cunge'                           , 'm3'  , ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%DWfloodVolume    )%init('DWfloodVolume'    , 'Volume in floodplain diffusive wave'                            , 'm3'  , ncd_float, [ixQdims%seg,ixQdims%time], .false.)
@@ -254,6 +263,9 @@ contains
  call meta_rflx(ixRFLX%KWinflow         )%init('KWinflow'        ,  'Inflow from upstream lake or streams-kinematic wave'            , 'm3/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%MCinflow         )%init('MCinflow'        ,  'Inflow from upstream lake or streams-muskingum-cunge'           , 'm3/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%DWinflow         )%init('DWinflow'        ,  'Inflow from upstream lake or streams-diffusive wave'            , 'm3/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%localSolute      )%init('localSolute'      , 'lateral mass flux of solute in water from local basin'          , 'mg/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%DWsoluteFlux     )%init('soluteFlux'       , 'mass flux of solute in water from a reach'                      , 'mg/s', ncd_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%DWsoluteMass     )%init('soluteMass'       , 'mass of solute in water at a reach'                             , 'mg' ,  ncd_float, [ixQdims%seg,ixQdims%time], .false.)
 
  ! HRU flux                                    varName              varDesc                                                  unit,   varType,  varDim,                     writeOut
  call meta_hflx(ixHFLX%basRunoff        )%init('basRunoff'        , 'basin runoff'                                         , 'm/s' , ncd_float, [ixQdims%hru,ixQdims%time], .true.)
@@ -270,24 +282,34 @@ contains
  ! Kinematic Wave
  call meta_kw(ixKW%qsub)%init('q_sub_kw' , 'flow at computational moelcule', 'm3/s', ncd_double, [ixStateDims%seg,ixStateDims%mol_kw], .true.)
  call meta_kw(ixKW%vol )%init('volume_kw', 'volume in reach/lake',           'm3',   ncd_double, [ixStateDims%seg] , .true.)
+ call meta_kw(ixKW%qerror)%init('qerror_kw', 'discharge error',              'm3/s', ncd_double, [ixStateDims%seg] , .false.)
 
  ! Diffusive Wave
  call meta_dw(ixDW%qsub)%init('q_sub_dw' , 'flow at computational moelcule', 'm3/s', ncd_double, [ixStateDims%seg,ixStateDims%mol_dw], .true.)
  call meta_dw(ixDW%vol )%init('volume_dw', 'volume in reach/lake',           'm3',   ncd_double, [ixStateDims%seg] , .true.)
+ call meta_dw(ixDW%qerror)%init('qerror_dw', 'discharge error',              'm3/s', ncd_double, [ixStateDims%seg] , .false.)
 
  ! Muskingum-cunge
  call meta_mc(ixMC%qsub)%init('q_sub_mc' , 'flow at computational molecule', 'm3/s', ncd_double, [ixStateDims%seg,ixStateDims%mol_mc], .true.)
  call meta_mc(ixMC%vol )%init('volume_mc', 'volume in reach/lake',           'm3',   ncd_double, [ixStateDims%seg] , .true.)
+ call meta_mc(ixMC%qerror)%init('qerror_mc', 'discharge error',              'm3/s', ncd_double, [ixStateDims%seg] , .false.)
 
  ! Impulse Response Function
  call meta_irf(ixIRF%qfuture)%init('irf_qfuture', 'future flow series',   'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh_irf] , .true.)
  call meta_irf(ixIRF%vol    )%init('volume_irf' , 'volume in reach/lake', 'm3'   ,ncd_double, [ixStateDims%seg,ixStateDims%tbound] , .true.)
+ call meta_irf(ixIRF%qerror)%init('qerror_irf',   'discharge error',      'm3/s', ncd_double, [ixStateDims%seg,ixStateDims%ens] , .false.)
 
  ! Basin Impulse Response Function
  call meta_irf_bas(ixIRFbas%qfuture)%init('qfuture', 'future flow series', 'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh], .true.)
 
+ ! Basin Impulse Response Function
+ call meta_bas_solute(ixBasTracer%tfuture)%init('tfuture', 'future tracer mass series', 'mg/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%ens], .true.)
+
  ! reach inflow from basin
  call meta_basinQ(ixBasinQ%q)%init('basin_q', 'basin routed flow', 'm3/s' ,ncd_double, [ixStateDims%seg], .true.)
+
+ ! reach concentration flux from basin
+ call meta_solute(ixTracer%mass)%init('solute_mass', 'mass in reach/lake', 'mg' ,ncd_double, [ixStateDims%seg,ixStateDims%ens], .false.)
 
  end subroutine popMetadat
 

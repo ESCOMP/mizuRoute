@@ -5,7 +5,6 @@ USE nrtype
 USE dataTypes, ONLY: var_ilength          ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_dlength          ! double precision type: var(:)%dat
 USE dataTypes, ONLY: var_clength          ! character type:        var(:)%dat
-USE dataTypes, ONLY: var_info             ! metadata
 
 ! public data
 USE public_var
@@ -486,6 +485,7 @@ SUBROUTINE mod_meta_varFile(ierr, message)
       meta_SEG(ixSEG%HYP_Qrate_phs)%varFile     = .true.    ! HYPE parameter
       meta_SEG(ixSEG%HYP_prim_F)%varFile        = .true.    ! HYPE parameter
       meta_SEG(ixSEG%HYP_A_avg)%varFile         = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_Qsim_mode)%varFile     = .true.    ! HYPE parameter
     endif
 
     if (number_Hanasaki>0) then

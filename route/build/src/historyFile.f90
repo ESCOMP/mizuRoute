@@ -482,6 +482,10 @@ MODULE historyFile
               array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxMC)
             case(ixRFLX%DWinflow)
               array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxDW)
+            case(ixRFLX%DWsoluteFlux)
+              array_temp(1:nRch_write) = hVars_local%solute_flux(index_write, idxDW)
+            case(ixRFLX%DWsoluteMass)
+              array_temp(1:nRch_write) = hVars_local%solute_mass(index_write, idxDW)
             case default
               write(message,'(2A,1X,G0,1X,1A)') trim(message), 'Invalid RFLX variable index:',iVar,'. Check ixRFLX in var_lookup.f90'
               ierr=81; return

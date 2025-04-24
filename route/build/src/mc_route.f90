@@ -23,6 +23,7 @@ USE hydraulic,     ONLY: flow_depth      ! function to compute Normal flow depth
 USE hydraulic,     ONLY: water_height    ! function to compute water height bsed on flow area [m]
 USE hydraulic,     ONLY: celerity        ! function to compute celerity [m/s2]
 USE hydraulic,     ONLY: Btop            ! function to compute flow top width [m]
+USE data_assimilation, ONLY: direct_insertion ! qmod option (use 1==direct insertion)
 
 implicit none
 
@@ -99,9 +100,6 @@ CONTAINS
    do iUps = 1,nUps
      if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach which does not any flow due to zero total contributory areas
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     if (qmodOption==1 .and. RCHFLX_out(iRch_ups)%Qobs/=realMissing) then
-       RCHFLX_out(iRch_ups)%ROUTE(idxMC)%REACH_Q = RCHFLX_out(iRch_ups)%Qobs
-     end if
      q_upstream = q_upstream + RCHFLX_out(iRch_ups)%ROUTE(idxMC)%REACH_Q
    end do
    q_upstream_mod  = q_upstream
@@ -186,7 +184,22 @@ CONTAINS
          'at ', NETOPO_in(segIndex)%REACHID
  end if
 
- call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxMC, q_upstream, Qlat, RCHFLX_out(segIndex), verbose, lakeFlag=.false.)
+ if (qmodOption==1) then
+   call direct_insertion(segIndex,       & ! input: reach index
+                         idxMC,          & ! input: routing method id for diffusive wave routing
+                         ixDesire,       & ! input: verbose seg index
+                         NETOPO_in,      & ! input: reach topology data structure
+                         RCHSTA_out,     & ! inout: reach state data structure
+                         RCHFLX_out,     & ! inout: reach fluxes datq structure
+                         ierr, cmessage)   ! output: error control
+   if(ierr/=0)then
+     write(message,'(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
+   endif
+ end if
+
+ if (qmodOption==0) then ! check reach water balance only if data assimilation is off
+   call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxMC, q_upstream, Qlat, RCHFLX_out(segIndex), verbose, lakeFlag=.false.)
+ end if
 
  END SUBROUTINE mc_rch
 

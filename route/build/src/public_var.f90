@@ -102,6 +102,7 @@ MODULE public_var
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   logical(lgt)         ,public    :: floodplain           = .false.         ! logical if flood water is computed or not (floodplain is added)
   integer(i4b)         ,public    :: hw_drain_point       = 2               ! how to add inst. runoff in reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)
+  logical(lgt)         ,public    :: tracer               = .false.         ! logical if tracer is activated to compute a solute or constituent transport.
   logical(lgt)         ,public    :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
   logical(lgt)         ,public    :: lakeRegulate         = .true.          ! logical: F -> turn all the lakes into natural (lakeType=1) regardless of lakeModelType defined individually
   logical(lgt)         ,public    :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
@@ -115,7 +116,7 @@ MODULE public_var
   real(dp)             ,public    :: scale_factor_prec    = realMissing     ! float scale to scale the precipitation
   real(dp)             ,public    :: offset_value_prec    = realMissing     ! float offset for precipitation
   real(dp)             ,public    :: min_length_route     = 0.0_dp          ! float; minimum reach length for routing to be performed. pass-through is performed for length less than this threshold
-  logical(lgt)         ,public    :: compWB               = .false.         ! logical if entire domain water balance is computed
+  logical(lgt)         ,public    :: checkMassBalance     = .false.         ! logical if entire domain water balance is computed
   real(dp)             ,public    :: dt                   = realMissing     ! simulation time step (seconds)
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
@@ -128,6 +129,7 @@ MODULE public_var
   character(len=strLen),public    :: vname_qsim           = charMissing     ! variable name for runoff
   character(len=strLen),public    :: vname_evapo          = charMissing     ! variable name for actual evapoartion
   character(len=strLen),public    :: vname_precip         = charMissing     ! variable name for precipitation
+  character(len=strLen),public    :: vname_solute         = charMissing     ! variable name for solute mass flux
   character(len=strLen),public    :: vname_time           = charMissing     ! variable name for time
   character(len=strLen),public    :: vname_hruid          = charMissing     ! variable name for runoff hru id
   character(len=strLen),public    :: dname_time           = charMissing     ! dimension name for time
@@ -135,6 +137,7 @@ MODULE public_var
   character(len=strLen),public    :: dname_xlon           = charMissing     ! dimension name for x (j, longitude) dimension
   character(len=strLen),public    :: dname_ylat           = charMissing     ! dimension name for y (i, latitude) dimension
   character(len=strLen),public    :: units_qsim           = charMissing     ! units of runoff data
+  character(len=strLen),public    :: units_cc             = charMissing     ! units of concentration data
   real(dp)             ,public    :: dt_ro                = realMissing     ! runoff time step (seconds)
   real(dp)             ,public    :: input_fillvalue      = realMissing     ! fillvalue used for input variables (runoff, precipitation, evaporation)
   character(len=strLen),public    :: ro_time_units        = charMissing     ! time units used in ro netcdf. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
@@ -172,18 +175,20 @@ MODULE public_var
   ! GAUGE DATA
   character(len=strLen),public    :: gageMetaFile         = charMissing     ! name of the gauge metadata csv
   logical(lgt),public             :: outputAtGage         = .false.         ! logical; T-> history file output at only gauge points
-  character(len=strLen),public    :: fname_gageObs        = ''              ! gauge data netcdf name
-  character(len=strLen),public    :: vname_gageFlow       = ''              ! variable name for gauge flow data
-  character(len=strLen),public    :: vname_gageSite       = ''              ! variable name for site name data
-  character(len=strLen),public    :: vname_gageTime       = ''              ! variable name for time data
-  character(len=strLen),public    :: dname_gageSite       = ''              ! dimension name for gauge site
-  character(len=strLen),public    :: dname_gageTime       = ''              ! dimension name for time
+  character(len=strLen),public    :: fname_gageObs        = charMissing     ! gauge data netcdf name
+  character(len=strLen),public    :: vname_gageFlow       = charMissing     ! variable name for gauge flow data
+  character(len=strLen),public    :: vname_gageSite       = charMissing     ! variable name for site name data
+  character(len=strLen),public    :: vname_gageTime       = charMissing     ! variable name for time data
+  character(len=strLen),public    :: dname_gageSite       = charMissing     ! dimension name for gauge site
+  character(len=strLen),public    :: dname_gageTime       = charMissing     ! dimension name for time
   integer(i4b)         ,public    :: strlen_gageSite      = 30              ! maximum character length for site name
   ! OUTPUT OPTIONS
   real(dp)             ,public    :: histTimeStamp_offset = 0._dp           ! time stamp offset [second] from a start of time step
   logical(lgt)         ,public    :: outputInflow         = .false.         ! logical; T-> write upstream inflow in history file output
   ! USER OPTIONS
-  integer(i4b)         ,public    :: qmodOption           = 0               ! option for streamflow modification
+  integer(i4b)         ,public    :: qmodOption           = 0               ! options for streamflow modification (DA): 0-> no DA, 1->direct insertion
+  integer(i4b)         ,public    :: QerrTrend            = 1               ! temporal discharge error decreasing trend: 1->constant, 2->linear, 3->logistic, 4->exponential
+  integer(i4b)         ,public    :: qBlendPeriod         = 10              ! number of time steps for which streamflow modification is performed through blending observation
   integer(i4b)         ,public    :: hydGeometryOption    = readFromFile    ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)
