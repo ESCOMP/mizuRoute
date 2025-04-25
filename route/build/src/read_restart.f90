@@ -345,13 +345,13 @@ CONTAINS
 
     do iVar=1,nVarsIRF
       select case(iVar)
-        case(ixIRF%qfuture); call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_3d_dp, [1,1,1], [nSeg,ntdh_irf], ierr, cmessage1)
-        case(ixIRF%vol);     call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_3d_dp, [1,1,1], [nSeg,nTbound], ierr, cmessage1)
+        case(ixIRF%qfuture); call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,ntdh_irf], ierr, cmessage1)
+        case(ixIRF%vol);     call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,nTbound], ierr, cmessage1)
         case(ixIRF%qerror)
           call open_nc(fname, 'r', ncidRestart, ierr, cmessage1)
           if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
           if (check_variable(ncidRestart,meta_irf(iVar)%varName)) then
-            call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_1d_dp, (/1/), (/nSeg/), ierr, cmessage1)
+            call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
           else
             state%var(iVar)%array_1d_dp = 0._dp
           end if
@@ -499,7 +499,7 @@ CONTAINS
           call open_nc(fname, 'r', ncidRestart, ierr, cmessage1)
           if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
           if (check_variable(ncidRestart,meta_kw(iVar)%varName)) then
-            call get_nc(fname, meta_kw(iVar)%varName, state%var(iVar)%array_1d_dp, (/1/), (/nSeg/), ierr, cmessage1)
+            call get_nc(fname, meta_kw(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
           else
             state%var(iVar)%array_1d_dp = 0._dp
           end if
@@ -567,7 +567,7 @@ CONTAINS
           call open_nc(fname, 'r', ncidRestart, ierr, cmessage1)
           if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
           if (check_variable(ncidRestart,meta_mc(iVar)%varName)) then
-            call get_nc(fname, meta_mc(iVar)%varName, state%var(iVar)%array_1d_dp, (/1/), (/nSeg/), ierr, cmessage1)
+            call get_nc(fname, meta_mc(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
           else
             state%var(iVar)%array_1d_dp = 0._dp
           end if
@@ -581,14 +581,13 @@ CONTAINS
     do iSeg=1,nSeg
       jSeg = ixRch_order(iSeg)
       allocate(RCHSTA(jSeg)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage1)
-        do iVar=1,nVarsMC
-          select case(iVar)
-            case(ixMC%qsub); RCHSTA(jSeg)%MC_ROUTE%molecule%Q(1:nMolecule%MC_ROUTE) = state%var(iVar)%array_2d_dp(iSeg,1:nMolecule%MC_ROUTE)
-            case(ixMC%vol);  RCHFLX(jSeg)%ROUTE(idxMC)%REACH_VOL(1) = state%var(iVar)%array_1d_dp(iSeg)
-            case(ixMC%qerror); RCHFLX(iSeg)%ROUTE(idxMC)%Qerror = state%var(iVar)%array_1d_dp(iSeg)
-            case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
-          end select
-        enddo
+      do iVar=1,nVarsMC
+        select case(iVar)
+          case(ixMC%qsub); RCHSTA(jSeg)%MC_ROUTE%molecule%Q(1:nMolecule%MC_ROUTE) = state%var(iVar)%array_2d_dp(iSeg,1:nMolecule%MC_ROUTE)
+          case(ixMC%vol);  RCHFLX(jSeg)%ROUTE(idxMC)%REACH_VOL(1) = state%var(iVar)%array_1d_dp(iSeg)
+          case(ixMC%qerror); RCHFLX(iSeg)%ROUTE(idxMC)%Qerror = state%var(iVar)%array_1d_dp(iSeg)
+          case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
+        end select
       enddo
     enddo
 
@@ -636,7 +635,7 @@ CONTAINS
           call open_nc(fname, 'r', ncidRestart, ierr, cmessage1)
           if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
           if (check_variable(ncidRestart,meta_dw(iVar)%varName)) then
-            call get_nc(fname, meta_dw(iVar)%varName, state%var(iVar)%array_1d_dp, (/1/), (/nSeg/), ierr, cmessage1)
+            call get_nc(fname, meta_dw(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
           else
             state%var(iVar)%array_1d_dp = 0._dp
           end if

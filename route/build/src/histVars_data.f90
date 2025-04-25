@@ -237,8 +237,8 @@ MODULE histVars_data
             this%inflow(ix,iRoute)  = this%inflow(ix,iRoute) + RCHFLX_local(ix)%ROUTE(idxMethod)%REACH_INFLOW
           end if
           if (tracer) then
-            this%solute_flux(ix,iRoute)  = this%solute_flux(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%reach_solute_flux
-            this%solute_mass(ix,iRoute)  = RCHFLX_local(1,ix)%ROUTE(idxMethod)%reach_solute_mass(1)
+            this%solute_flux(ix,iRoute)  = this%solute_flux(ix,iRoute) + RCHFLX_local(ix)%ROUTE(idxMethod)%reach_solute_flux
+            this%solute_mass(ix,iRoute)  = RCHFLX_local(ix)%ROUTE(idxMethod)%reach_solute_mass(1)
           end if
         end do
       end do
@@ -571,7 +571,7 @@ MODULE histVars_data
           end if
 
           if (meta_rflx(ixSoluteMass)%varFile) then
-            call read_dist_array(pioFileDesc, meta_rflx(ixSoluteMass)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+            call read_dist_array(pioFileDesc, meta_rflx(ixSoluteMass)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
             ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
             if (masterproc) then
@@ -583,7 +583,7 @@ MODULE histVars_data
           end if
 
           if (meta_rflx(ixSoluteFlux)%varFile) then
-            call read_dist_array(pioFileDesc, meta_rflx(ixSoluteFlux)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+            call read_dist_array(pioFileDesc, meta_rflx(ixSoluteFlux)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
             ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
             if (masterproc) then

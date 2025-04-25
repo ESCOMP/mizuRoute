@@ -423,11 +423,11 @@ CONTAINS
       if (onRoute(impulseResponseFunc)) then
         do ix = 1, nRch_mainstem+nTribOutlet ! mainstem reaches
           ntdh = size(NETOPO_main(ix)%UH)
-          allocate(RCHFLX_trib(iens,ix)%QFUTURE_IRF(ntdh), source=0._dp, stat=ierr, errmsg=cmessage)
+          allocate(RCHFLX_trib(ix)%QFUTURE_IRF(ntdh), source=0._dp, stat=ierr, errmsg=cmessage)
         end do
         do ix = 1, rch_per_proc(0) ! tributary reaches in main task
           ntdh = size(NETOPO_trib(ix)%UH)
-          allocate(RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+ix)%QFUTURE_IRF(ntdh), source=0._dp, stat=ierr, errmsg=cmessage)
+          allocate(RCHFLX_trib(nRch_mainstem+nTribOutlet+ix)%QFUTURE_IRF(ntdh), source=0._dp, stat=ierr, errmsg=cmessage)
         end do
         do ix = 1,nRch_root
           RCHFLX_trib(ix)%ROUTE(idxIRF)%REACH_VOL(0:1) = 0._dp
@@ -579,9 +579,9 @@ CONTAINS
             if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%Q]'; return; endif
             RCHSTA_trib(ix)%MC_ROUTE%molecule%Q(:) = 0._dp
             if (tracer) then
-              RCHFLX_trib(iens,ix)%ROUTE(idxMC)%reach_solute_mass(0:1) = 0._dp
-              RCHFLX_trib(iens,ix)%ROUTE(idxMC)%reach_solute_flux = 0._dp
-              allocate(RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%solute_mass(nMolecule%MC_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+              RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_mass(0:1) = 0._dp
+              RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_flux = 0._dp
+              allocate(RCHSTA_trib(ix)%MC_ROUTE%molecule%solute_mass(nMolecule%MC_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
               if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%solute_mass]'; return; endif
             end if
           end do

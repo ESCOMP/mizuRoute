@@ -184,7 +184,7 @@ CONTAINS
  end if
 
  if (qmodOption==1) then
-   call direct_insertion(iens, segIndex, & ! input: reach index
+   call direct_insertion(segIndex,       & ! input: reach index
                          idxKW,          & ! input: routing method id for diffusive wave routing
                          ixDesire,       & ! input: verbose seg index
                          NETOPO_in,      & ! input: reach topology data structure

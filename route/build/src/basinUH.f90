@@ -100,10 +100,10 @@ CONTAINS
    RCHFLX_out(iSeg)%QFUTURE(:) = 0._dp
   end if
 
-  if (.not.allocated(RCHFLX_out(iens,iSeg)%solute_future) .and. tracer)then
+  if (.not.allocated(RCHFLX_out(iSeg)%solute_future) .and. tracer)then
     ntdh = size(FRAC_FUTURE)
-    allocate(RCHFLX_out(iens,iSeg)%solute_future(ntdh), source=0._dp, stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'unable to allocate space for RCHFLX_out(iens,segIndex)%solute_future'; return; endif
+    allocate(RCHFLX_out(iSeg)%solute_future(ntdh), source=0._dp, stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'unable to allocate space for RCHFLX_out(segIndex)%solute_future'; return; endif
   end if
 
   allocate(FRAC_FUTURE_local, source=FRAC_FUTURE, stat=ierr)
@@ -116,7 +116,7 @@ CONTAINS
   endif
 
   ! perform river network UH routing
-  RCHFLX_out(iens,iSeg)%BASIN_QR(0) = RCHFLX_out(iens,iSeg)%BASIN_QR(1)
+  RCHFLX_out(iSeg)%BASIN_QR(0) = RCHFLX_out(iSeg)%BASIN_QR(1)
   call irf_conv(FRAC_FUTURE_local,            &    ! input: unit hydrograph
                 RCHFLX_out(iSeg)%BASIN_QI,    &    ! input: upstream fluxes
                 RCHFLX_out(iSeg)%QFUTURE,     &    ! inout: updated q future time series
@@ -127,9 +127,9 @@ CONTAINS
   if(tracer) then
     ! perform river network UH routing
     call irf_conv(FRAC_FUTURE_local,                       &  ! input: unit hydrograph
-                  RCHFLX_out(iens,iSeg)%BASIN_solute_inst, &  ! input: upstream fluxes
-                  RCHFLX_out(iens,iSeg)%solute_future,     &  ! inout: updated solute future time series
-                  RCHFLX_out(iens,iSeg)%BASIN_solute,      &  ! inout: updated fluxes at reach
+                  RCHFLX_out(iSeg)%BASIN_solute_inst, &  ! input: upstream fluxes
+                  RCHFLX_out(iSeg)%solute_future,     &  ! inout: updated solute future time series
+                  RCHFLX_out(iSeg)%BASIN_solute,      &  ! inout: updated fluxes at reach
                  ierr, message)                               ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if

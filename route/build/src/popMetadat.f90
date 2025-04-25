@@ -297,19 +297,19 @@ contains
  ! Impulse Response Function
  call meta_irf(ixIRF%qfuture)%init('irf_qfuture', 'future flow series',   'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh_irf] , .true.)
  call meta_irf(ixIRF%vol    )%init('volume_irf' , 'volume in reach/lake', 'm3'   ,ncd_double, [ixStateDims%seg,ixStateDims%tbound] , .true.)
- call meta_irf(ixIRF%qerror)%init('qerror_irf',   'discharge error',      'm3/s', ncd_double, [ixStateDims%seg,ixStateDims%ens] , .false.)
+ call meta_irf(ixIRF%qerror)%init('qerror_irf',   'discharge error',      'm3/s', ncd_double, [ixStateDims%seg], .false.)
 
  ! Basin Impulse Response Function
  call meta_irf_bas(ixIRFbas%qfuture)%init('qfuture', 'future flow series', 'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh], .true.)
 
  ! Basin Impulse Response Function
- call meta_bas_solute(ixBasTracer%tfuture)%init('tfuture', 'future tracer mass series', 'mg/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%ens], .true.)
+ call meta_bas_solute(ixBasTracer%tfuture)%init('tfuture', 'future tracer mass series', 'mg/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh], .true.)
 
  ! reach inflow from basin
  call meta_basinQ(ixBasinQ%q)%init('basin_q', 'basin routed flow', 'm3/s' ,ncd_double, [ixStateDims%seg], .true.)
 
  ! reach concentration flux from basin
- call meta_solute(ixTracer%mass)%init('solute_mass', 'mass in reach/lake', 'mg' ,ncd_double, [ixStateDims%seg,ixStateDims%ens], .false.)
+ call meta_solute(ixTracer%mass)%init('solute_mass', 'mass in reach/lake', 'mg' ,ncd_double, [ixStateDims%seg], .false.)
 
  end subroutine popMetadat
 

@@ -39,7 +39,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: main subroutine for per-reach solute routing
  ! *********************************************************************
- SUBROUTINE constituent_rch(iens, segIndex,   & ! input: index of runoff ensemble to be processed
+ SUBROUTINE constituent_rch(segIndex,         & ! input: index of runoff ensemble to be processed
                             idxRoute,         & ! input: routing method index
                             ixDesire,         & ! input: reachID to be checked by on-screen pringing
                             NETOPO_in,        & ! input: reach topology data structure
@@ -50,14 +50,13 @@ CONTAINS
 
  implicit none
  ! Argument variables
- integer(i4b),     intent(in)                 :: iens              ! runoff ensemble to be routed
  integer(i4b),     intent(in)                 :: segIndex          ! segment where routing is performed
  integer(i4b),     intent(in)                 :: idxRoute          ! routing method index
  integer(i4b),     intent(in)                 :: ixDesire          ! index of the reach for verbose output
  type(RCHTOPO),    intent(in),    allocatable :: NETOPO_in(:)      ! River Network topology
  type(RCHPRP),     intent(inout), allocatable :: RPARAM_in(:)      ! River reach parameter
- type(STRSTA),     intent(inout)              :: RCHSTA_out(:,:)   ! reach state data
- type(STRFLX),     intent(inout)              :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ type(STRSTA),     intent(inout)              :: RCHSTA_out(:)     ! reach state data
+ type(STRFLX),     intent(inout)              :: RCHFLX_out(:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b),     intent(out)                :: ierr              ! error code
  character(*),     intent(out)                :: message           ! error message
  ! Local variables
@@ -87,18 +86,18 @@ CONTAINS
    do iUps = 1,nUps
      if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach which does not any flow due to zero total contributory areas
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     Cupstream = Cupstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxRoute)%reach_solute_flux   ! mass flux from upstream [mg/s]
+     Cupstream = Cupstream + RCHFLX_out(iRch_ups)%ROUTE(idxRoute)%reach_solute_flux   ! mass flux from upstream [mg/s]
    end do
-   Clat = RCHFLX_out(iens,segIndex)%basin_solute ! lateral mass flux [mg/s]
+   Clat = RCHFLX_out(segIndex)%basin_solute ! lateral mass flux [mg/s]
  else ! headwater
    if (verbose) then
      write(iulog,'(A)')            ' This is headwater '
    endif
    if (hw_drain_point==top_reach) then ! lateral flow is poured in a reach at the top
-     Cupstream = Cupstream + RCHFLX_out(iens,segIndex)%basin_solute
+     Cupstream = Cupstream + RCHFLX_out(segIndex)%basin_solute
      Clat = 0._dp
    else if (hw_drain_point==bottom_reach) then ! lateral flow is poured in a reach at the top
-     Clat = RCHFLX_out(iens,segIndex)%basin_solute
+     Clat = RCHFLX_out(segIndex)%basin_solute
    end if
  end if
 
@@ -108,10 +107,10 @@ CONTAINS
      do iUps = 1,nUps
        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
        write(iulog,'(A,1X,I12,1X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps), &
-             RCHFLX_out(iens, iRch_ups)%ROUTE(idxRoute)%reach_solute_flux
+             RCHFLX_out(iRch_ups)%ROUTE(idxRoute)%reach_solute_flux
      enddo
    end if
-   write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(iEns,segIndex)%basin_solute=',RCHFLX_out(iEns,segIndex)%basin_solute
+   write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(segIndex)%basin_solute=',RCHFLX_out(segIndex)%basin_solute
  endif
 
  ! compute mass flux out and average concentration
@@ -120,7 +119,7 @@ CONTAINS
                      Cupstream,                  &  ! input: total discharge at top of the reach being processed
                      Clat,                       &  ! input: lateral mass flow [mg/s]
                      isHW,                       &  ! input: is this headwater basin?
-                     RCHFLX_out(iens,segIndex),  &  ! inout: updated fluxes at reach
+                     RCHFLX_out(segIndex),       &  ! inout: updated fluxes at reach
                      verbose,                    &  ! input: reach index to be examined
                      ierr, cmessage)                ! output: error control
  if(ierr/=0)then
@@ -129,15 +128,15 @@ CONTAINS
  endif
 
  if(verbose)then
-   write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(iens,segIndex)%reach_solute_flux=', RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%reach_solute_flux
+   write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(segIndex)%reach_solute_flux=', RCHFLX_out(segIndex)%ROUTE(idxRoute)%reach_solute_flux
  endif
 
- if (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%reach_solute_flux < 0) then
-   write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE MASS = ', RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%reach_solute_flux, &
+ if (RCHFLX_out(segIndex)%ROUTE(idxRoute)%reach_solute_flux < 0) then
+   write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE MASS = ', RCHFLX_out(segIndex)%ROUTE(idxRoute)%reach_solute_flux, &
          'at ', NETOPO_in(segIndex)%REACHID
  end if
 
- call comp_reach_mb(NETOPO_in(segIndex)%REACHID, idxRoute, Cupstream, Clat, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
+ call comp_reach_mb(NETOPO_in(segIndex)%REACHID, idxRoute, Cupstream, Clat, RCHFLX_out(segIndex), verbose, lakeFlag=.false.)
 
  END SUBROUTINE constituent_rch
 

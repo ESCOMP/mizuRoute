@@ -954,7 +954,6 @@ CONTAINS
     ierr=0; message1='write_bas_solute_state/'
 
     associate(nSeg     => size(RCHFLX_local),                         &
-              nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
               ntdh     => meta_stateDims(ixStateDims%tdh)%dimLength)      ! maximum future q time steps among basins
 
     do iVar=1,nVarsBasTracer
@@ -1226,7 +1225,7 @@ CONTAINS
           deallocate(array_1d_dp, stat=ierr)
         case(ixMC%qerror) ! if data assimilation is off, no need to be written
           if (meta_kw(iVar)%varFile) then
-            allocate(array_1d_dp(nSeg, nEns),stat=ierr,errmsg=cmessage)
+            allocate(array_1d_dp(nSeg),stat=ierr,errmsg=cmessage)
             if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':MC routing state:'//trim(meta_mc(iVar)%varName); return; endif
             do iSeg=1,nSeg
               array_1d_dp(iSeg) = RCHFLX_local(iSeg)%ROUTE(idxMC)%Qerror
@@ -1306,8 +1305,7 @@ CONTAINS
 
     ierr=0; message1='write_solute_state/'
 
-    associate(nSeg     => size(RCHFLX_local),                         &
-              nEns     => meta_stateDims(ixStateDims%ens)%dimLength)
+    associate(nSeg     => size(RCHFLX_local))
 
     do iVar=1,nVarsTracer
       select case(iVar)
@@ -1476,13 +1474,13 @@ CONTAINS
 
     if (meta_rflx(ixRFLX%DWsoluteFlux)%varFile) then
       array_dp = hVars%solute_flux(index_write, idxDW)
-      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%DWsoluteFlux)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%DWsoluteFlux)%varName, array_dp, ioDesc_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%DWsoluteMass)%varFile) then
       array_dp = hVars%solute_mass(index_write, idxDW)
-      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%DWsoluteMass)%varName, array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%DWsoluteMass)%varName, array_dp, ioDesc_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
