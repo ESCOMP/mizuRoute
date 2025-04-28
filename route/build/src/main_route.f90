@@ -130,7 +130,7 @@ CONTAINS
         do ix=1,size(reach_ix) ! size(reach_ix) is number of gauges
           if (reach_ix(ix)==integerMissing) cycle
           qobs = gage_obs_data%get_obs(tix=1, six=ix)
-          if (isnan(qobs) .or. qobs<0) cycle
+          if ((qobs/=qobs) .or. (qobs<0)) cycle
           RCHFLX_out(reach_ix(ix))%Qobs = qobs
           RCHFLX_out(reach_ix(ix))%Qelapsed = 0
         end do
