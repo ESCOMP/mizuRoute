@@ -6,6 +6,7 @@ USE dataTypes,     ONLY: RCHTOPO         ! data struct: Network topology
 USE dataTypes,     ONLY: RCHPRP          ! data struct: Network parameter
 USE public_var,    ONLY: iulog           ! parameter: i/o logical unit number
 USE public_var,    ONLY: realMissing     ! parameter: missing value for real number
+USE public_var,    ONLY: desireId        ! ID or reach where detailed reach state is print in log
 USE public_var,    ONLY: pi              ! parameter: pi value of 3.14159265359_dp
 USE globalData,    ONLY: isColdStart     ! parameter: restart flag
 USE water_balance, ONLY: comp_reach_wb   ! routine: compute water balance error
@@ -28,7 +29,6 @@ CONTAINS
   SUBROUTINE lake_route(iEns,       &    ! input: index of runoff ensemble to be processed
                         segIndex,   &    ! input: index of runoff ensemble to be processed
                         idxRoute,   &    ! input: routing method index
-                        ixDesire,   &    ! input: reachID to be checked by on-screen pringing (here reachID can be lake)
                         NETOPO_in,  &    ! input: reach topology data structure
                         RPARAM_in,  &    ! input: reach parameter data strcuture
                         RCHFLX_out, &    ! inout: reach flux data structure
@@ -50,7 +50,6 @@ CONTAINS
   integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
   integer(i4b), intent(in)                 :: segIndex       ! segment where routing is performed
   integer(i4b), intent(in)                 :: idxRoute       ! index of the reach for verbose output
-  integer(i4b), intent(in)                 :: ixDesire       ! index of the reach for verbose output
   type(RCHTOPO), intent(in),   allocatable :: NETOPO_in(:)   ! River Network topology
   type(RCHPRP), intent(inout), allocatable :: RPARAM_in(:)   ! River Network topology
   TYPE(STRFLX), intent(inout)              :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
@@ -87,7 +86,7 @@ CONTAINS
   ierr=0; message='lake_route/'
 
   verbose = .false.
-  if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
+  if(NETOPO_in(segIndex)%REACHID == desireId)then
     verbose = .true.
   end if
 
@@ -450,7 +449,7 @@ CONTAINS
 !    - RCHFLX_out(iens,segIndex)%basinevapo * dt - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual * dt &
 !    - (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(0))
 !
-!    if ((1._dp<WB).or.(segIndex==ixDesire)) then; ! larger than 1 cubic meter or desired lake
+!    if ((1._dp<WB).or.verbose) then; ! larger than 1 cubic meter or desired lake
 !      ! NOTE: The lake discharge and storage need to be solved iterative way to reduce water balance error
 !      write(iulog,*) 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, ' excees the Tolerance'
 !      write(iulog,'(A,1PG15.7)') 'WBerr [m3]       = ', WB

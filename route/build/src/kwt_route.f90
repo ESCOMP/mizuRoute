@@ -8,6 +8,7 @@ USE dataTypes,     ONLY: RCHTOPO           ! Network topology
 USE dataTypes,     ONLY: RCHPRP            ! Reach parameter
 USE dataTypes,     ONLY: kwtRCH            ! kwt specific state data structure
 USE public_var,    ONLY: iulog             ! i/o logical unit number
+USE public_var,    ONLY: desireId          ! ID or reach where detailed reach state is print in log
 USE public_var,    ONLY: is_lake_sim       ! logical if lakes are activated in simulation
 USE public_var,    ONLY: verySmall         ! a very small value
 USE public_var,    ONLY: realMissing       ! missing value for real number
@@ -36,7 +37,6 @@ CONTAINS
  SUBROUTINE kwt_rch(this,         & ! kwt_route_rch object to bound this procedure
                     iEns,         & ! input: ensemble index
                     segIndex,     & ! input: index of reach to be processed
-                    ixDesire,     & ! input: index of the reach for verbose output
                     T0,T1,        & ! input: start and end of the time step
                     NETOPO_in,    & ! input: reach topology data structure
                     RPARAM_in,    & ! input: reach parameter data structure
@@ -99,7 +99,6 @@ CONTAINS
    class(kwt_route_rch)                        :: this          ! kwt_route_rch object to bound this procedure
    integer(i4b), intent(in)                    :: iEns          ! ensemble member
    integer(i4b), intent(in)                    :: segIndex      ! reach to process
-   integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output
    real(dp),     intent(in)                    :: T0,T1         ! start and end of the time step (seconds)
    type(RCHTOPO),intent(in),    allocatable    :: NETOPO_in(:)  ! River Network topology
    type(RCHPRP), intent(inout), allocatable    :: RPARAM_in(:)  ! River reach parameter
@@ -133,13 +132,19 @@ CONTAINS
    real(dp)                                    :: TIMEI         ! entry time at the end of the timestep
    TYPE(FPOINT),allocatable,dimension(:)       :: NEW_WAVE      ! temporary wave
    ! random stuff
+   logical(lgt)                                :: verbose       ! check details of variables
    integer(i4b)                                :: IWV           ! rech index
    character(len=strLen)                       :: fmt1,fmt2     ! format string
    character(len=strLen)                       :: CMESSAGE      ! error message for downwind routine
 
    ierr=0; message='kwt_rch/'
 
-   if(segIndex==ixDesire) then
+   verbose = .false.
+   if(NETOPO_in(segIndex)%REACHID == desireId)then
+     verbose = .true.
+   end if
+
+   if(verbose) then
      write(iulog,'(2a)') new_line('a'),'** Check kinematic wave tracking routing **'
      write(iulog,"(a,1x,I10,1x,I10)")     ' Reach index & ID  =', segIndex, NETOPO_in(segIndex)%REACHID
      write(iulog,"(a,1x,F20.7,1x,F20.7)") ' time step(T0,T1)  =', T0, T1
@@ -154,7 +159,7 @@ CONTAINS
     NUPS = count(NETOPO_in(segIndex)%goodBas)        ! number of desired upstream reaches
     !NUPS = size(NETOPO_in(segIndex)%UREACHI)        ! number of upstream reaches
     if (NUPS.GT.0) then
-      call getusq_rch(IENS,segIndex,T0,T1,ixDesire, & ! input
+      call getusq_rch(IENS,segIndex,T0,T1,verbose,       & ! input
                       NETOPO_in,RPARAM_in,RCHFLX_out,    & ! input
                       RCHSTA_out,                        & ! inout
                       Q_JRCH,TENTRY,T_EXIT,ierr,cmessage,& ! output
@@ -173,7 +178,7 @@ CONTAINS
       end do
       RCHFLX_out(iens,segIndex)%ROUTE(idxKWT)%REACH_INFLOW = q_upstream ! total inflow from the upstream reaches
 
-      if(segIndex==ixDesire)then
+      if(verbose)then
         write(fmt1,'(A,I5,A)') '(A, 1X',size(Q_JRCH),'(1X,G15.4))'
         write(iulog,'(a)') ' * Wave discharge from upstream reaches (Q_JRCH) [m2/s]:'
         write(iulog,fmt1)  ' Q_JRCH=',(Q_JRCH(IWV), IWV=0,size(Q_JRCH)-1)
@@ -197,7 +202,7 @@ CONTAINS
       RCHSTA_out(IENS,segIndex)%LKW_ROUTE%KWAVE(0)%RF=.False.
       RCHSTA_out(IENS,segIndex)%LKW_ROUTE%KWAVE(0)%QM=-9999
 
-      if(segIndex==ixDesire) then
+      if(verbose) then
         write(iulog,'(a)') ' * Final discharge (RCHFLX_out(IENS,segIndex)%REACH_Q) [m3/s]:'
         write(iulog,'(1x,G15.4)') RCHFLX_out(IENS,segIndex)%ROUTE(idxKWT)%REACH_Q
       end if
@@ -227,7 +232,7 @@ CONTAINS
                             T_START, T_END,                          & ! input: time [sec] of current time step bounds
                             RPARAM_in,                               & ! input: river reach parameters
                             RCHFLX_out(iens,segIndex)%REACH_WM_FLUX, & ! input: target Qtake (minus)
-                            ixDesire,                                & ! input:
+                            verbose,                                 & ! input:
                             Q_JRCH, T_EXIT, TENTRY,                  & ! inout: discharge and exit time for particle
                             ierr,cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -241,13 +246,13 @@ CONTAINS
     FROUTE(0) = .true.; FROUTE(1:NQ1)=.false.  ! init. routing flags
 
     ! route flow through the current [segIndex] river segment (Q_JRCH in units of m2/s)
-    call kinwav_rch(segIndex,T_START,T_END,ixDesire,                             & ! input: location and time
+    call kinwav_rch(segIndex,T_START,T_END,verbose,                          & ! input: location and time
                     NETOPO_in, RPARAM_in,                                    & ! input: river data structure
                     Q_JRCH(1:NQ1),TENTRY(1:NQ1),T_EXIT(1:NQ1),FROUTE(1:NQ1), & ! inout: kwt states
                     NQ2,ierr,cmessage)                                         ! output:
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    if(segIndex == ixDesire)then
+    if(verbose)then
       write(fmt1,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,G15.4))'
       write(fmt2,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,L))'
       write(iulog,'(a)') ' * After routed: wave discharge (Q_JRCH) [m2/s], isExit(FROUTE), entry time (TENTRY) [s], and exit time (T_EXIT) [s]:'
@@ -271,7 +276,7 @@ CONTAINS
     ! m2/s --> m3/s + instantaneous runoff from basin
     RCHFLX_out(IENS,segIndex)%ROUTE(idxKWT)%REACH_Q = QNEW(1)*RPARAM_in(segIndex)%R_WIDTH + RCHFLX_out(IENS,segIndex)%BASIN_QR(1)
 
-    if(segIndex == ixDesire)then
+    if(verbose)then
       write(iulog,'(a)')          ' * Time-ave. wave discharge that exit (QNEW(1)) [m2/s], local-area discharge (RCHFLX_out%BASIN_QR(1)) [m3/s] and Final discharge (RCHFLX_out%REACH_Q) [m3/s]:'
       write(iulog,"(A,1x,G15.4)") ' QNEW(1)                =', QNEW(1)
       write(iulog,"(A,1x,G15.4)") ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(IENS,segIndex)%BASIN_QR(1)
@@ -350,7 +355,7 @@ CONTAINS
                               T_START, T_END,          & ! input: start and end time [sec] for this time step
                               RPARAM_in,               & ! input: river reach parameters
                               Qtake,                   & ! input: target Qtake (minus)
-                              ixDesire,                & ! input:
+                              verbose,                 & ! input:
                               Q_JRCH, T_EXIT, TENTRY,  & ! inout: discharge and exit time for particle
                               ierr,message)
   implicit none
@@ -361,7 +366,7 @@ CONTAINS
   real(dp),                  intent(in)    :: T_END         ! end time [s]
   type(RCHPRP), allocatable, intent(in)    :: RPARAM_in(:)  ! River reach parameter
   real(dp),                  intent(in)    :: Qtake         ! target Q abstraction [m3/s]
-  integer(i4b),              intent(in)    :: ixDesire      ! index of the reach for verbose output
+  logical(lgt),              intent(in)    :: verbose       ! index of the reach for verbose output
   real(dp),     allocatable, intent(inout) :: Q_JRCH(:)     ! discharge of particle [m2/s] -- discharge for unit channel width
   real(dp),     allocatable, intent(inout) :: T_EXIT(:)     ! time flow is expected to exit JR
   real(dp),     allocatable, intent(inout) :: TENTRY(:)     ! time flow entered JR
@@ -421,7 +426,7 @@ CONTAINS
 
   end if
 
-  if(JRCH == ixDesire)then
+  if(verbose)then
     ! compute actual abstracted water
     allocate(Q_jrch_abs(0:NR-1))
     Q_jrch_abs = Q_JRCH - Q_jrch_mod
@@ -443,7 +448,7 @@ CONTAINS
   Q_JRCH(0:NR-1) = q_jrch_mod(0:NR-1)
   T_EXIT(1:NR-1) = t_exit_mod(1:NR-1)
 
-  if(JRCH == ixDesire)then
+  if(verbose)then
     write(fmt1,'(A,I5,A)') '(A,1X',NR,'(1X,G15.4))'
     write(*,'(a)') ' * After abstracted: wave discharge (Q_JRCH) [m2/s], entry time (TENTRY) [s], and exit time (T_EXIT) [s]:'
     write(*,fmt1)  ' Q_JRCH=',(Q_JRCH(iw), iw=0,NR-1)
@@ -457,7 +462,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: extract flow from the reaches upstream of JRCH
  ! *********************************************************************
- subroutine getusq_rch(IENS,JRCH,T0,T1,ixDesire,          & ! input
+ subroutine getusq_rch(IENS,JRCH,T0,T1,verbose,           & ! input
                        NETOPO_in,RPARAM_in,RCHFLX_in,     & ! input
                        RCHSTA_out,                        & ! inout
                        Q_JRCH,TENTRY,T_EXIT,ierr,message, & ! output
@@ -499,7 +504,7 @@ CONTAINS
  integer(i4b), intent(in)                 :: IENS         ! ensemble member
  integer(i4b), intent(in)                 :: JRCH         ! reach to process
  real(dp),     intent(in)                 :: T0,T1        ! start and end of the time step
- integer(i4b), intent(in)                 :: ixDesire     ! index of the reach for verbose output
+ logical(lgt), intent(in)                 :: verbose      ! index of the reach for verbose output
  type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:) ! River Network topology
  type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:) ! River reach parameter
  type(STRFLX), intent(in)                 :: RCHFLX_in(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
@@ -559,7 +564,7 @@ CONTAINS
      QD(1) = RCHFLX_in(IENS, iUp)%ROUTE(idxKWT)%REACH_Q / RPARAM_in(JRCH)%R_WIDTH  ! lake outflow per unit reach width
      TD(1) = T1 - DT*ROFFSET
    else ! upstream is not lake
-     call qexmul_rch(IENS,JRCH,T0,T1,ixDesire,      &   ! input
+     call qexmul_rch(IENS,JRCH,T0,T1,verbose,       &   ! input
                      NETOPO_in,RPARAM_in,RCHFLX_in, &   ! input
                      RCHSTA_out,                    &   ! inout
                      ND,QD,TD,ierr,cmessage,        &   ! output
@@ -567,13 +572,13 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    endif
  else  ! lakes disabled
-  call qexmul_rch(IENS,JRCH,T0,T1,ixDesire,      &   ! input
+  call qexmul_rch(IENS,JRCH,T0,T1,verbose,       &   ! input
                   NETOPO_in,RPARAM_in,RCHFLX_in, &   ! input
                   RCHSTA_out,                    &   ! inout
                   ND,QD,TD,ierr,cmessage,        &   ! output
                   RSTEP)                             ! optional input
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  if (JRCH == ixDesire) then
+  if (verbose) then
     write(fmt1,'(A,I5,A)') '(A,1X',ND,'(1X,G15.4))'
     write(*,'(a)')       ' * After qexmul_rch: # of routed wave from upstreams (ND) and wave discharge (QD) [m2/s]:'
     write(*,'(A,1x,I5)') ' ND=', ND
@@ -617,7 +622,7 @@ CONTAINS
  ! subroutine: extract flow from multiple reaches and merge into
  !                 a single series
  ! *********************************************************************
- SUBROUTINE qexmul_rch(IENS,JRCH,T0,T1,ixDesire,      &   ! input
+ SUBROUTINE qexmul_rch(IENS,JRCH,T0,T1,verbose,       &   ! input
                        NETOPO_in,RPARAM_in,RCHFLX_in, &   ! input
                        RCHSTA_out,                    &   ! inout
                        ND,QD,TD,ierr,message,         &   ! output
@@ -661,7 +666,7 @@ CONTAINS
  integer(i4b), intent(in)                    :: IENS            ! ensemble member
  integer(i4b), intent(in)                    :: JRCH            ! reach to process
  real(dp),     intent(in)                    :: T0,T1           ! start and end of the time step
- integer(i4b), intent(in)                    :: ixDesire        ! index of the reach for verbose output
+ logical(lgt), intent(in)                    :: verbose        ! index of the reach for verbose output
  type(RCHTOPO),intent(in), allocatable       :: NETOPO_in(:)    ! River Network topology
  type(RCHPRP), intent(in), allocatable       :: RPARAM_in(:)    ! River reach parameter
  type(STRFLX), intent(in)                    :: RCHFLX_in(:,:)  ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
@@ -753,7 +758,7 @@ CONTAINS
   QD(1) = RCHFLX_in(IENS,IR)%BASIN_QR(1)/RPARAM_in(JRCH)%R_WIDTH
   TD(1) = T1
 
-  if(JRCH == ixDesire) then
+  if(verbose) then
     write(iulog,'(A,1x,I8,1x,I8)') ' * Special case - This reach has one headwater upstream: IR, NETOPO_in(IR)%REACHID = ', &
           IR, NETOPO_in(IR)%REACHID
   end if
@@ -1130,7 +1135,7 @@ CONTAINS
  !                 single stream segment, including the formation and
  !                 propagation of a kinematic shock
  ! *********************************************************************
- SUBROUTINE kinwav_rch(JRCH,T_START,T_END,ixDesire,               & ! input: location and time
+ SUBROUTINE kinwav_rch(JRCH,T_START,T_END,verbose,                & ! input: location and time
                        NETOPO_in, RPARAM_in,                      & ! input: river data structure
                        Q_JRCH,TENTRY,T_EXIT,FROUTE,               & ! inout: kwt states
                        NQ2,                                       & ! output:
@@ -1213,7 +1218,7 @@ CONTAINS
  integer(i4b), intent(in)                    :: JRCH     ! Reach to process
  real(dp),     intent(in)                    :: T_START  ! start of the time step
  real(dp),     intent(in)                    :: T_END    ! end of the time step
- integer(i4b), intent(in)                    :: ixDesire ! index of the reach for verbose output
+ logical(lgt), intent(in)                    :: verbose  ! index of the reach for verbose output
  type(RCHTOPO),intent(in),    allocatable    :: NETOPO_in(:)    ! River Network topology
  type(RCHPRP), intent(in),    allocatable    :: RPARAM_in(:)    ! River reach parameter
  real(dp),     intent(inout)                 :: Q_JRCH(:)! flow to be routed
@@ -1292,7 +1297,7 @@ CONTAINS
  ! compute wave celerity for all flow points (array operation)
  WC(1:NN) = ALFA*K**(1./ALFA)*Q1(1:NN)**((ALFA-1.)/ALFA)
 
- if(jRch==ixDesire) then
+ if(verbose) then
    write(fmt1,'(A,I5,A)') '(A,1X',NN,'(1X,G15.4))'
    write(iulog,'(a)')       ' * Wave discharge (q1) [m2/s] and wave celertiy (wc) [m/s]:'
    write(iulog,'(a,1x,I3)') ' Number of wave =', NN
@@ -1352,7 +1357,7 @@ CONTAINS
  end if GT_ONE
 
  ! check
- if(jRch==ixDesire) then
+ if(verbose) then
    write(fmt1,'(A,I5,A)') '(A,1X',NN,'(1X,G15.4))'
    write(iulog,'(a)')       ' * After wave merge: wave celertiy (wc) [m/s]:'
    write(iulog,'(a,1x,I3)') ' Number of wave =', NN

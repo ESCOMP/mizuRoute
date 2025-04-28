@@ -9,8 +9,9 @@ USE dataTypes,         ONLY: irfRCH            ! irf specific state data structu
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: realMissing       ! missing value for real number
 USE public_var,        ONLY: integerMissing    ! missing value for integer number
+USE public_var,        ONLY: desireId          ! ID or reach where detailed reach state is print in log
 USE public_var,        ONLY: dt                ! simulation time step [sec]
-USE public_var,        ONLY: qmodOption      ! qmod option (use 1==direct insertion)
+USE public_var,        ONLY: qmodOption        ! qmod option (use 1==direct insertion)
 USE public_var,        ONLY: hw_drain_point    ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
 USE public_var,        ONLY: min_length_route  ! minimum reach length for routing to be performed.
 USE globalData,        ONLY: idxIRF            ! routing method index for IRF method
@@ -39,7 +40,6 @@ CONTAINS
  SUBROUTINE irf_rch(this,         & ! irf_route_rch object to bound this procedure
                     iEns,         & ! input: index of runoff ensemble
                     segIndex,     & ! input: reach index
-                    ixDesire,     & ! input: reachID to be checked by on-screen pringing
                     T0,T1,        & ! input: start and end of the time step
                     NETOPO_in,    & ! input: reach topology data structure
                     RPARAM_in,    & ! input: reach parameter data structure
@@ -54,7 +54,6 @@ CONTAINS
  class(irf_route_rch)                     :: this            ! irf_route_rch object to bound this procedure
  integer(i4b),  intent(in)                :: iEns            ! runoff ensemble to be routed
  integer(i4b),  intent(in)                :: segIndex        ! segment where routing is performed
- integer(i4b),  intent(in)                :: ixDesire        ! index of the reach for verbose output
  real(dp),      intent(in)                :: T0,T1           ! start and end of the time step (seconds)
  type(RCHTOPO), intent(in),   allocatable :: NETOPO_in(:)    ! River Network topology
  type(RCHPRP),  intent(inout),allocatable :: RPARAM_in(:)    ! River reach parameter
@@ -79,7 +78,7 @@ CONTAINS
  ierr=0; message='irf_rch/'
 
  verbose = .false.
- if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
+ if(NETOPO_in(segIndex)%REACHID == desireId)then
    verbose = .true.
  end if
 
@@ -199,7 +198,6 @@ CONTAINS
   if (qmodOption==1) then
     call direct_insertion(iens, segIndex, & ! input: reach index
                           idxIRF,         & ! input: routing method id for Euler kinematic wave
-                          ixDesire,       & ! input: verbose seg index
                           NETOPO_in,      & ! input: reach topology data structure
                           RCHSTA_out,     & ! inout: reach state data structure
                           RCHFLX_out,     & ! inout: reach fluxes datq structure

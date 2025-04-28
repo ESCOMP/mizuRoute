@@ -38,7 +38,6 @@ CONTAINS
                        river_basin,    &  ! input: OMP basin decomposition
                        NETOPO_in,      &  ! input: reach topology data structure
                        RPARAM_in,      &  ! input: reach parameter data structure
-                       ixDesire,       &  ! input: index of verbose reach
                        RCHFLX_out,     &  ! inout: reach flux data structure
                        RCHSTA_out,     &  ! inout: reach state data structure
                        gage_obs_data,  &  ! inout: gauge data
@@ -72,7 +71,6 @@ CONTAINS
    type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
    type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),       allocatable, intent(inout) :: RPARAM_in(:)         ! River reach parameter
-   integer(i4b),                    intent(in)    :: ixDesire             ! index of the reach for verbose output
    type(STRFLX),                    intent(inout) :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    type(STRSTA),                    intent(inout) :: RCHSTA_out(:,:)      ! reach state data structure
    type(gageObs),                   intent(inout) :: gage_obs_data        ! gauge observation data
@@ -246,7 +244,6 @@ CONTAINS
                         iens,                     &  ! input: ensemble index
                         river_basin,              &  ! input: river basin data type
                         TSEC(1), TSEC(2),         &  ! input: start and end of the time step since simulation start [sec]
-                        ixDesire,                 &  ! input: index of verbose reach
                         NETOPO_in,                &  ! input: reach topology data structure
                         RPARAM_in,                &  ! input: reach parameter
                         RCHSTA_out,               &  ! inout: reach state data structure
@@ -266,7 +263,6 @@ CONTAINS
                            iens,                 & ! input: ensemble index
                            river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
                            T0,T1,                & ! input: start and end of the time step since simulation start [sec]
-                           ixDesire,             & ! input: reachID to be checked by on-screen pringing
                            NETOPO_in,            & ! input: reach topology data structure
                            RPARAM_in,            & ! input: reach parameter data structure
                            RCHSTA_out,           & ! inout: reach state data structure
@@ -294,7 +290,6 @@ CONTAINS
     integer(i4b),          intent(in)                 :: iEns                 ! ensemble member
     type(subbasin_omp),    intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
     real(dp),              intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
-    integer(i4b),          intent(in)                 :: ixDesire             ! index of the reach for verbose output
     type(RCHTOPO),         intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
     type(RCHPRP),          intent(inout), allocatable :: RPARAM_in(:)         ! River reach parameter
     type(STRSTA),          intent(inout)              :: RCHSTA_out(:,:)      ! reach state data
@@ -360,7 +355,7 @@ CONTAINS
 !$OMP          shared(RPARAM_in)                        & ! data structure shared
 !$OMP          shared(RCHSTA_out)                       & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
-!$OMP          shared(ix, iEns, ixDesire, idxRoute)     & ! indices shared
+!$OMP          shared(ix, iEns, idxRoute)               & ! indices shared
 !$OMP          firstprivate(nTrib)
       do iTrib = 1,nTrib
         do iSeg = 1,river_basin(ix)%branch(iTrib)%nRch
@@ -369,14 +364,12 @@ CONTAINS
           if ((NETOPO_in(jseg)%islake).and.(is_lake_sim).and.idxRoute/=idxSUM) then
             call lake_route(iEns, jSeg,    & ! input: ensemble and reach indices
                             idxRoute,      & ! input: routing method index
-                            ixDesire,      & ! input: index of verbose reach
                             NETOPO_in,     & ! input: reach topology data structure
                             RPARAM_in,     & ! input: reach parameter data structure
                             RCHFLX_out,    & ! inout: reach flux data structure
                             ierr,cmessage)   ! output: error control
           else
             call rch_route%route(iEns,jSeg,      & ! input: array indices
-                                 ixDesire,       & ! input: index of verbose reach
                                  T0,T1,          & ! input: start and end of the time step
                                  NETOPO_in,      & ! input: reach topology data structure
                                  RPARAM_in,      & ! input: reach parameter data structure
@@ -388,7 +381,6 @@ CONTAINS
           if (tracer .and. idxRoute/=idxSUM) then
             call constituent_rch(iEns,jSeg ,    & ! input: index of runoff ensemble to be processed
                                  idxRoute,      & ! input: routing method index
-                                 ixDesire,      & ! input: reachID to be checked by on-screen pringing
                                  NETOPO_in,     & ! input: reach topology data structure
                                  RPARAM_in,     & ! input: reach parameter data structure
                                  RCHSTA_out,    & ! inout: reach state data structure
