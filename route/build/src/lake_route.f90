@@ -34,61 +34,59 @@ CONTAINS
                         RCHFLX_out, &    ! inout: reach flux data structure
                         ierr, message)   ! output: error control
 
-  USE globalData, ONLY: iTime               ! current model time step
-  USE globalData, ONLY: simDatetime         ! previous and current model time
-  USE public_var, ONLY: is_flux_wm          ! logical water management components fluxes should be read
-  USE public_var, ONLY: dt                  ! simulation time step [sec]
-  USE public_var, ONLY: lakeWBtol           ! lake water balance tolerance
-  USE public_var, ONLY: is_vol_wm_jumpstart ! logical whether or not lake should be simulated
-  USE public_var, ONLY: secprday            ! seconds per day = 86400
-  USE public_var, ONLY: days_per_yr         ! days per a year = 365
-  USE public_var, ONLY: months_per_yr       ! months per a year = 12
-  USE public_var, ONLY: calendar            ! calendar name
+    USE globalData, ONLY: iTime               ! current model time step
+    USE globalData, ONLY: simDatetime         ! previous and current model time
+    USE public_var, ONLY: is_flux_wm          ! logical water management components fluxes should be read
+    USE public_var, ONLY: dt                  ! simulation time step [sec]
+    USE public_var, ONLY: lakeWBtol           ! lake water balance tolerance
+    USE public_var, ONLY: is_vol_wm_jumpstart ! logical whether or not lake should be simulated
+    USE public_var, ONLY: secprday            ! seconds per day = 86400
+    USE public_var, ONLY: days_per_yr         ! days per a year = 365
+    USE public_var, ONLY: months_per_yr       ! months per a year = 12
+    USE public_var, ONLY: calendar            ! calendar name
 
-  implicit none
-  ! Argument variables:
-  integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
-  integer(i4b), intent(in)                 :: segIndex       ! segment where routing is performed
-  integer(i4b), intent(in)                 :: idxRoute       ! index of the reach for verbose output
-  type(RCHTOPO), intent(in),   allocatable :: NETOPO_in(:)   ! River Network topology
-  type(RCHPRP), intent(inout), allocatable :: RPARAM_in(:)   ! River Network topology
-  TYPE(STRFLX), intent(inout)              :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-  integer(i4b), intent(out)                :: ierr           ! error code
-  character(*), intent(out)                :: message        ! error message
-  ! Local variables:
-  logical(lgt)                             :: verbose        ! check details of variables
-  real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
-!  real(dp)                                 :: WB             ! water balance component in the lake
-  integer(i4b)                             :: nUps           ! number of upstream segment
-  integer(i4b)                             :: iUps           ! upstream reach index
-  integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
-  integer(i4b)                             :: ntdh           ! number of time steps in IRF
-  character(len=strLen)                    :: cmessage       ! error message from subroutine
-  ! local variables for H06 routine
-  real(dp)                                 :: c                   ! storage to yearly activity ratio
-  real(dp)                                 :: I_yearly, D_yearly  ! mean annual inflow and demand
-  real(dp), dimension(12)                  :: I_months, D_months  ! mean monthly inflow and demand
-  integer(i4b), dimension(2)               :: array_size(2)       ! get the size of array_size
-  integer(i4b)                             :: start_month=0       ! start month of the operational year
-  integer(i4b)                             :: i                   ! index
-  integer(i4b)                             :: past_length_I       ! pas length for inflow based on length in year and floor
-  integer(i4b)                             :: past_length_D       ! pas length for demand based on length in year and floor
-  real(dp)                                 :: target_r            ! target release
-  ! local varibale for HYPE routine
-  real(dp)                                 :: Day_of_year         ! the day number in a year
-  integer(i4b)                             :: F_prim              ! factor for local flag is reservoir has primary spillway
-  real(dp)                                 :: F_sin               ! factor for sin
-  real(dp)                                 :: F_lin               ! factor for linear
-  real(dp)                                 :: Q_prim              ! simulated outflow from main or primary spillway
-  real(dp)                                 :: Q_spill             ! simulated outflow from emergency spillway
-  real(dp)                                 :: Q_sim               ! simulated output from the reservoir
+    implicit none
+    ! Argument variables:
+    integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
+    integer(i4b), intent(in)                 :: segIndex       ! segment where routing is performed
+    integer(i4b), intent(in)                 :: idxRoute       ! index of the reach for verbose output
+    type(RCHTOPO), intent(in),   allocatable :: NETOPO_in(:)   ! River Network topology
+    type(RCHPRP), intent(inout), allocatable :: RPARAM_in(:)   ! River Network topology
+    TYPE(STRFLX), intent(inout)              :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+    integer(i4b), intent(out)                :: ierr           ! error code
+    character(*), intent(out)                :: message        ! error message
+    ! Local variables:
+    logical(lgt)                             :: verbose        ! check details of variables
+    real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
+!    real(dp)                                 :: WB             ! water balance component in the lake
+    integer(i4b)                             :: nUps           ! number of upstream segment
+    integer(i4b)                             :: iUps           ! upstream reach index
+    integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
+    integer(i4b)                             :: ntdh           ! number of time steps in IRF
+    character(len=strLen)                    :: cmessage       ! error message from subroutine
+    ! local variables for H06 routine
+    real(dp)                                 :: c                   ! storage to yearly activity ratio
+    real(dp)                                 :: I_yearly, D_yearly  ! mean annual inflow and demand
+    real(dp), dimension(12)                  :: I_months, D_months  ! mean monthly inflow and demand
+    integer(i4b), dimension(2)               :: array_size(2)       ! get the size of array_size
+    integer(i4b)                             :: start_month=0       ! start month of the operational year
+    integer(i4b)                             :: i                   ! index
+    integer(i4b)                             :: past_length_I       ! pas length for inflow based on length in year and floor
+    integer(i4b)                             :: past_length_D       ! pas length for demand based on length in year and floor
+    real(dp)                                 :: target_r            ! target release
+    ! local varibale for HYPE routine
+    real(dp)                                 :: Day_of_year         ! the day number in a year
+    integer(i4b)                             :: F_prim              ! factor for local flag is reservoir has primary spillway
+    real(dp)                                 :: F_sin               ! factor for sin
+    real(dp)                                 :: F_lin               ! factor for linear
+    real(dp)                                 :: Q_prim              ! simulated outflow from main or primary spillway
+    real(dp)                                 :: Q_spill             ! simulated outflow from emergency spillway
+    real(dp)                                 :: Q_sim               ! simulated output from the reservoir
 
-  ierr=0; message='lake_route/'
+    ierr=0; message='lake_route/'
 
-  verbose = .false.
-  if(NETOPO_in(segIndex)%REACHID == desireId)then
-    verbose = .true.
-  end if
+    verbose = .false.
+    if(NETOPO_in(segIndex)%REACHID == desireId) verbose = .true.
 
     ! identify number of upstream segments of the lake being processed
     nUps = size(NETOPO_in(segIndex)%UREACHI)

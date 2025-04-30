@@ -56,9 +56,7 @@ contains
    ierr=0; message='direct_insertion/'
 
    verbose = .false.
-   if(NETOPO_in(segIndex)%REACHID == desireId)then
-     verbose = .true.
-   end if
+   if(NETOPO_in(segIndex)%REACHID == desireId) verbose = .true.
 
    if (RCHFLX_out(iens,segIndex)%Qobs>0._dp) then ! there is observation
      RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%Qerror = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q - RCHFLX_out(iens,segIndex)%Qobs ! compute error

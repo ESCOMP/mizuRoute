@@ -140,9 +140,7 @@ CONTAINS
    ierr=0; message='kwt_rch/'
 
    verbose = .false.
-   if(NETOPO_in(segIndex)%REACHID == desireId)then
-     verbose = .true.
-   end if
+   if(NETOPO_in(segIndex)%REACHID == desireId) verbose = .true.
 
    if(verbose) then
      write(iulog,'(2a)') new_line('a'),'** Check kinematic wave tracking routing **'

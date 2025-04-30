@@ -78,9 +78,7 @@ CONTAINS
  ierr=0; message='irf_rch/'
 
  verbose = .false.
- if(NETOPO_in(segIndex)%REACHID == desireId)then
-   verbose = .true.
- end if
+ if(NETOPO_in(segIndex)%REACHID == desireId) verbose = .true.
 
   ! get discharge coming from upstream
   nUps = count(NETOPO_in(segIndex)%goodBas) ! reminder: goodBas is reach with >0 total contributory area
