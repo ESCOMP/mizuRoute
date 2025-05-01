@@ -36,6 +36,7 @@ CONTAINS
 
     USE globalData, ONLY: iTime               ! current model time step
     USE globalData, ONLY: simDatetime         ! previous and current model time
+    USE public_var, ONLY: LakeInputOption     ! lake input fluxes option
     USE public_var, ONLY: is_flux_wm          ! logical water management components fluxes should be read
     USE public_var, ONLY: dt                  ! simulation time step [sec]
     USE public_var, ONLY: lakeWBtol           ! lake water balance tolerance
@@ -52,7 +53,7 @@ CONTAINS
     integer(i4b), intent(in)                 :: idxRoute       ! index of the reach for verbose output
     type(RCHTOPO), intent(in),   allocatable :: NETOPO_in(:)   ! River Network topology
     type(RCHPRP), intent(inout), allocatable :: RPARAM_in(:)   ! River Network topology
-    TYPE(STRFLX), intent(inout)              :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+    type(STRFLX), intent(inout)              :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
     integer(i4b), intent(out)                :: ierr           ! error code
     character(*), intent(out)                :: message        ! error message
     ! Local variables:
@@ -87,7 +88,7 @@ CONTAINS
 
     verbose = .false.
     if(NETOPO_in(segIndex)%REACHID == desireId) verbose = .true.
-
+    
     ! identify number of upstream segments of the lake being processed
     nUps = size(NETOPO_in(segIndex)%UREACHI)
 
@@ -163,14 +164,18 @@ CONTAINS
     ! add upstream, precipitation and subtract evaporation from the lake volume
     RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) ! updating storage at previous time step
     RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge from m3/s to m3
-    RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%BASIN_QR(1) * dt ! add lateral flow
-    RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%basinprecip * dt ! input lake precipitation
-    if (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) > RCHFLX_out(iens,segIndex)%basinevapo*dt) then ! enough water to evaporate
-      RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt ! output lake evaporation
-    else ! not enough water to evaporate (this cause water balance error in coupling mode)
-      RCHFLX_out(iens,segIndex)%basinevapo = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)/dt ! update basinevapo
-      RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)=0._dp
-    endif
+    if ((LakeInputOption == 1) .or. (LakeInputOption == 2)) then ! considers runoff for lake fluxes
+      RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%BASIN_QR(1) * dt ! add lateral flow
+    end if
+    if ((LakeInputOption == 0) .or. (LakeInputOption == 2)) then ! considers precipitation and evaporation for lake fluxes
+      RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%basinprecip * dt ! input lake precipitation
+      if (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) > RCHFLX_out(iens,segIndex)%basinevapo*dt) then ! enough water to evaporate
+        RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt ! output lake evaporation
+      else ! not enough water to evaporate (this cause water balance error in coupling mode)
+        RCHFLX_out(iens,segIndex)%basinevapo = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)/dt ! update basinevapo
+        RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)=0._dp
+      endif
+    end if
 
     RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
 

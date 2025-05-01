@@ -29,6 +29,7 @@ CONTAINS
   USE public_var,           ONLY: is_remap            ! logical runnoff needs to be mapped to river network HRU
   USE public_var,           ONLY: tracer              ! logical to activate a constituent transport simulation
   USE public_var,           ONLY: is_lake_sim         ! logical lake should be simulated
+  USE public_var,           ONLY: LakeInputOption     ! lake input fluxes option
   USE public_var,           ONLY: is_flux_wm          ! logical water management components fluxes should be read
   USE public_var,           ONLY: is_vol_wm           ! logical water management components target volume should be read
   USE public_var,           ONLY: scale_factor_runoff ! float; factor to scale the runoff values
@@ -132,7 +133,8 @@ CONTAINS
   end if
 
   ! Optional: lake module on -> read actual evaporation and preciptation
-  if (is_lake_sim) then
+  ! while global parameter for LakeInputOption is either 0 or 2 (and not only runff which is 1)
+  if (is_lake_sim .and. ((LakeInputOption == 0) .or. (LakeInputOption == 2))) then
 
     if ((abs(scale_factor_Ep)<verySmall) .and. ((abs(offset_value_Ep)<verySmall) .or. (abs(offset_value_Ep-realmissing)<verySmall))) then  ! not reading evaporation
       runoff_data%basinEvapo  = 0._dp ! set evaporation to zero

@@ -105,6 +105,7 @@ MODULE public_var
   logical(lgt)         ,public    :: tracer               = .false.         ! logical if tracer is activated to compute a solute or constituent transport.
   logical(lgt)         ,public    :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
   logical(lgt)         ,public    :: lakeRegulate         = .true.          ! logical: F -> turn all the lakes into natural (lakeType=1) regardless of lakeModelType defined individually
+  integer(i4b)         ,public    :: LakeInputOption      = 0               ! input flux(es) for lake: 0->evaporation+precipitation (default), 1->runoff, 2->evaporation+precipitation+runoff
   logical(lgt)         ,public    :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
   logical(lgt)         ,public    :: is_vol_wm            = .false.         ! logical if target volume is considered for a lake
   logical(lgt)         ,public    :: is_vol_wm_jumpstart  = .false.         ! logical if true the volume is reset to target volume for the first time step of modeling
