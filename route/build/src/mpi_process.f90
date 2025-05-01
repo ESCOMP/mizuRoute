@@ -81,7 +81,6 @@ CONTAINS
                             structNTOPO,        & ! input: data structure for network toopology
                             ierr, message)        ! output: error control
 
-  USE globalData,          ONLY: ixPrint                  ! reach index to be checked by on-screen pringing
   USE globalData,          ONLY: domains_mpi              ! MPI domain data structure - for each domain listing segment and hru indices
   USE globalData,          ONLY: nDomain_mpi              ! count of MPI decomposed domains (tributaries + mainstems)
   USE globalData,          ONLY: river_basin_main         ! OMP domain data structure for mainstem
@@ -463,18 +462,6 @@ CONTAINS
       end do
     end do
 
-    ! find index of desired reach
-    if (desireId/=integerMissing) then
-      if (allocated(array_int_temp_local)) deallocate(array_int_temp_local)
-      allocate(array_int_temp_local(rch_per_proc(pid)), stat=ierr, errmsg=cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      do iSeg = 1,rch_per_proc(pid)
-        array_int_temp_local(iSeg) = structNTOPO_local(iSeg)%var(ixNTOPO%segId)%dat(1)
-      end do
-      ixPrint(2) = findIndex(array_int_temp_local, desireId, integerMissing)
-    end if
-
     ! compute additional ancillary infomration
     call augment_ntopo(hru_per_proc(pid),            & ! input: number of HRUs
                        rch_per_proc(pid),            & ! input: number of stream segments
@@ -779,18 +766,6 @@ CONTAINS
         structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIds    )%dat(:) = structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat(:)
         structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIndices)%dat(:) = integerMissing
       enddo
-
-      ! find index of desired reach
-      if (desireId/=integerMissing) then
-        if (allocated(array_int_temp)) deallocate(array_int_temp)
-        allocate(array_int_temp(nRch_mainstem), stat=ierr, errmsg=cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-        do iSeg = 1, nRch_mainstem
-          array_int_temp(iSeg) = structNTOPO_main(iSeg)%var(ixNTOPO%segId)%dat(1)
-        end do
-        ixPrint(1) = findIndex(array_int_temp, desireId, integerMissing)
-      end if
 
       ! copy data to routing structres RPARAM_trib and NETOPO_trib
       call put_data_struct(nRch_mainstem+nTribOutlet, structSEG_main, structNTOPO_main, & ! input
@@ -1184,7 +1159,6 @@ CONTAINS
                       ierr, message, & ! output: error control
                       scatter_ro)      ! optional input: logical. .true. => scatter global hru runoff to mainstem and tributary
   ! shared data
-  USE globalData, ONLY: ixPrint             ! desired reach index
   USE globalData, ONLY: NETOPO_trib         ! tributary river netowrk topology structure
   USE globalData, ONLY: NETOPO_main         ! mainstem river netowrk topology structure
   USE globalData, ONLY: RPARAM_trib         ! tributary reach parameter structure
@@ -1313,7 +1287,6 @@ CONTAINS
                   river_basin_trib,  &  ! input: OMP basin decomposition
                   NETOPO_trib,       &  ! input: reach topology data structure
                   RPARAM_trib,       &  ! input: reach parameter data structure
-                  ixPrint(2),        &  ! input: reach index to be checked by on-screen pringing
                   RCHFLX_trib(:,ix1:ix2),   &  ! inout: reach flux data structure
                   RCHSTA_trib(:,ix1:ix2),   &  ! inout: reach state data structure
                   gage_obs_data_trib, &  ! inout: gage obs data for tributary reaches
@@ -1394,7 +1367,6 @@ CONTAINS
                       river_basin_main,        &  ! input: OMP basin decomposition
                       NETOPO_main,             &  ! input: reach topology data structure
                       RPARAM_main,             &  ! input: reach parameter data structure
-                      ixPrint(1),              &  ! input: reach index to be checked by on-screen pringing
                       RCHFLX_trib(:,1:nRch_mainstem+nTribOutlet),  &  ! inout: reach flux data structure
                       RCHSTA_trib(:,1:nRch_mainstem+nTribOutlet),  &  ! inout: reach state data structure
                       gage_obs_data_main,      &  ! inout: gage obs data for mainstem reaches
