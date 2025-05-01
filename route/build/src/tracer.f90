@@ -16,6 +16,7 @@ USE dataTypes,     ONLY: STRSTA                ! state in each reach
 USE dataTypes,     ONLY: RCHTOPO               ! Network topology
 USE dataTypes,     ONLY: RCHPRP                ! Reach parameter
 USE public_var,    ONLY: iulog                 ! i/o logical unit number
+USE public_var,    ONLY: desireId              ! ID or reach where detailed reach state is print in log
 USE public_var,    ONLY: dt                    ! simulation time step [sec]
 USE public_var,    ONLY: hw_drain_point        ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
 USE public_var,    ONLY: min_length_route      ! minimum reach length for routing to be performed.
@@ -41,7 +42,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE constituent_rch(iens, segIndex,   & ! input: index of runoff ensemble to be processed
                             idxRoute,         & ! input: routing method index
-                            ixDesire,         & ! input: reachID to be checked by on-screen pringing
                             NETOPO_in,        & ! input: reach topology data structure
                             RPARAM_in,        & ! input: reach parameter data structure
                             RCHSTA_out,       & ! inout: reach state data structure
@@ -53,7 +53,6 @@ CONTAINS
  integer(i4b),     intent(in)                 :: iens              ! runoff ensemble to be routed
  integer(i4b),     intent(in)                 :: segIndex          ! segment where routing is performed
  integer(i4b),     intent(in)                 :: idxRoute          ! routing method index
- integer(i4b),     intent(in)                 :: ixDesire          ! index of the reach for verbose output
  type(RCHTOPO),    intent(in),    allocatable :: NETOPO_in(:)      ! River Network topology
  type(RCHPRP),     intent(inout), allocatable :: RPARAM_in(:)      ! River reach parameter
  type(STRSTA),     intent(inout)              :: RCHSTA_out(:,:)   ! reach state data
@@ -73,9 +72,7 @@ CONTAINS
  ierr=0; message='constituent_rch/'
 
  verbose = .false.
- if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-   verbose = .true.
- end if
+ if(NETOPO_in(segIndex)%REACHID == desireId) verbose = .true.
 
  ! get mass flux from upstream
  nUps = count(NETOPO_in(segIndex)%goodBas) ! reminder: goodBas is reach with >0 total contributory area

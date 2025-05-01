@@ -29,7 +29,6 @@ MODULE base_route
     SUBROUTINE sub_route_rch(this,          & ! object to bound the procedure
                              iEns,          & ! input: ensemble index
                              segIndex,      & ! input: reach indice
-                             ixDesire,      & ! input: index of verbose reach
                              T0, T1,        & ! input: start and end of simulation time step since start [sec]
                              NETOPO_in,     & ! input: reach topology data structure
                              RPARAM_in,     & ! input: reach parameter data structure
@@ -41,7 +40,6 @@ MODULE base_route
       !   to perform a routing (after instantiated) at a given reasch (segIndex) and time step
       !   reach parameters (RPARAM), river network topology (NETOPO) to get upstream location,
       !   state (RCHSTA) and flux (RCHFLX) are required for a set of input
-      !   ixDesire is index of reach where more information is writting in log along the computation
 
       USE nrtype
       USE dataTypes, ONLY: STRFLX       ! fluxes in each reach
@@ -54,7 +52,6 @@ MODULE base_route
       class(base_route_rch)                     :: this             ! object to bound the procedure
       integer(i4b),  intent(in)                 :: iEns             ! ensemble member
       integer(i4b),  intent(in)                 :: segIndex         ! ensemble member
-      integer(i4b),  intent(in)                 :: ixDesire         ! index of the reach for verbose output
       real(dp),      intent(in)                 :: T0, T1           ! start and end of the time step (seconds)
       type(RCHTOPO), intent(in),    allocatable :: NETOPO_in(:)     ! River Network topology
       type(RCHPRP),  intent(inout), allocatable :: RPARAM_in(:)     ! River reach parameter
