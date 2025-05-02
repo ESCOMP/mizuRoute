@@ -10,6 +10,7 @@ USE dataTypes,   ONLY: STRSTA          ! state in each reach
 USE dataTypes,   ONLY: RCHTOPO         ! Network topology
 USE dataTypes,   ONLY: RCHPRP          ! Reach parameter
 USE public_var,  ONLY: iulog           ! i/o logical unit number
+USE public_var,  ONLY: desireId        ! ID or reach where detailed reach state is print in log
 USE globalData,  ONLY: idxSUM          ! routing method index for runoff accumulation method
 USE base_route,  ONLY: base_route_rch  ! base (abstract) reach routing method class
 
@@ -30,7 +31,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE accum_inst_runoff(this,         &  ! "accum_runoff_rchr" object to bound this procedure
                               segIndex,     &  ! input: index of reach to be processed
-                              ixDesire,     &  ! input: reachID to be checked by on-screen pringing
                               T0,T1,        &  ! input: start and end of the time step
                               NETOPO_in,    &  ! input: reach topology data structure
                               RPARAM_in,    &  ! input: reach parameter data structure
@@ -41,7 +41,6 @@ CONTAINS
  ! Argument variables
  class(accum_runoff_rch)                  :: this            ! "accum_runoff_rchr" object to bound this procedure
  integer(i4b),  intent(in)                :: segIndex        ! segment where routing is performed
- integer(i4b),  intent(in)                :: ixDesire        ! index of the reach for verbose output
  real(dp),      intent(in)                :: T0,T1           ! start and end of the time step (seconds)
  type(RCHTOPO), intent(in),   allocatable :: NETOPO_in(:)    ! River Network topology
  type(RCHPRP),  intent(inout),allocatable :: RPARAM_in(:)    ! River reach parameter
@@ -76,7 +75,7 @@ CONTAINS
  endif
 
  ! check
- if(segIndex == ixDesire)then
+ if(NETOPO_in(segIndex)%REACHID==desireId)then
    write(iulog,'(2a)') new_line('a'),'** Check upstream discharge accumulation **'
    write(iulog,'(a,1x,I10,1x,I10)') ' Reach index & ID =', segIndex, NETOPO_in(segIndex)%REACHID
    if (nUps>0) then
