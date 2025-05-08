@@ -736,10 +736,10 @@ CONTAINS
  USE public_var, ONLY: diffusiveWave
  USE public_var, ONLY: outputAtGage
  USE globalData, ONLY: onRoute               ! logical to indicate which routing method(s) is on
- USE globalData, ONLY: RCHFLX_trib         ! tributary reach fluxes (ensembles, reaches)
+ USE globalData, ONLY: RCHFLX_trib         ! tributary reach fluxes data structure
  USE globalData, ONLY: NETOPO_main         ! mainstem reach topology
  USE globalData, ONLY: NETOPO_trib         ! tributary reach topology
- USE globalData, ONLY: RCHSTA_trib         ! tributary reach state (ensembles, reaches)
+ USE globalData, ONLY: RCHSTA_trib         ! tributary reach state data structure
  USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
  USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
  USE globalData, ONLY: nTribOutlet         !
@@ -885,7 +885,7 @@ CONTAINS
     character(*), intent(out)  :: message1        ! error message
     ! local variables
     real(dp), allocatable      :: array_1d_dp(:)
-    integer(i4b)               :: iVar,iSeg       ! index loops for variables, ensembles and segments respectively
+    integer(i4b)               :: iVar,iSeg       ! index loops for variables, and segments respectively
 
     ! initialize error control
     ierr=0; message1='write_basinQ_state/'
@@ -917,7 +917,7 @@ CONTAINS
     character(*), intent(out)  :: message1        ! error message
     ! local variables
     real(dp), allocatable      :: array_2d_dp(:,:)
-    integer(i4b)               :: iVar,iSeg       ! index loops for variables, ensembles and segments respectively
+    integer(i4b)               :: iVar,iSeg       ! index loops for variables and segments respectively
 
     ierr=0; message1='write_IRFbas_state/'
 
@@ -949,7 +949,7 @@ CONTAINS
     character(*), intent(out)  :: message1        ! error message
     ! local variables
     real(dp), allocatable      :: array_2d_dp(:,:)
-    integer(i4b)               :: iVar,iSeg       ! index loops for variables, ensembles and segments respectively
+    integer(i4b)               :: iVar,iSeg       ! index loops for variables and segments respectively
 
     ierr=0; message1='write_bas_solute_state/'
 
@@ -983,8 +983,8 @@ CONTAINS
     ! local variables
     real(dp), allocatable      :: array_1d_dp(:)
     real(dp), allocatable      :: array_2d_dp(:,:)
-    integer(i4b)               :: iVar,iSeg          ! index loops for variables, ensembles and segments respectively
-    integer(i4b), allocatable  :: numQF(:)           ! number of future Q time steps for each ensemble and segment
+    integer(i4b)               :: iVar,iSeg          ! index loops for variables and segments respectively
+    integer(i4b), allocatable  :: numQF(:)           ! number of future Q time steps for each segment
 
     ierr=0; message1='write_IRF_state/'
 
@@ -1301,7 +1301,7 @@ CONTAINS
     character(*), intent(out)  :: message1        ! error message
     ! local variables
     real(dp),     allocatable  :: array_1d_dp(:)
-    integer(i4b)               :: iVar,iSeg       ! index loops for variables, ensembles and segments respectively
+    integer(i4b)               :: iVar,iSeg       ! index loops for variables and segments respectively
 
     ierr=0; message1='write_solute_state/'
 

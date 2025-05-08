@@ -158,7 +158,7 @@ CONTAINS
     ! local variables
     character(len=strLen)         :: cmessage1      ! error message of downwind routine
     type(states)                  :: state          ! temporal state data structures
-    integer(i4b)                  :: iVar,iSeg      ! loop indices for variables, ensembles, reaches respectively
+    integer(i4b)                  :: iVar,iSeg      ! loop indices for variables, reaches respectively
     integer(i4b)                  :: jSeg           ! sorted index for reaches
 
     ! initialize error control
@@ -206,7 +206,7 @@ CONTAINS
     ! local variables
     character(len=strLen)         :: cmessage1      ! error message of downwind routine
     type(states)                  :: state          ! temporal state data structures
-    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, ensembles, reaches respectively
+    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
     integer(i4b)                  :: ntdh           ! dimension size
 
@@ -259,7 +259,7 @@ CONTAINS
     ! local variables
     character(len=strLen)         :: cmessage1      ! error message of downwind routine
     type(states)                  :: state          ! temporal state data structures
-    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, ensembles, reaches respectively
+    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
     integer(i4b)                  :: ntdh           ! dimension size
 
@@ -314,9 +314,9 @@ CONTAINS
     character(len=strLen)         :: cmessage1      ! error message of downwind routine
     type(states)                  :: state          ! temporal state data structures
     integer(i4b)                  :: ncidRestart    ! restart netcdf id
-    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, ensembles, reaches respectively
+    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
-    integer(i4b), allocatable     :: numQF(:)       ! number of future Q time steps for each ensemble and segment
+    integer(i4b), allocatable     :: numQF(:)       ! number of future Q time steps for each segment
     integer(i4b)                  :: ntdh_irf       ! dimenion sizes
     integer(i4b)                  :: nTbound=2      ! dimenion sizes
 
@@ -389,11 +389,11 @@ CONTAINS
     ! local variables
     character(len=strLen)         :: cmessage1      ! error message of downwind routine
     type(states)                  :: state          ! temporal state data structures
-    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, ensembles, reaches respectively
+    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
     integer(i4b)                  :: nwave          ! dimenion sizes
     integer(i4b), allocatable     :: RFvec(:)       ! temporal vector
-    integer(i4b), allocatable     :: numWaves(:)    ! number of waves for each ensemble and segment
+    integer(i4b), allocatable     :: numWaves(:)    ! number of waves for each segment
 
     ierr=0; message1='read_KWT_state/'
 
@@ -470,7 +470,7 @@ CONTAINS
     character(len=strLen)         :: cmessage1      ! error message of downwind routine
     integer(i4b)                  :: ncidRestart    ! restart netcdf id
     type(states)                  :: state          ! temporal state data structures
-    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, ensembles, reaches respectively
+    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
 
     ierr=0; message1='read_KW_state/'
@@ -538,7 +538,7 @@ CONTAINS
     character(len=strLen)         :: cmessage1      ! error message of downwind routine
     integer(i4b)                  :: ncidRestart    ! restart netcdf id
     type(states)                  :: state          ! temporal state data structures
-    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, ensembles, reaches respectively
+    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
 
     ierr=0; message1='read_MC_state/'
@@ -606,7 +606,7 @@ CONTAINS
     character(len=strLen)         :: cmessage1      ! error message of downwind routine
     integer(i4b)                  :: ncidRestart    ! restart netcdf id
     type(states)                  :: state          ! temporal state data structures
-    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, ensembles, reaches respectively
+    integer(i4b)                  :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
 
     ierr=0; message1='read_DW_state/'
@@ -672,7 +672,7 @@ CONTAINS
     ! local variables
     character(len=strLen)       :: cmessage1      ! error message of downwind routine
     type(states)                :: state          ! temporal state data structures
-    integer(i4b)                :: iVar,iSeg      ! index loops for variables, ensembles, reaches respectively
+    integer(i4b)                :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                :: jSeg           ! index loops for reaches respectively
 
     ierr=0; message1='read_solute_state/'

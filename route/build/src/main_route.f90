@@ -356,7 +356,7 @@ CONTAINS
           jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
           if (.not. doRoute(jSeg)) cycle
           if ((NETOPO_in(jseg)%islake).and.(is_lake_sim).and.idxRoute/=idxSUM) then
-            call lake_route(jSeg,          & ! input: ensemble and reach indices
+            call lake_route(jSeg,          & ! input: reach indices
                             idxRoute,      & ! input: routing method index
                             NETOPO_in,     & ! input: reach topology data structure
                             RPARAM_in,     & ! input: reach parameter data structure
@@ -373,7 +373,7 @@ CONTAINS
           end if
           if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
           if (tracer .and. idxRoute/=idxSUM) then
-            call constituent_rch(jSeg,          & ! input: index of runoff ensemble to be processed
+            call constituent_rch(jSeg,          & ! input: index of reach to be processed
                                  idxRoute,      & ! input: routing method index
                                  NETOPO_in,     & ! input: reach topology data structure
                                  RPARAM_in,     & ! input: reach parameter data structure

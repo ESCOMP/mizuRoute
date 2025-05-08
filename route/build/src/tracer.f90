@@ -40,7 +40,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: main subroutine for per-reach solute routing
  ! *********************************************************************
- SUBROUTINE constituent_rch(segIndex,         & ! input: index of runoff ensemble to be processed
+ SUBROUTINE constituent_rch(segIndex,         & ! input: index of reach to be processed
                             idxRoute,         & ! input: routing method index
                             NETOPO_in,        & ! input: reach topology data structure
                             RPARAM_in,        & ! input: reach parameter data structure
@@ -55,7 +55,7 @@ CONTAINS
  type(RCHTOPO),    intent(in),    allocatable :: NETOPO_in(:)      ! River Network topology
  type(RCHPRP),     intent(inout), allocatable :: RPARAM_in(:)      ! River reach parameter
  type(STRSTA),     intent(inout)              :: RCHSTA_out(:)     ! reach state data
- type(STRFLX),     intent(inout)              :: RCHFLX_out(:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ type(STRFLX),     intent(inout)              :: RCHFLX_out(:)     ! Reach fluxes for decomposed domains
  integer(i4b),     intent(out)                :: ierr              ! error code
  character(*),     intent(out)                :: message           ! error message
  ! Local variables

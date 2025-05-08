@@ -101,7 +101,7 @@ CONTAINS
    type(RCHTOPO),intent(in),    allocatable    :: NETOPO_in(:)  ! River Network topology
    type(RCHPRP), intent(inout), allocatable    :: RPARAM_in(:)  ! River reach parameter
    type(STRSTA), intent(inout)                 :: RCHSTA_out(:) ! reach state data
-   type(STRFLX), intent(inout)                 :: RCHFLX_out(:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+   type(STRFLX), intent(inout)                 :: RCHFLX_out(:) ! Reach fluxes [reaches] for decomposed domains
    integer(i4b), intent(out)                   :: ierr          ! error code
    character(*), intent(out)                   :: message       ! error message
    ! local variables
@@ -224,7 +224,7 @@ CONTAINS
     T_END   = T1 - (T1 - T0)*ROFFSET
 
     if (is_flux_wm .and. RCHFLX_out(segIndex)%REACH_WM_FLUX /= realMissing) then
-      call extract_from_rch(segIndex,                                & ! input: ensemble and reach indices
+      call extract_from_rch(segIndex,                                & ! input: reach indices
                             T_START, T_END,                          & ! input: time [sec] of current time step bounds
                             RPARAM_in,                               & ! input: river reach parameters
                             RCHFLX_out(segIndex)%REACH_WM_FLUX,      & ! input: target Qtake (minus)
@@ -500,7 +500,7 @@ CONTAINS
  logical(lgt), intent(in)                 :: verbose      ! index of the reach for verbose output
  type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:) ! River Network topology
  type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:) ! River reach parameter
- type(STRFLX), intent(in)                 :: RCHFLX_in(:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ type(STRFLX), intent(in)                 :: RCHFLX_in(:) ! Reach fluxes for decomposed domains
  integer(i4b), intent(in),    optional    :: RSTEP        ! retrospective time step offset
  type(STRSTA), intent(inout)              :: RCHSTA_out(:)! reach state data
  real(dp),allocatable, intent(out)        :: Q_JRCH(:)    ! merged (non-routed) flow in JRCH

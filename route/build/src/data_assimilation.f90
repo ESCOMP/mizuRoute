@@ -25,7 +25,7 @@ contains
  ! *********************************************************************
  ! subroutine: perform direct-insertion
  ! *********************************************************************
- subroutine direct_insertion(segIndex,         & ! input: index of runoff ensemble to be processed
+ subroutine direct_insertion(segIndex,         & ! input: index of reach to be processed
                              idxRoute,         & ! input: reachID to be checked by on-screen pringing
                              NETOPO_in,        & ! input: reach topology data structure
                              RCHSTA_out,       & ! inout: reach state data structure
@@ -37,7 +37,7 @@ contains
    integer(i4b),  intent(in)                 :: idxRoute          ! index of routing method
    type(RCHTOPO), intent(in),    allocatable :: NETOPO_in(:)      ! River Network topology
    type(STRSTA),  intent(inout)              :: RCHSTA_out(:)     ! reach state data
-   type(STRFLX),  intent(inout)              :: RCHFLX_out(:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+   type(STRFLX),  intent(inout)              :: RCHFLX_out(:)     ! Reach fluxes for decomposed domains
    integer(i4b),  intent(out)                :: ierr              ! error code
    character(*),  intent(out)                :: message           ! error message
    ! Local variables

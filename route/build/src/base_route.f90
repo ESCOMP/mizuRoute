@@ -49,7 +49,7 @@ MODULE base_route
       import base_route_rch
       ! Arguments
       class(base_route_rch)                     :: this             ! object to bound the procedure
-      integer(i4b),  intent(in)                 :: segIndex         ! ensemble member
+      integer(i4b),  intent(in)                 :: segIndex         ! reach index
       real(dp),      intent(in)                 :: T0, T1           ! start and end of the time step (seconds)
       type(RCHTOPO), intent(in),    allocatable :: NETOPO_in(:)     ! River Network topology
       type(RCHPRP),  intent(inout), allocatable :: RPARAM_in(:)     ! River reach parameter
