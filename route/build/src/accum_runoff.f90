@@ -30,7 +30,6 @@ CONTAINS
  ! subroutine: perform accumulate immediate upstream flow
  ! *********************************************************************
  SUBROUTINE accum_inst_runoff(this,         &  ! "accum_runoff_rchr" object to bound this procedure
-                              iEns,         &  ! input: index of runoff ensemble to be processed
                               segIndex,     &  ! input: index of reach to be processed
                               T0,T1,        &  ! input: start and end of the time step
                               NETOPO_in,    &  ! input: reach topology data structure
@@ -41,13 +40,12 @@ CONTAINS
  implicit none
  ! Argument variables
  class(accum_runoff_rch)                  :: this            ! "accum_runoff_rchr" object to bound this procedure
- integer(i4b),  intent(in)                :: iEns            ! runoff ensemble to be routed
  integer(i4b),  intent(in)                :: segIndex        ! segment where routing is performed
  real(dp),      intent(in)                :: T0,T1           ! start and end of the time step (seconds)
  type(RCHTOPO), intent(in),   allocatable :: NETOPO_in(:)    ! River Network topology
  type(RCHPRP),  intent(inout),allocatable :: RPARAM_in(:)    ! River reach parameter
- type(STRSTA),  intent(inout)             :: RCHSTA_out(:,:) ! reach state data
- type(STRFLX),  intent(inout)             :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ type(STRSTA),  intent(inout)             :: RCHSTA_out(:)   ! reach state data
+ type(STRFLX),  intent(inout)             :: RCHFLX_out(:)   ! Reach fluxes (space [reaches]) for decomposed domains
  integer(i4b),  intent(out)               :: ierr            ! error code
  character(*),  intent(out)               :: message         ! error message
  ! Local variables
@@ -62,17 +60,17 @@ CONTAINS
  ! identify number of upstream segments of the reach being processed
  nUps = size(NETOPO_in(segIndex)%UREACHI)
 
- RCHFLX_out(iEns,segIndex)%ROUTE(idxSUM)%REACH_Q = RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+ RCHFLX_out(segIndex)%ROUTE(idxSUM)%REACH_Q = RCHFLX_out(segIndex)%BASIN_QR(1)
 
  q_upstream = 0._dp
  if (nUps>0) then
 
    do iUps = 1,nUps
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%ROUTE(idxSUM)%REACH_Q
+     q_upstream = q_upstream + RCHFLX_out(iRch_ups)%ROUTE(idxSUM)%REACH_Q
    end do
 
-   RCHFLX_out(iEns,segIndex)%ROUTE(idxSUM)%REACH_Q = RCHFLX_out(iEns,segIndex)%ROUTE(idxSUM)%REACH_Q + q_upstream
+   RCHFLX_out(segIndex)%ROUTE(idxSUM)%REACH_Q = RCHFLX_out(segIndex)%ROUTE(idxSUM)%REACH_Q + q_upstream
 
  endif
 
@@ -85,11 +83,11 @@ CONTAINS
      write(fmt2,'(A,I5,A)') '(A,1X',nUps,'(1X,F20.7))'
      write(iulog,'(a)')             ' * upstream reach index (NETOPO_in%UREACH) and discharge (uprflux) [m3/s] :'
      write(iulog,fmt1)              ' UREACHK =', (NETOPO_in(segIndex)%UREACHK(iUps), iUps=1,nUps)
-     write(iulog,fmt2)              ' prflux  =', (RCHFLX_out(iens,NETOPO_in(segIndex)%UREACHI(iUps))%ROUTE(idxSUM)%REACH_Q, iUps=1,nUps)
+     write(iulog,fmt2)              ' prflux  =', (RCHFLX_out(NETOPO_in(segIndex)%UREACHI(iUps))%ROUTE(idxSUM)%REACH_Q, iUps=1,nUps)
    end if
    write(iulog,'(a)')             ' * local area discharge (RCHFLX_out%BASIN_QR(1)) and final discharge (RCHFLX_out%ROUTE(idxSUM)%REACH_Q) [m3/s] :'
-   write(iulog,'(a,1x,G15.4)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
-   write(iulog,'(a,1x,G15.4)')     ' RCHFLX_out%ROUTE(idxSUM)%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxSUM)%REACH_Q
+   write(iulog,'(a,1x,G15.4)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(segIndex)%BASIN_QR(1)
+   write(iulog,'(a,1x,G15.4)')     ' RCHFLX_out%ROUTE(idxSUM)%REACH_Q =', RCHFLX_out(segIndex)%ROUTE(idxSUM)%REACH_Q
  endif
 
  END SUBROUTINE accum_inst_runoff
