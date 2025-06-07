@@ -5,8 +5,8 @@ Welcome to mizuRoute documentation!
    :maxdepth: 2
 
    Intro
-   Input_data 
    Control_file
+   Input_data
    seg_hru_param
    testCase
 
