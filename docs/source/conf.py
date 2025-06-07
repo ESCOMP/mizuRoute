@@ -24,7 +24,7 @@ copyright = '2019, Naoki Mizukami'
 author = 'Naoki Mizukami'
 
 # The short X.Y version
-version = '1.1'
+version = 'cesm-coupling.n03_v2.2.0'
 # The full version, including alpha/beta/rc tags
 release = ''
 
