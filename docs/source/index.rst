@@ -8,5 +8,6 @@ Welcome to mizuRoute documentation!
    Control_file
    Input_data
    seg_hru_param
+   lake
    testCase
 
