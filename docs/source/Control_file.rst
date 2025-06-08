@@ -15,7 +15,7 @@ Example of control file is given in ``./route/settings/SAMPLE.control`` or see E
 Some of rules to keep in mind are:
 
 * Exclamation mark is for comment and after exclamation make is ignored for reading.
-* Format: ``<tag>    variable    ! comments``
+* Format: ``<tag>    value    ! comments``
 * tag is Fortran variable name and cannot be changed and have to be enclosed by <>
 * need ! after variable, otherwise getting error.
 * DO NOT include empty lines. You will get a runtime error.
@@ -28,6 +28,8 @@ It is difficult to instruct exactly what control variables a user needs to inclu
 For a basic river routing (no lake nor water management) with cold start and runoff input given at the same catchment as river network, the following control variables may be included at minimum. 
 Control variable with None default value, make sure to include and specify the proper value.
 Additional sets of control variables that are required for advanced simulations are provided after this minimum set of control variables. 
+
+For lake model, See :doc:`Lake model <lake>`.
 
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
 | tag                    | Default values  | Description                                                                                             |
@@ -141,18 +143,14 @@ River network augumentation or subsetting
 +========================+========================+==========================================================================+
 | <seg_outlet>           | -9999                  | outlet reach ID for subsetted river basin. See note 1                    |
 +------------------------+------------------------+--------------------------------------------------------------------------+
-| <ntopAugmentMode>      | F                      | logical to indicate river network augmention mode. See note 1.           |
+| <ntopAugmentMode>      | F                      | logical to indicate river network augmention mode. See note 2.           |
 +------------------------+------------------------+--------------------------------------------------------------------------+
-| <fname_ntopNew>        | <fname_ntopOld>_new.nc | output netCDF name for augmented river network. See note 1               |
+| <fname_ntopNew>        | <fname_ntopOld>_new.nc | output netCDF name for subsetted or augmented river network.             |
 +------------------------+------------------------+--------------------------------------------------------------------------+
 
-1. River network subset mode.
+#. River network subset mode: if <seg_outlet> is given, the river network topology and parameters read from <fname_ntopOld> are written in <fname_ntopNew> and the program stops.
 
-  * if <seg_outlet> is given, the river network topology and parameters read from <fname_ntopOld> are written in <fname_ntopNew> and the program stops.
-
-2. River network augmentation mode.
-
-  * All the computed river network topology and parameters are written in <fname_ntopNew> and the program stops.
+#. River network augmentation mode: All the computed river network topology and parameters are written in <fname_ntopNew> and the program stops.
 
 
 Runoff input and remapping options 
@@ -264,7 +262,7 @@ The output file name convension:  <case_name>.h.yyyy-mm-dd-sssss.nc
 3. routed runoff corresponding to the scheme is not ouput if users deactivate a particular routing scheme with <route_opt> tag.
 
 
-gauge data options
+Gauge data options
 ---------------------
 
 mizuRoute can read gauge observed discharge data (in netCDF) along with gauge meta ascii data. To read gauge observation and gauge metadata, the following control variables need to be specified.
