@@ -148,9 +148,9 @@ River network augumentation or subsetting
 | <fname_ntopNew>        | <fname_ntopOld>_new.nc | output netCDF name for subsetted or augmented river network.             |
 +------------------------+------------------------+--------------------------------------------------------------------------+
 
-#. River network subset mode: if <seg_outlet> is given, the river network topology and parameters read from <fname_ntopOld> are written in <fname_ntopNew> and the program stops.
+#. **River network subset mode:** If <seg_outlet> is given, network topology and parameters read from <fname_ntopOld> for just upstream of <seg_outlet> are written in <fname_ntopNew> and the program stops.
 
-#. River network augmentation mode: All the computed river network topology and parameters are written in <fname_ntopNew> and the program stops.
+#. **River network augmentation mode:** All the computed river network topology and parameters are written in <fname_ntopNew> and the program stops.
 
 
 Runoff input and remapping options 
