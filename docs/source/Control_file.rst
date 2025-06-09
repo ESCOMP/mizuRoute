@@ -2,37 +2,39 @@
 Control file
 ============
 
-Control file is a text file, defining all the model configurations such as simulation time, file names and directories, routing option etc.
-Variables in control file, referred to as contriol variables, are read in the beginning of the code (see ``./build/src/read_control.f90``) and 
-saved in fortran public variable specified by tag (inside <> in table) (see ``./build/src/public_var.f90``).
-Some of public varialbes have default values, but most of them are not defined.
-Some of undefined variables need to be defined in control file, depending on user's simulation option.
-Control variables that have their default values (e.g., history variable names) can be also included in control file to overwrite the values.
-The order of variables in the control file does not matter. However, grouping variables into similar themes is recommended for better readibility.
+**Control file** is a plain-text configuration file that defins all model settings, including simulation periods, file paths, routing option and more.
+Each setting is called **contriol variables** and is specified using a variable name enclosed in angle brackets (``<variable_name>``). 
+These control variables are read at the start of the simulation (see ``./route/build/src/read_control.f90``) and 
+stored in fortran's public variables defined in ``./route/build/src/public_var.f90``.
 
-Example of control file is given in ``./route/settings/SAMPLE.control`` or see Examples at bottom of this page.
+🔧Key Features:
+* Variables can be defined in any order in the control file, but grouping variables thematically improve readibility.
+* Control variables with default values can be also included to override those defaults.
 
-Some of rules to keep in mind are:
+📌Syntax Rules:
 
-* Exclamation mark is for comment and after exclamation make is ignored for reading.
-* Format: ``<tag>    value    ! comments``
-* tag is Fortran variable name and cannot be changed and have to be enclosed by <>
-* need ! after variable, otherwise getting error.
-* DO NOT include empty lines. You will get a runtime error.
+* Lines starting or after exclamation mark (``!``) are treated as comments and ignored. 
+* Each line must follow the Format: ``<control variable name>    value    ! comments``
+* Control variable name must match the corresponding Fortran variable name **exactly**.
+* A exclamation mark (``!``) must appear after the value even if you don't put any comment text; otherwise getting error.
+* **DO NOT include empty lines**-this will cause runtime errors.
 
+Example control file: See ``./route/settings/SAMPLE.control`` or scroll to the bottom of this page.
 
 Basic routing setup
 ------------------------------------------
 
-It is difficult to instruct exactly what control variables a user needs to include becase many custormized configurations could be made, e.g., turn on/off lakes, water management, floodplain etc.
-For a basic river routing (no lake nor water management) with cold start and runoff input given at the same catchment as river network, the following control variables may be included at minimum. 
-Control variable with None default value, make sure to include and specify the proper value.
-Additional sets of control variables that are required for advanced simulations are provided after this minimum set of control variables. 
+It is difficult to instruct exactly which control variables every user needs to include, becase configurations can vary widely depending on user's goal of simulation, e.g., turn on/off lakes, water management, floodplain etc.
+However, for a basic river routing without lake or water management-with cold start and runoff input provided at the same catchment as the river network-a user can get started with following control variables. 
+Control variable with None in default value must be included and assigned the appropriate value.
+Additional control variables, needed for more advanced simulations, are listed after this core set of the control variables. 
 
-For lake model, See :doc:`Lake model <lake>`.
+For lake model option, See :doc:`Lake model option <lake>`.
+
+For water management option, See :doc:`Water management option <water_management>`.
 
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| tag                    | Default values  | Description                                                                                             |
+| control variable       | Default value   | Description                                                                                             |
 +========================+=================+=========================================================================================================+
 | <case_name>            | None            | simulation case name. This used for output netCDF, and restart netCDF name                              |
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
@@ -139,7 +141,7 @@ River network augumentation or subsetting
 ------------------------------------------
 
 +------------------------+------------------------+--------------------------------------------------------------------------+
-| tag                    | Default values         | Description                                                              |
+| control variable       | Default values         | Description                                                              |
 +========================+========================+==========================================================================+
 | <seg_outlet>           | -9999                  | outlet reach ID for subsetted river basin. See note 1                    |
 +------------------------+------------------------+--------------------------------------------------------------------------+
@@ -162,7 +164,7 @@ Breifly, mapping can be either catchment (i.e., unstructure grid) to river netwo
 Here in control file, user needs to provides the following information on the maping file. 
 
 +--------+------------------------+----------------------------------------------------------------------------------------------------+
-| option | tag                    | Description                                                                                        |
+| option | control variable       | Descriptions                                                                                       |
 +========+========================+====================================================================================================+
 |        | <is_remap>             | Logical to indicate runoff needs to be remapped to RN_HRU. set T to activate remapping option      |
 +--------+------------------------+----------------------------------------------------------------------------------------------------+
@@ -196,7 +198,7 @@ at ``1980-12-31 00:00:00`` for daily time step. The restart file name uses the t
 The restart file name convension:  <case_name>.r.yyyy-mm-dd-sssss.nc
 
 +---------------------+---------------------------------------------------------------------------------------------------------+
-| tag                 | Description                                                                                             |
+| control variable    | Description                                                                                             |
 +=====================+=========================================================================================================+
 | <restart_write>     | restart ouput options. never (default), last, specified, yearly, monthly, daily.                        |
 +---------------------+---------------------------------------------------------------------------------------------------------+
@@ -259,7 +261,7 @@ The output file name convension:  <case_name>.h.yyyy-mm-dd-sssss.nc
 
 2. If runoff depth from runoff data is already delayed by hill-slope routing outside mizuRoute, <doesBasinRoute> should be set to 0. In this case, runoff volume computed from basRunoff is populated in <dlayRunoff> and <instRunoff> is not output.
 
-3. routed runoff corresponding to the scheme is not ouput if users deactivate a particular routing scheme with <route_opt> tag.
+3. routed runoff corresponding to the scheme is not ouput if users deactivate a particular routing scheme with <route_opt>.
 
 
 Gauge data options
@@ -271,7 +273,7 @@ gauge discharge data is used for data assimilation (current version does not inc
 Using gauge data, a user can output the simulation at gauge only output in addition to at the entire river network and/or direct insertion to modify discharge whenever observed discharge is available. 
 
 +---------------------+---------------------------------------------------------------------------------------------------------+
-| tag                 | Description                                                                                             |
+| control variable    | Description                                                                                             |
 +=====================+=========================================================================================================+
 | <gageMetaFile>      | gauge meta file (two column csv format): gauge_id (non-numeric ID is accepted), seg_id                  |
 +---------------------+---------------------------------------------------------------------------------------------------------+
@@ -297,7 +299,7 @@ Direct insertion, the simplest data assimilation, can be  performed at a list of
 To activate direct insertion of observed discharge into simulated discharge, the following control variables need to be specified.
 
 +---------------------+---------------------------------------------------------------------------------------------------------+
-| tag                 | Description                                                                                             |
+| control variable    | Description                                                                                             |
 +=====================+=========================================================================================================+
 | <qmodOption>        | activation of direct insertion. 0 -> do nothing, 1=> discharge direct insertion                         | 
 +---------------------+---------------------------------------------------------------------------------------------------------+
