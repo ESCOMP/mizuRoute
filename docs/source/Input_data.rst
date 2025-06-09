@@ -2,7 +2,9 @@
 Input data
 =================
 
-mizuRoute expects 2 or 3 input data depending on how runoff data is provided. 
+mizuRoute expects 2 or 3 input data depending on how runoff data is provided for river routing (more needed if activating lake, water management, solute transport, gauge data).
+This section describe input data required for river routing without those advanced features.
+
 If runoff data is provided at each river network HRU (RN_HRU), river network data and runoff data are expected.
 Otherwise, mizuRoute needs to remap runoff at hydrologic model HRU (HM_HRU) to river network HRU with areal weight averaging. 
 In this case, one additional data, remapping data, is required. All the data need to be stored in netCDF.
@@ -45,7 +47,7 @@ Minimum variables required
 +------------+------------+-----------+-------+---------------------------------------------+
 | area       | hru        | m2        | real  | hru area                                    |
 +------------+------------+-----------+-------+---------------------------------------------+
-| slope      | seg        | ``-``     | real  | slope of segment                            |
+| slope      | seg        | ``-``     | real  | slope of segment (elevation drop/length)    |
 +------------+------------+-----------+-------+---------------------------------------------+
 | length     | seg        | m         | real  | length of segment                           |
 +------------+------------+-----------+-------+---------------------------------------------+
