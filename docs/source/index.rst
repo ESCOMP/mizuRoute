@@ -9,5 +9,6 @@ Welcome to mizuRoute documentation!
    Input_data
    seg_hru_param
    lake
+   water_management 
    testCase
 
