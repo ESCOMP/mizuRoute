@@ -73,9 +73,9 @@ Dimensions
 +--------+-----------+---------------------------------------------+
 | 1      | RN_HRU    | river network catchment or HRU dimension    | 
 +--------+-----------+---------------------------------------------+
-| 2      | HM_HRU    | hydrologic model catchment or HRU dimension | 
+|   2    | HM_HRU    | hydrologic model catchment or HRU dimension | 
 +--------+-----------+---------------------------------------------+
-| 3      | i         | x direction dimension                       | 
+|     3  | i         | x direction dimension                       | 
 +        +-----------+---------------------------------------------+
 |        | j         | y direction dimension                       | 
 +--------+-----------+---------------------------------------------+
@@ -89,13 +89,13 @@ Variables
 +--------+-----------+--------------+--------------------------------------+-------+-------------------------+
 | 1      | RN_hruID  | RN_hru       | ``-``                                | int   | river network HRU ID    | 
 +--------+-----------+--------------+--------------------------------------+-------+-------------------------+
-| 2      | HM_hruID  | HM_hru       | ``-``                                | int   | hydrologic model HRU ID | 
+|   2    | HM_hruID  | HM_hru       | ``-``                                | int   | hydrologic model HRU ID | 
 +--------+-----------+--------------+--------------------------------------+-------+-------------------------+
 | 1      | runoff    | time, RN_hru | [length-unit]/[time-unit]            | real  | total runoff            |
 +--------+           +--------------+                                      +       +                         +
-| 2      |           | time, HM_hru |                                      |       |                         |
+|   2    |           | time, HM_hru |                                      |       |                         |
 +--------+           +--------------+                                      +       +                         +
-| 3      |           | time, i, j   |                                      |       |                         |
+|     3  |           | time, i, j   |                                      |       |                         |
 +--------+-----------+--------------+--------------------------------------+-------+-------------------------+
 
 Attributes: Time variable need at least 2 attributes- *units* and *calendar*. Four types of calendar can be handled. These are noleap, standard, gregorian, and proleptic_gregorian.
@@ -127,8 +127,18 @@ Required runoff mapping netCDF variables
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
 | 2      | HM_hruId   | data      | ``-`` | int   | ID of overlapping HM_HRUs                     |
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
-| 3      | i_index    | data      | ``-`` | int   | i direction index overlapping grid boxes      |
+|   3    | i_index    | data      | ``-`` | int   | i direction index overlapping grid boxes      |
 +        +------------+-----------+-------+-------+-----------------------------------------------+
 |        | j_index    | data      | ``-`` | int   | j direction index overlapping grid boxes      |
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
+
+The figure below may visualize how two runoff grid (option 3) intersect with river network catchment and the areal weight for each overlapped grid box parts are used to compute runoff over river network catchment 
+
+.. image:: images/mapping_schematic.png
+  :width: 400
+
+Creating a mapping is basically GIS intersection of two geometries, and there are a few tools available to create the netCDF with required data:
+
+#. EASYMORE (https://github.com/ShervanGharari/EASYMORE)
+
 
