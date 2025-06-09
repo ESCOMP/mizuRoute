@@ -1,5 +1,5 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4395155.svg)](https://doi.org/10.5281/zenodo.4395155)
-[![Documentation Status](https://readthedocs.org/projects/mizuroute/badge/?version=main)](https://mizuroute.readthedocs.io/en/latest/?badge=main)
+[![Documentation Status](https://readthedocs.org/projects/mizuroute/badge/?version=serial&style=flat)](https://mizuroute.readthedocs.io/en/serial/?badge=serial)
 
 # mizuRoute
 Stand-alone mizuRoute is a post-processor of runoff output from a hydrologic model or Land surface model to produce streamflow estimates in the river network provided by a user. The tool was developed for the large scale, network based river routing (e.g., river network over contiguous United States), but works for gridded river network as well.
