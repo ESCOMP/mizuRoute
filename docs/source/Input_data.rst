@@ -135,7 +135,7 @@ Required runoff mapping netCDF variables
 The figure below may visualize how two runoff grid (option 3) intersect with river network catchment and the areal weight for each overlapped grid box parts are used to compute runoff over river network catchment 
 
 .. image:: images/mapping_schematic.png
-  :width: 400
+  :width: 600
 
 Creating a mapping is basically GIS intersection of two geometries, and there are a few tools available to create the netCDF with required data:
 
