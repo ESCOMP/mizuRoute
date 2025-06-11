@@ -132,7 +132,9 @@ Required runoff mapping netCDF variables
 |        | j_index    | data      | ``-`` | int   | j direction index overlapping grid boxes      |
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
 
-The figure below visualizes intersection between runoff grid (option 3) and river network catchment and how areal weight (i.e., fractions of each overlapped grid boxes) are stored in netCDF and used to compute runoff over river network catchment 
+The figure below visualizes intersection between runoff grid (option 3) and river network catchment (hru) polygon, and show how areal weighted average runoff for hru, *c:subscript:`c`*.
+In this example, river network hru, *c:subscript:`c`*, has 11 overlapping grid boxes (nOverlaps=11 in a mapping netCDF) and corresponding weights (i.e., fractions of each overlapped grid boxes to total area of ck) as well as i_index and j_index.
+In a mapping netCDF, all 1D arrays of weights (and i_index and j_index) from all the hrus are combined for a large single 1D array. 
 
 .. image:: images/mapping_schematic.png
   :width: 600
