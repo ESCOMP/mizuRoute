@@ -132,7 +132,7 @@ Required runoff mapping netCDF variables
 |        | j_index    | data      | ``-`` | int   | j direction index overlapping grid boxes      |
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
 
-The figure below may visualize how two runoff grid (option 3) intersect with river network catchment and the areal weight for each overlapped grid box parts are used to compute runoff over river network catchment 
+The figure below visualizes intersection between runoff grid (option 3) and river network catchment and how areal weight (i.e., fractions of each overlapped grid boxes) are stored in netCDF and used to compute runoff over river network catchment 
 
 .. image:: images/mapping_schematic.png
   :width: 600
