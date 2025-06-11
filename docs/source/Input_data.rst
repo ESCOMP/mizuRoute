@@ -139,6 +139,6 @@ The figure below may visualize how two runoff grid (option 3) intersect with riv
 
 Creating a mapping is basically GIS intersection of two geometries, and there are a few tools available to create the netCDF with required data:
 
-#. EASYMORE (https://github.com/ShervanGharari/EASYMORE)
+#. mizuRoute_remapping (https://github.com/ShervanGharari/mizuRoute_remapping)
 
 
