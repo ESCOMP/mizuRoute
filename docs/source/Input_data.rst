@@ -104,7 +104,7 @@ Time unit format is shown in the table.
 Runoff mapping data
 -------------------
 
-For runoff input options 2 and 3, runoff mapping data, also in netCDF format, is necessary to compute runoff value for each river network HRU
+For runoff input options 2 and 3, runoff mapping data in netCDF must be provided so that weighted average runoff value is computed for each river network HRU.
 
 +--------+-----------+---------------------------------------------+
 | Option | Dimension | Description                                 |
@@ -132,14 +132,14 @@ Required runoff mapping netCDF variables
 |        | j_index    | data      | ``-`` | int   | j direction index overlapping grid boxes      |
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
 
-The figure below visualizes intersection between runoff grid (option 3) and river network catchment (hru) polygon, and show how areal weighted average runoff for hru, c\ :sub:`k`\.
-In this example, river network hru, c\ :sub:`k`\, has 11 overlapping grid boxes (nOverlaps=11 in a mapping netCDF) and corresponding weights (i.e., fractions of each overlapped grid boxes to total area of ck) as well as i_index and j_index.
-In a mapping netCDF, all 1D arrays of weights (and i_index and j_index) from all the hrus are combined for a large single 1D array. 
+Creating a mapping is basically GIS intersection of two geometries. The figure below visualizes intersection between runoff grid (option 3) and river network catchment (HRU) polygons. 
+This example (right bottom) shows river network HRU, c\ :sub:`k`\, has 11 overlapping grid boxes (nOverlaps=11 in a mapping netCDF. see table above) and corresponding weights (i.e., fractions of each overlapped grid boxes to total area of c\ :sub:`k`\) as well as i_index and j_index.
+In a mapping netCDF, all 1D arrays of weights (and i_index and j_index) from each HRU are combined for a large single 1D array. The order of the arrays from each HRU must match the order of RN_hruId
 
 .. image:: images/mapping_schematic.png
   :width: 600
 
-Creating a mapping is basically GIS intersection of two geometries, and there are a few tools available to create the netCDF with required data:
+There are a few tools available to create the netCDF with required data:
 
 #. mizuRoute_remapping (https://github.com/ShervanGharari/mizuRoute_remapping)
 
