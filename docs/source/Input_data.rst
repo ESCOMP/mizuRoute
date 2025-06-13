@@ -2,7 +2,9 @@
 Input data
 =================
 
-mizuRoute expects 2 or 3 input data depending on how runoff data is provided. 
+mizuRoute expects 2 or 3 input data depending on how runoff data is provided for river routing (more needed if activating lake, water management, solute transport, gauge data).
+This section describe input data required for river routing without those advanced features.
+
 If runoff data is provided at each river network HRU (RN_HRU), river network data and runoff data are expected.
 Otherwise, mizuRoute needs to remap runoff at hydrologic model HRU (HM_HRU) to river network HRU with areal weight averaging. 
 In this case, one additional data, remapping data, is required. All the data need to be stored in netCDF.
@@ -45,7 +47,7 @@ Minimum variables required
 +------------+------------+-----------+-------+---------------------------------------------+
 | area       | hru        | m2        | real  | hru area                                    |
 +------------+------------+-----------+-------+---------------------------------------------+
-| slope      | seg        | ``-``     | real  | slope of segment                            |
+| slope      | seg        | ``-``     | real  | slope of segment (elevation drop/length)    |
 +------------+------------+-----------+-------+---------------------------------------------+
 | length     | seg        | m         | real  | length of segment                           |
 +------------+------------+-----------+-------+---------------------------------------------+
@@ -71,9 +73,9 @@ Dimensions
 +--------+-----------+---------------------------------------------+
 | 1      | RN_HRU    | river network catchment or HRU dimension    | 
 +--------+-----------+---------------------------------------------+
-| 2      | HM_HRU    | hydrologic model catchment or HRU dimension | 
+|   2    | HM_HRU    | hydrologic model catchment or HRU dimension | 
 +--------+-----------+---------------------------------------------+
-| 3      | i         | x direction dimension                       | 
+|     3  | i         | x direction dimension                       | 
 +        +-----------+---------------------------------------------+
 |        | j         | y direction dimension                       | 
 +--------+-----------+---------------------------------------------+
@@ -87,13 +89,13 @@ Variables
 +--------+-----------+--------------+--------------------------------------+-------+-------------------------+
 | 1      | RN_hruID  | RN_hru       | ``-``                                | int   | river network HRU ID    | 
 +--------+-----------+--------------+--------------------------------------+-------+-------------------------+
-| 2      | HM_hruID  | HM_hru       | ``-``                                | int   | hydrologic model HRU ID | 
+|   2    | HM_hruID  | HM_hru       | ``-``                                | int   | hydrologic model HRU ID | 
 +--------+-----------+--------------+--------------------------------------+-------+-------------------------+
 | 1      | runoff    | time, RN_hru | [length-unit]/[time-unit]            | real  | total runoff            |
 +--------+           +--------------+                                      +       +                         +
-| 2      |           | time, HM_hru |                                      |       |                         |
+|   2    |           | time, HM_hru |                                      |       |                         |
 +--------+           +--------------+                                      +       +                         +
-| 3      |           | time, i, j   |                                      |       |                         |
+|     3  |           | time, i, j   |                                      |       |                         |
 +--------+-----------+--------------+--------------------------------------+-------+-------------------------+
 
 Attributes: Time variable need at least 2 attributes- *units* and *calendar*. Four types of calendar can be handled. These are noleap, standard, gregorian, and proleptic_gregorian.
@@ -102,7 +104,7 @@ Time unit format is shown in the table.
 Runoff mapping data
 -------------------
 
-For runoff input options 2 and 3, runoff mapping data, also in netCDF format, is necessary to compute runoff value for each river network HRU
+For runoff input options 2 and 3, runoff mapping data in netCDF must be provided so that weighted average runoff value is computed for each river network HRU.
 
 +--------+-----------+---------------------------------------------+
 | Option | Dimension | Description                                 |
@@ -125,8 +127,20 @@ Required runoff mapping netCDF variables
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
 | 2      | HM_hruId   | data      | ``-`` | int   | ID of overlapping HM_HRUs                     |
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
-| 3      | i_index    | data      | ``-`` | int   | i direction index overlapping grid boxes      |
+|   3    | i_index    | data      | ``-`` | int   | i direction index overlapping grid boxes      |
 +        +------------+-----------+-------+-------+-----------------------------------------------+
 |        | j_index    | data      | ``-`` | int   | j direction index overlapping grid boxes      |
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
+
+Creating a mapping is basically GIS intersection of two geometries. The figure below visualizes intersection between runoff grid (option 3) and river network catchment (HRU) polygons. 
+This example (right bottom) shows river network HRU, c\ :sub:`k`\, has 11 overlapping grid boxes (nOverlaps=11 in a mapping netCDF. see table above) and corresponding weights (i.e., fractions of each overlapped grid boxes to total area of c\ :sub:`k`\) as well as i_index and j_index.
+In a mapping netCDF, all 1D arrays of weights (and i_index and j_index) from each HRU are combined for a large single 1D array. The order of the arrays from each HRU must match the order of RN_hruId
+
+.. image:: images/mapping_schematic.png
+  :width: 600
+
+There are a few tools available to create the netCDF with required data:
+
+#. mizuRoute_remapping (https://github.com/ShervanGharari/mizuRoute_remapping)
+
 
