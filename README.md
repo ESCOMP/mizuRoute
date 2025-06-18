@@ -38,5 +38,4 @@ For real application, getting river network data (netCDF) might be time consumin
 LICENSE
 -------
 
-mizuRoute is [licensed](LICENSE.txt) under Apache 2.0 with the [LLVM exception](https://lwn.net/Articles/701155/) to explicitly allow projects licensed under GPLv2 to
-to publish the mizuRoute source code as supplementary material in scientific journal articles. And just be be included in and distributed with projects licensed under GPLv2.
+mizuRoute is [licensed](LICENSE.txt) under Apache 2.0
