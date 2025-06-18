@@ -5,11 +5,10 @@
 .. toctree::
    :maxdepth: 2
 
-   Intro
-   Control_file
-   Input_data
-   seg_hru_param
-   lake
-   water_management 
-   testCase
-
+   Intro.rst
+   Control_file.rst
+   Input_data.rst
+   seg_hru_param.rst
+   lake.rst
+   water_management.rst
+   testCase.rst
