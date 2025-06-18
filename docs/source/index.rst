@@ -7,3 +7,4 @@ Welcome to mizuRoute documentation!
 
    users_guide/index.rst
    tech_note/index.rst
+   reference.rst
