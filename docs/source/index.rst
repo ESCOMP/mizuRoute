@@ -3,12 +3,8 @@ Welcome to mizuRoute documentation!
 
 .. toctree::
    :maxdepth: 2
+   :numbered:
 
-   Intro
-   Control_file
-   Input_data
-   seg_hru_param
-   lake
-   water_management 
-   testCase
-
+   users_guide/index.rst
+   tech_note/index.rst
+   reference.rst
