@@ -14,31 +14,40 @@ A fundamental equations for river reach routing start with Saint-Venant equation
 .. math::
    :label: 0.2 
 
-   \frac{\partial Q }{\partial t} + \frac{\partial \frac{Q^{2}}{A} }{\partial x} + gA\frac{\partial h }{\partial x} = gA(S_{0}-S_{f}) 
+   \frac{\partial Q }{\partial t} + \frac{\partial }{\partial x}(\frac{Q^{2}}{A}) + gA\frac{\partial h }{\partial x} = gA(S_{0}-S_{f}) 
 
 
+.. _Impulse_response_function:
 
 Impulse response function
 --------------------------
 
 blah blah
 
+.. _Lagrangian_kinematic_wave:
+
 Lagrangian kinmatic wave
 --------------------------
 
 blah blah
+
+.. _Euler_kinematic_wave:
 
 Euler kinmatic wave
 --------------------------
 
 blah blah
 
+.. _Muskingum-Cunge:
+
 Muskingum-Cunge
 --------------------------
 
 blah blah
 
-Diffusive Wave
+.. _Diffusive_wave:
+
+Diffusive wave
 --------------------------
 
 blah blah
