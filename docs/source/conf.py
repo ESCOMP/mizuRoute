@@ -40,7 +40,16 @@ release = ''
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.mathjax',
 ]
+
+math_number_all = True
+math_eqref_format = "({number})"
+
+latex_elements = {
+    'numbered_equations': True,
+    'equation_numbering': 'bysection',
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
