@@ -25,9 +25,10 @@ Basic routing setup
 ------------------------------------------
 
 It is difficult to instruct exactly which control variables every user needs to include, becase configurations can vary widely depending on user's goal of simulation, e.g., turn on/off lakes, water management, floodplain etc.
-However, for a basic river routing without lake or water management-with cold start and runoff input provided at the same catchment as the river network-a user can get started with following control variables. 
+
+For a simple river routing without lake or water management-with cold start and runoff input provided at the same catchment as the river network, a user can get started with following control variables. 
 Control variable with None in default value must be included and assigned the appropriate value.
-Additional control variables, needed for more advanced simulations, are listed after this core set of the control variables. 
+Additional control variables, needed for more advanced simulations, are listed after this basic set of the control variables. 
 
 For lake model option, See :doc:`Lake model option <lake>`.
 
@@ -110,7 +111,7 @@ For water management option, See :doc:`Water management option <water_management
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
 | <computeReachList>     | 1               | option to compute list of upstream reaches (0=do not compute, 1=compute)                                |
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-Terminologies: RN_HRU=river network hru (or catchment), HM_HRU=hydrologic model (or forcing) hru. forcing means runoff, evaporation and precipitation for lake routing, solutes for solute transport
+Terminologies: RN_HRU=River Network HRU (Hydrologic Response Unit or simply catchment), HM_HRU=hydrologic model (or forcing) HRU. HRU can be grid box. "Forcing" for river model means runoff, evaporation and precipitation for lake routing, solutes for solute transport
 
 1. Often river network data has different variable names than defaults. In this case, variable names can be speficied in control file as well. See :doc:`River parameters <seg_hru_param>`.
 
@@ -140,6 +141,7 @@ Terminologies: RN_HRU=river network hru (or catchment), HM_HRU=hydrologic model 
 River network augumentation or subsetting
 ------------------------------------------
 
+
 +------------------------+------------------------+--------------------------------------------------------------------------+
 | control variable       | Default values         | Description                                                              |
 +========================+========================+==========================================================================+
@@ -158,8 +160,9 @@ River network augumentation or subsetting
 Runoff input and remapping options 
 ---------------------
 
-In most of cases, mizuRoute forcing (e.g., runoff, precipitation and evaporation used for lake water balance, solutes) are not provided as the same catchments/grid boxes. In such a case, remapping (or regridding) are required to estimate forcing variables at mizuRoute catchment. 
-mizuRoute has a capability to remap forcing at different catchments or grid to catchment or grid defined in river network used for routing using weighted average. However, user needs to provide mapping file in netCDF. See :doc:`Input data <Runoff mapping data>` for mapping file structure. 
+mizuRoute forcing (e.g., runoff, precipitation and evaporation used for lake water balance, solutes) may be provided at the different HRU than mizuRoute river network HRU. In such a case, remapping (or regridding) are required to estimate forcing variables at mizuRoute HRU. 
+mizuRoute has a capability to remap forcing at different catchments or grid to catchment or grid defined in river network used for routing using weighted average. A user needs to provide a mapping file in netCDF. 
+See :ref:`Runoff mapping data <Runoff_mapping_data>` for mapping file structure. 
 Breifly, mapping can be either catchment (i.e., unstructure grid) to river network catchment (option 2) or grid to river network catchment (option 3). option 1 is forcing provided at the same catchment as the one in river network, in which case no mapping is required.
 Here in control file, user needs to provides the following information on the maping file. 
 
@@ -219,7 +222,7 @@ The restart file name convension:  <case_name>.r.yyyy-mm-dd-sssss.nc
 History output options 
 ---------------------
 
-The following variables, besides time, basinID (RN_hru ID) and reachID can be output in netCDF. Users can control which variables are output by setting <variable_name> to T or F in control file. All the variables are set to T by default.
+The following variables, besides time, basinID (RN_HRU ID) and reachID can be output in netCDF. Users can control which variables are output by setting <variable_name> to T or F in control file. All the variables are set to T by default.
 The output file name includes a timie stamp at the first time step.
 The output file name convension:  <case_name>.h.yyyy-mm-dd-sssss.nc
 
