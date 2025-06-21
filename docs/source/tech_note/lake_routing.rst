@@ -1,4 +1,4 @@
-lake water balance computation
+Lake water balance computation
 ================================
 
 mizuRoute include one method-Doll-to compute natural lake discharge, and two methods-Hanasaki and HYPE- to compute discharge for managed lake.

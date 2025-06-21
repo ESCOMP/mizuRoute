@@ -1,3 +1,5 @@
+.. _Control_file:
+
 ============
 Control file
 ============
