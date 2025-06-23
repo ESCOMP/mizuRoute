@@ -23,6 +23,8 @@ stored in fortran's public variables defined in ``./route/build/src/public_var.f
 
 Example control file: See ``./route/settings/SAMPLE.control`` or scroll to the bottom of this page.
 
+.. _Basic_routing_setup:
+
 Basic routing setup
 ------------------------------------------
 
@@ -140,6 +142,8 @@ Terminologies: RN_HRU=River Network HRU (Hydrologic Response Unit or simply catc
   * The abovementioned restrictions are check in the code, so any violations are notified as error and the program is terminated.
 
 
+.. _River_network_augumentation_or_subsetting:
+
 River network augumentation or subsetting
 ------------------------------------------
 
@@ -158,6 +162,8 @@ River network augumentation or subsetting
 
 #. **River network augmentation mode:** All the computed river network topology and parameters are written in <fname_ntopNew> and the program stops.
 
+
+.. _Runoff_input_and_remapping_options:
 
 Runoff input and remapping options 
 ---------------------
@@ -193,6 +199,8 @@ Here in control file, user needs to provides the following information on the ma
 +--------+------------------------+----------------------------------------------------------------------------------------------------+
 
 
+.. _Restart_options:
+
 Restart options 
 ---------------------
 
@@ -220,6 +228,8 @@ The restart file name convension:  <case_name>.r.yyyy-mm-dd-sssss.nc
 | <fname_state_in>    | input restart netCDF name. If not specified, simulation start with cold start                           |
 +---------------------+---------------------------------------------------------------------------------------------------------+
 
+
+.. _History_output_options:
 
 History output options 
 ---------------------
@@ -269,6 +279,8 @@ The output file name convension:  <case_name>.h.yyyy-mm-dd-sssss.nc
 3. routed runoff corresponding to the scheme is not ouput if users deactivate a particular routing scheme with <route_opt>.
 
 
+.. _Gauge_data_options:
+
 Gauge data options
 ---------------------
 
@@ -312,6 +324,8 @@ To activate direct insertion of observed discharge into simulated discharge, the
 +---------------------+---------------------------------------------------------------------------------------------------------+
 | <QerrTrend>         | temporal discharge error trend. 1->constant, 2->linear, 3->logistic, 4->exponential                     |
 +---------------------+---------------------------------------------------------------------------------------------------------+
+
+.. _Control_file_basic_examples:
 
 Control file basic examples
 --------------------------
