@@ -15,7 +15,11 @@ To compile mizuRoute, you will need:
 
 - Fortran compiler: We recommend using the intel Fortran compiler or the gcc compiler, the latter of which is freely available. Since mizuRoute does not use any compiler-specific extensions, you should be able to compile mizuRoute with other Fortran compilers such as NAG as well.
 
+..
+
 - MPI (message passing interface) library: OpenMPI is freely available and has been tested in mizuRoute. 
+
+..
 
 - NetCDF libraries: `NetCDF <http://www.unidata.ucar.edu/software/netcdf/>`_ or the Network Common Data Format is a set of software libraries and self-describing, machine-independent data formats that support the creation, access, and sharing of array-oriented scientific data. 
 
@@ -26,6 +30,8 @@ To compile mizuRoute, you will need:
   - You will have to have both NetCDF Fortran library installed (``libnetcdff.*``) and the C-version (``libnetcdf.*``).
 
 - PnetCDF libraries (optional): `PnetCDF <https://parallel-netcdf.github.io/>`_ is a parallel I/O library for accessing Unidata's NetCDF (above).
+
+..
 
 - CMake: 
 
