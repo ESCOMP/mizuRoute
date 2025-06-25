@@ -74,6 +74,8 @@ First, understand how mizuRoute directory is structured. There are hidden direct
 
 1. Navigate to your local copy of the mizuRoute top directory. 
 
+..
+
 2. Obtain ParallelIO library through git-fleximod tool that is already installed under ``mizuRoute/bin``. 
 
      Execute::
@@ -84,6 +86,8 @@ First, understand how mizuRoute directory is structured. There are hidden direct
      See mizuRoute/README_EXTERNALS.rst for more details. 
 
 3. Go to the ``route/build`` subdirectory.
+
+..
 
 4. Specify a number of environment variables that are used by the build process. 
    If you are using the ``bash`` shell, then you would set these environment variables with ``export``, e.g., ``export FC=gnu``.
@@ -129,7 +133,9 @@ First, understand how mizuRoute directory is structured. There are hidden direct
 NOTE:
 
    - You may add the variables directly in the ``Makefile``, rather than setting them as environment variables. They are located under ``User configure part``. 
-     if you do that, you will just execute ``make``
+     if you do that, you will just execute ``make`` (make sure to define ``EXE=<mizuRoute executable name>``)
+
+..
 
    - To find netCDF and pnetCDF pathes, the following command might help.
 
