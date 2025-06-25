@@ -19,14 +19,18 @@ To compile mizuRoute, you will need:
 
 - MPI (message passing interface) library. OpenMPI is freely available and has been tested in mizuRoute. 
 
+
 - NetCDF libraries. `NetCDF <http://www.unidata.ucar.edu/software/netcdf/>`_ or the Network Common Data Format is a set of software libraries and self-describing, machine-independent data formats that support the creation, access, and sharing of array-oriented scientific data. 
-Most \*nix package managers include a NetCDF port. Note that you need to ensure that:
+
+  Most \*nix package managers include a NetCDF port. Note that you need to ensure that:
 
   - You have NetCDF version 4.x;
   - The NetCDF libraries are compiled with the same compiler as you plan to use for compiling mizuRoute; and
   - You will have to have both NetCDF Fortran library installed (``libnetcdff.*``) and the C-version (``libnetcdf.*``).
 
+
 - PnetCDF libraries (optional). `PnetCDF <https://parallel-netcdf.github.io/>`_ is a parallel I/O library for accessing Unidata's NetCDF (above).
+
 
 - CMake. 
 
@@ -66,7 +70,9 @@ First, understand how mizuRoute directory is structured. There are hidden direct
          ├── readme.md
          └── EADME_EXTERNALS.rst
 
+
 1. Navigate to your local copy of the mizuRoute top directory. 
+
 
 2. Obtain ParallelIO library through git-fleximod tool that is already installed under ``mizuRoute/bin``. 
 
@@ -77,9 +83,13 @@ First, understand how mizuRoute directory is structured. There are hidden direct
 
      See mizuRoute/README_EXTERNALS.rst for more details. 
 
+
 3. Go to the ``route/build`` subdirectory.
 
-4. Specify a number of environment variables that are used by the build process. You will need to set the following:
+
+4. Specify a number of environment variables that are used by the build process. 
+   If you are using the ``bash`` shell, then you would set these environment variables with ``export``, e.g., ``export FC=gnu``.
+   You will need to set the following:
 
    - ``BLDDIR``: This is the parent directory of the ``build`` directory.
 
@@ -88,7 +98,6 @@ First, understand how mizuRoute directory is structured. There are hidden direct
          export BLDDIR=`pwd`/../
 
    - ``FC``: Define the compiler family. This is only used to determine the compiler flags.
-     If your compiler is not included, you will need to add the relevant section to the ``Makefile``.
 
      Example::
 
@@ -106,11 +115,24 @@ First, understand how mizuRoute directory is structured. There are hidden direct
 
          export NCDF_PATH=/opt/homebrew/
 
-   - ``PNETCDF_PATH``: This is the path to the PnetCDF.
+   - ``PNETCDF_PATH``: This is the path to the PnetCDF (optional).
 
      Example (if pnetcdf is intalled with homebrew)::
 
          export PNETCDF_PATH=/opt/homebrew/
+
+
+5. Once you have set up the environmental variables above, use the following command.
+
+     ::
+     
+         make FC=$FC FC_EXE=$FC_EXE F_MASTER=$BLDDIR NCDF_PATH=$NCDF_PATH PNETCDF_PATH=$PNETCDF_PATH EXE=route_runoff 
+
+
+NOTE:
+
+   - You may add the variables directly in the ``Makefile``, rather than setting them as environment variables. They are located under ``User configure part``. 
+     if you do that, you will just execute ``make``
 
 
    - To find netCDF and pnetCDF pathes, the following command might help.
@@ -119,32 +141,11 @@ First, understand how mizuRoute directory is structured. There are hidden direct
 
          find / -type f( -name "libnetcdf*.so*" \)
 
-   If you are using the ``bash`` shell, then you would set these environment variables with ``export``, e.g., ``export FC=gnu``.
-   You may need to modify the ``Makefile`` if you are using a different Fortran compiler or your setup is different.
-   If someone wants to contribute an actual ``configure`` script, that would be great.
 
-   - If you are compiling mizuRoute using packages installed through ``Homebrew``, then use the following entries in Part 0 of Makefile.
-     *Date updated: May-2025*
-
-     ::
-
-         FC = gnu
-         FC_EXE = mpif90
-         NETCDF = /opt/homebrew/ 
-         PNETCDF = /opt/homebrew/ 
-
-5. Once you have set up the environmental variables above, use the following command.
-
-     ::
-     
-         make FC=$FC FC_EXE=$FC_EXE F_MASTER=$BLDDIR NCDF_PATH=$NETCDF_PATH PNETCDF_PATH=$PNETCDF_PATH EXE=route_runoff 
-
-
-NOTE:
-Often, netCDF-fortran and netCDF (c-version) libraries are located in separate location. If so
+   - Often, netCDF-fortran and netCDF (c-version) libraries are located in separate location. If so, set variables ``NCDF_FORTRAN_PATH`` and ``NCDF_C_PATH``
 
      ::
 
         export NCDF_FORTRAN_PATH=<path_to_netcdf-fortran>
         export NCDF_C_PATH=<path_to_netcdf>
-        make FC=$FC FC_EXE=$FC_EXE F_MASTER=$BLDDIR NCDF_C_PATH=$NETCDF_C_PATH NCDF_FORTRAN_PATH=$NCDF_FORTRAN_PATH PNETCDF_PATH=$PNETCDF_PATH EXE=route_runoff
+        make FC=$FC FC_EXE=$FC_EXE F_MASTER=$BLDDIR NCDF_C_PATH=$NCDF_C_PATH NCDF_FORTRAN_PATH=$NCDF_FORTRAN_PATH PNETCDF_PATH=$PNETCDF_PATH EXE=route_runoff
