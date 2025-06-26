@@ -142,11 +142,10 @@ Terminologies: RN_HRU=River Network HRU (Hydrologic Response Unit or simply catc
   * The abovementioned restrictions are check in the code, so any violations are notified as error and the program is terminated.
 
 
-.. _River_network_augumentation_or_subsetting:
+.. _River_network_augmentation_or_subsetting:
 
-River network augumentation or subsetting
+River network augmentation or subsetting
 ------------------------------------------
-
 
 +------------------------+------------------------+--------------------------------------------------------------------------+
 | control variable       | Default values         | Description                                                              |
