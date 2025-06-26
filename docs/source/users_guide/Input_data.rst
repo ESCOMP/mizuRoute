@@ -1,3 +1,5 @@
+.. _Input_data:
+
 =================
 Input data
 =================
@@ -13,6 +15,8 @@ Basic netCDF requirement (variable, dimension, etc) are discussed below.
 Dimension and variable names list mizuRoute default name but can be whatever. 
 If they are not default name, the variable names need to be speficied in :doc:`control file <Control_file>`.
 Some of variables and dimensions (even if they are the same as default name) have to be specified in :doc:`control file <Control_file>`
+
+.. _River_network_data:
 
 River network data
 ------------------
@@ -54,6 +58,8 @@ Minimum variables required
 
 Negative or zero (<=0) value for downSegId and hruSegId is reserved for no downstream reach, meaning that such reach or hru does not flow into any reach.
 (i.e., basin outlet). For this reason, segID is required to use positive integer value (>0).
+
+.. _Runoff_data:
 
 Runoff data
 -----------
@@ -100,6 +106,8 @@ Variables
 
 Attributes: Time variable need at least 2 attributes- *units* and *calendar*. Four types of calendar can be handled. These are noleap, standard, gregorian, and proleptic_gregorian.
 Time unit format is shown in the table.
+
+.. _Runoff_mapping_data:
 
 Runoff mapping data
 -------------------

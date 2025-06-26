@@ -1,3 +1,5 @@
+.. _Lake_model:
+
 Lake model
 ============
 
