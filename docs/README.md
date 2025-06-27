@@ -1,5 +1,7 @@
 # Working on documentation
 
+mizuRoute documentation is written in reStructuredText (RST) format. All the rst files are under source directory.
+
 ## Instruction for local doc build after you changes rst files 
 
 0. If you have not created sphinx python environment, please create it first 
@@ -22,5 +24,7 @@
     python3 -m http.server
     ```
 
-3. Open your browser and copy `http://localhost:8000/` in address bar to see the docs in HTML. 
+3. Open your browser and copy `http://localhost:8000/` in address bar 
 
+
+4. Navigate build/html to see the docs in HTML. 
