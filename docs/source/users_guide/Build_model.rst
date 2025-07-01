@@ -15,15 +15,15 @@ Dependencies
 
 To compile mizuRoute, you will need:
 
-- Fortran compiler: We recommend using the intel Fortran compiler or the gcc compiler, the latter of which is freely available. Since mizuRoute does not use any compiler-specific extensions, you should be able to compile mizuRoute with other Fortran compilers such as NAG as well.
+- **Fortran compiler**: We recommend using the intel Fortran compiler or the gcc compiler, the latter of which is freely available. Since mizuRoute does not use any compiler-specific extensions, you should be able to compile mizuRoute with other Fortran compilers.
 
 ..
 
-- MPI (message passing interface) library: `OpenMPI <https://www.open-mpi.org/>`_ is freely available and has been tested in mizuRoute. 
+- **MPI (message passing interface) library**: `OpenMPI <https://www.open-mpi.org/>`_ is freely available and has been tested in mizuRoute. 
 
 ..
 
-- NetCDF libraries: `NetCDF <http://www.unidata.ucar.edu/software/netcdf/>`_ or the Network Common Data Format is a set of software libraries and self-describing, machine-independent data formats that support the creation, access, and sharing of array-oriented scientific data. 
+- **NetCDF libraries**: `NetCDF <http://www.unidata.ucar.edu/software/netcdf/>`_ or the Network Common Data Format is a set of software libraries and self-describing, machine-independent data formats that support the creation, access, and sharing of array-oriented scientific data. 
 
   Most \*nix package managers include a NetCDF port. Note that you need to ensure that:
 
@@ -31,11 +31,11 @@ To compile mizuRoute, you will need:
   - The NetCDF libraries are compiled with the same compiler as you plan to use for compiling mizuRoute; and
   - You will have to have both NetCDF Fortran library installed (``libnetcdff.*``) and the C-version (``libnetcdf.*``).
 
-- PnetCDF libraries (optional): `PnetCDF <https://parallel-netcdf.github.io/>`_ is a parallel I/O library for accessing Unidata's NetCDF (above).
+- **PnetCDF libraries (optional)**: `PnetCDF <https://parallel-netcdf.github.io/>`_ is a parallel I/O library for accessing Unidata's NetCDF library.
 
 ..
 
-- CMake: 
+- **CMake**: 
 
 
 For Mac or Linux user, you may consider using `Homebrew <https://brew.sh/>`_ free and open-source software package management to obration all the libraries. The series of commands can be as simple as:
@@ -47,7 +47,11 @@ For Mac or Linux user, you may consider using `Homebrew <https://brew.sh/>`_ fre
     brew install netcdf
     brew install pnetcdf
     brew install cmake
-     
+
+For windows user, .....
+
+For HPC or larger cluster, please consult with system administrator(s) since the libaries are typically managed by them. 
+
 
 Compilation
 ------------------------------------------
@@ -74,7 +78,7 @@ First, understand how mizuRoute directory is structured. There are hidden direct
 
 
 Once you have all the external libraries, you can try compiling mizuRoute using the following steps for using the ``Makefile`` under ``mizuRoute/route/build``.
-
+Here assume that all the libaries are installed using homebrew 🍺, and gnu compiler is used.
 
 1. Navigate to your local copy of the mizuRoute top directory. 
 
