@@ -3,12 +3,14 @@
 Build model
 ============
 
-This version is used as stand-alone routing model, and also coupled with NCAR Community Terrestrial System Model (CTSM). This page is for building for stand-alone use
+This version can be used as stand-alone model, and also coupled with NCAR Community Terrestrial System Model (CTSM). This page is for building for stand-alone use.
 
 - A copy of the mizuRoute source code from `this repo <https://github.com/ESCOMP/mizuRoute>`_. You have a few options:
 
   - If you just want to use the latest release of mizuRoute, then simply look for the `latest release <https://github.com/ESCOMP/mizuRoute/releases>`_;
   - If you want the latest and greatest (and potentially erroneous), download a copy of the `cesm-coupling branch <https://github.com/ESCOMP/mizuRoute/tree/cesm-coupling>`_ (or clone it);
+
+.. _Dependencies:
 
 Dependencies
 ------------------------------------------
@@ -37,7 +39,7 @@ To compile mizuRoute, you will need:
 
 - **CMake**: 
 
-
+We recommend using the latest versions of all the libraries.
 For Mac or Linux user, you may consider using `Homebrew <https://brew.sh/>`_ free and open-source software package management to obration all the libraries. The series of commands can be as simple as:
 
 ::
@@ -50,8 +52,10 @@ For Mac or Linux user, you may consider using `Homebrew <https://brew.sh/>`_ fre
 
 For windows user, .....
 
-For HPC or larger cluster, please consult with system administrator(s) since the libaries are typically managed by them. 
+For HPC or larger cluster, please consult with system administrator(s) since the libaries are typically managed by them.
 
+
+.. _Compilation:
 
 Compilation
 ------------------------------------------
@@ -85,6 +89,7 @@ Here assume that all the libaries are installed using homebrew 🍺, and gnu com
 ..
 
 2. Obtain `ParallelIO <https://github.com/NCAR/ParallelIO>`_ through git-fleximod tool that is already installed under ``mizuRoute/bin``. 
+   Note: please do not confuse ParallelIO and PnetCDF. ParallelIO can use PnetCDF or just standard netCDf library.
 
      Execute::
 
@@ -142,10 +147,13 @@ Here assume that all the libaries are installed using homebrew 🍺, and gnu com
      
          make FC=$FC FC_EXE=$FC_EXE F_MASTER=$BLDDIR NCDF_PATH=$NCDF_PATH PNETCDF_PATH=$PNETCDF_PATH EXE=route_runoff 
 
-     If the code compiles successfully, then the last line of output from the make process will tell you where the mizuRoute executable is installed (it goes into ``mizuRoute/route/bin``). 
+If the code compiles successfully, then the last line of output from the make process will tell you where the mizuRoute executable is installed (it goes into ``mizuRoute/route/bin``). 
 
 
-NOTE:
+.. _Additional_Notes:
+
+Additional Notes:
+------------------
 
    - You may add the variables directly in the ``Makefile``, rather than setting them as environment variables. They are located under ``User configure part``. 
      if you do that, you will just execute ``make`` (make sure to define ``EXE=<mizuRoute executable name>``)
@@ -165,3 +173,6 @@ NOTE:
         export NCDF_FORTRAN_PATH=<path_to_netcdf-fortran>
         export NCDF_C_PATH=<path_to_netcdf>
         make FC=$FC FC_EXE=$FC_EXE F_MASTER=$BLDDIR NCDF_C_PATH=$NCDF_C_PATH NCDF_FORTRAN_PATH=$NCDF_FORTRAN_PATH PNETCDF_PATH=$PNETCDF_PATH EXE=route_runoff
+
+   - ParallelIO can be built with netCDF library instead of PnetCDF. If so, no need to set variables ``PNETCDF_PATH``. 
+     PnetCDF improves output performace through ParallelIO for large-domain, high resolution simulations, but for smaller domain, ParallelIO with regular netCDF may be sufficient.

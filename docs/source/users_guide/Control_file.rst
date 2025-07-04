@@ -168,7 +168,7 @@ River network augmentation or subsetting
 Runoff input and remapping options 
 ----------------------------------
 
-mizuRoute forcing (e.g., runoff, precipitation and evaporation used for lake water balance, solutes) may be provided at the different HRU than mizuRoute river network HRU. In such a case, remapping (or regridding) are required to estimate forcing variables at mizuRoute HRU. 
+mizuRoute forcing (runoff, precipitation and evaporation, solutes) may be provided at the different HRU than mizuRoute river network HRU. In such a case, remapping (or regridding) are required to estimate forcing variables at mizuRoute HRU. 
 mizuRoute has a capability to remap forcing at different catchments or grid to catchment or grid defined in river network used for routing using weighted average. A user needs to provide a mapping file in netCDF. 
 See :ref:`Runoff mapping data <Runoff_mapping_data>` for mapping file structure. 
 Breifly, mapping can be either catchment (i.e., unstructure grid) to river network catchment (option 2) or grid to river network catchment (option 3). option 1 is forcing provided at the same catchment as the one in river network, in which case no mapping is required.
