@@ -71,6 +71,6 @@ If advectiona and inertia terms are neglected,  1-D Saint-Venant equation :eq:`0
 .. math::
    :label: 5.4
 
-   K = \frac{A}{n}R^{frac{2}{3}}
+   K = \frac{A}{n}R^{\frac{2}{3}}
 
-where :eq:`5.2` is wave cerlerity [m/s], :eq:`5.3` is a wave diffusivity [m2/s], :eq:`5.4` is a channel conveyance
+where :eq:`5.2` is wave cerlerity [m/s], :eq:`5.3` is a wave diffusivity [m\ :sup:`2`\/s], :eq:`5.4` is a channel conveyance
