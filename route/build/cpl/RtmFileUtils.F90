@@ -149,7 +149,7 @@ contains
      ! !ARGUMENTS:
      implicit none
      character(len=*), intent(in):: locfn  !file name
-     integer, intent(in):: iun             !fortran unit number
+     integer            :: iun             !fortran unit number
      character(len=1), intent(in):: form   !file format: u = unformatted,
 
      ! !LOCAL VARIABLES:
