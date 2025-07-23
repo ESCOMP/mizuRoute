@@ -1,5 +1,6 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.595402.svg)](https://doi.org/10.5281/zenodo.595402)
 [![Documentation Status](https://readthedocs.org/projects/mizuroute/badge/?version=cesm-coupling)](https://mizuroute.readthedocs.io/en/cesm-coupling/?badge=cesm-coupling)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 # mizuRoute
 Stand-alone mizuRoute is a post-processor of runoff output from a hydrologic model or Land surface model to produce streamflow estimates in the river network provided by a user. The tool was developed for the large scale, network based river routing (e.g., river network over contiguous United States), but works for gridded river network as well.
@@ -32,3 +33,9 @@ If you get this far then mizuRoute is built correctly and functional. Now, the u
 The user are encouraged to start with example data to get familiarize the process. testCase are being now developed and posted separately.
 
 For real application, getting river network data (netCDF) might be time consuming because this most likely requires GIS process and convert shapefile to netCDF). 
+
+
+LICENSE
+-------
+
+mizuRoute is [licensed](LICENSE.txt) under Apache 2.0

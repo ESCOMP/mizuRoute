@@ -20,7 +20,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'mizuRoute'
-copyright = '2019, Naoki Mizukami'
+copyright = '2025, University Corporation for Atmospheric Research'
 author = 'Naoki Mizukami'
 
 # The short X.Y version
