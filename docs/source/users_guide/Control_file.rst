@@ -115,6 +115,7 @@ For water management option, See :doc:`Water management option <water_management
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
 | <computeReachList>     | 1               | option to compute list of upstream reaches (0=do not compute, 1=compute)                                |
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
+
 Terminologies: RN_HRU=River Network HRU (Hydrologic Response Unit or simply catchment), HM_HRU=hydrologic model (or forcing) HRU. HRU can be grid box. "Forcing" for river model means runoff, evaporation and precipitation for lake routing, solutes for solute transport
 
 1. Often river network data has different variable names than defaults. In this case, variable names can be speficied in control file as well. See :doc:`River parameters <seg_hru_param>`.
@@ -142,11 +143,10 @@ Terminologies: RN_HRU=River Network HRU (Hydrologic Response Unit or simply catc
   * The abovementioned restrictions are check in the code, so any violations are notified as error and the program is terminated.
 
 
-.. _River_network_augumentation_or_subsetting:
+.. _River_network_augmentation_or_subsetting:
 
-River network augumentation or subsetting
-------------------------------------------
-
+River network augmentation or subsetting
+----------------------------------------
 
 +------------------------+------------------------+--------------------------------------------------------------------------+
 | control variable       | Default values         | Description                                                              |
@@ -166,9 +166,9 @@ River network augumentation or subsetting
 .. _Runoff_input_and_remapping_options:
 
 Runoff input and remapping options 
----------------------
+----------------------------------
 
-mizuRoute forcing (e.g., runoff, precipitation and evaporation used for lake water balance, solutes) may be provided at the different HRU than mizuRoute river network HRU. In such a case, remapping (or regridding) are required to estimate forcing variables at mizuRoute HRU. 
+mizuRoute forcing (runoff, precipitation and evaporation, solutes) may be provided at the different HRU than mizuRoute river network HRU. In such a case, remapping (or regridding) are required to estimate forcing variables at mizuRoute HRU. 
 mizuRoute has a capability to remap forcing at different catchments or grid to catchment or grid defined in river network used for routing using weighted average. A user needs to provide a mapping file in netCDF. 
 See :ref:`Runoff mapping data <Runoff_mapping_data>` for mapping file structure. 
 Breifly, mapping can be either catchment (i.e., unstructure grid) to river network catchment (option 2) or grid to river network catchment (option 3). option 1 is forcing provided at the same catchment as the one in river network, in which case no mapping is required.
@@ -202,7 +202,7 @@ Here in control file, user needs to provides the following information on the ma
 .. _Restart_options:
 
 Restart options 
----------------------
+---------------
 
 mizuRoute does not write restart netCDF as default. The following control variables are used to control restart dropoff timing and use restart file for continuous run from the previous simulations.
 The restart file is written at previous time step to the specified time. In other words, if ``Specified`` is used for <restart_write> and ``1981-01-01-00000`` is specified in <restart_date>, mizuRoute writes restart file
@@ -232,7 +232,7 @@ The restart file name convension:  <case_name>.r.yyyy-mm-dd-sssss.nc
 .. _History_output_options:
 
 History output options 
----------------------
+-----------------------
 
 The following variables, besides time, basinID (RN_HRU ID) and reachID can be output in netCDF. Users can control which variables are output by setting <variable_name> to T or F in control file. All the variables are set to T by default.
 The output file name includes a timie stamp at the first time step.
@@ -328,7 +328,7 @@ To activate direct insertion of observed discharge into simulated discharge, the
 .. _Control_file_basic_examples:
 
 Control file basic examples
---------------------------
+----------------------------
 
 These are examples for three cases of runoff input. These are just templates to start with. 
 Users need to specify appropreate directories, netCDF variables/dimension names based on their data

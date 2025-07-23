@@ -3,25 +3,29 @@
 Build model
 ============
 
+This version can be used as stand-alone model, and also coupled with NCAR Community Terrestrial System Model (CTSM). This page is for building for stand-alone use.
+
 - A copy of the mizuRoute source code from `this repo <https://github.com/ESCOMP/mizuRoute>`_. You have a few options:
 
   - If you just want to use the latest release of mizuRoute, then simply look for the `latest release <https://github.com/ESCOMP/mizuRoute/releases>`_;
   - If you want the latest and greatest (and potentially erroneous), download a copy of the `cesm-coupling branch <https://github.com/ESCOMP/mizuRoute/tree/cesm-coupling>`_ (or clone it);
+
+.. _Dependencies:
 
 Dependencies
 ------------------------------------------
 
 To compile mizuRoute, you will need:
 
-- Fortran compiler: We recommend using the intel Fortran compiler or the gcc compiler, the latter of which is freely available. Since mizuRoute does not use any compiler-specific extensions, you should be able to compile mizuRoute with other Fortran compilers such as NAG as well.
+- **Fortran compiler**: We recommend using the intel Fortran compiler or the gcc compiler, the latter of which is freely available. Since mizuRoute does not use any compiler-specific extensions, you should be able to compile mizuRoute with other Fortran compilers.
 
 ..
 
-- MPI (message passing interface) library: OpenMPI is freely available and has been tested in mizuRoute. 
+- **MPI (message passing interface) library**: `OpenMPI <https://www.open-mpi.org/>`_ is freely available and has been tested in mizuRoute. 
 
 ..
 
-- NetCDF libraries: `NetCDF <http://www.unidata.ucar.edu/software/netcdf/>`_ or the Network Common Data Format is a set of software libraries and self-describing, machine-independent data formats that support the creation, access, and sharing of array-oriented scientific data. 
+- **NetCDF libraries**: `NetCDF <http://www.unidata.ucar.edu/software/netcdf/>`_ or the Network Common Data Format is a set of software libraries and self-describing, machine-independent data formats that support the creation, access, and sharing of array-oriented scientific data. 
 
   Most \*nix package managers include a NetCDF port. Note that you need to ensure that:
 
@@ -29,13 +33,13 @@ To compile mizuRoute, you will need:
   - The NetCDF libraries are compiled with the same compiler as you plan to use for compiling mizuRoute; and
   - You will have to have both NetCDF Fortran library installed (``libnetcdff.*``) and the C-version (``libnetcdf.*``).
 
-- PnetCDF libraries (optional): `PnetCDF <https://parallel-netcdf.github.io/>`_ is a parallel I/O library for accessing Unidata's NetCDF (above).
+- **PnetCDF libraries (optional)**: `PnetCDF <https://parallel-netcdf.github.io/>`_ is a parallel I/O library for accessing Unidata's NetCDF library.
 
 ..
 
-- CMake: 
+- **CMake**: 
 
-
+We recommend using the latest versions of all the libraries.
 For Mac or Linux user, you may consider using `Homebrew <https://brew.sh/>`_ free and open-source software package management to obration all the libraries. The series of commands can be as simple as:
 
 ::
@@ -45,15 +49,20 @@ For Mac or Linux user, you may consider using `Homebrew <https://brew.sh/>`_ fre
     brew install netcdf
     brew install pnetcdf
     brew install cmake
-     
+
+For windows user, .....
+
+For HPC or larger cluster, please consult with system administrator(s) since the libaries are typically managed by them.
+
+
+.. _Compilation:
 
 Compilation
 ------------------------------------------
 
-Once you have all the above, you can compile mizuRoute using the following steps for using the ``Makefile``.
 First, understand how mizuRoute directory is structured. There are hidden directories and files, but users mostly do not have to bother them.
 
-     mizuRoute has directory structure::
+     mizuRoute directory structure::
 
          mizuRoute/
          ├── route/
@@ -72,11 +81,15 @@ First, understand how mizuRoute directory is structured. There are hidden direct
          └── EADME_EXTERNALS.rst
 
 
+Once you have all the external libraries, you can try compiling mizuRoute using the following steps for using the ``Makefile`` under ``mizuRoute/route/build``.
+Here assume that all the libaries are installed using homebrew 🍺, and gnu compiler is used.
+
 1. Navigate to your local copy of the mizuRoute top directory. 
 
 ..
 
-2. Obtain ParallelIO library through git-fleximod tool that is already installed under ``mizuRoute/bin``. 
+2. Obtain `ParallelIO <https://github.com/NCAR/ParallelIO>`_ through git-fleximod tool that is already installed under ``mizuRoute/bin``. 
+   Note: please do not confuse ParallelIO and PnetCDF. ParallelIO can use PnetCDF or just standard netCDf library.
 
      Execute::
 
@@ -101,23 +114,27 @@ First, understand how mizuRoute directory is structured. There are hidden direct
 
    - ``FC``: Define the compiler family. This is only used to determine the compiler flags.
 
-     Example::
+     if you use gnu compiler::
 
          export FC=gnu
 
-   - ``FC_EXE``: This is the actual compiler executable that is invoked. For most of compiler family, it is likely ``mpif90``.
+     if you use intel compiler::
+
+         export FC=intel
+
+   - ``FC_EXE``: This is the actual compiler executable that is invoked. For most of compiler family, it is likely ``mpif90`` regardless of which compiler families.
 
      Example::
 
          export FC_EXE=mpif90
 
-   - ``NCDF_PATH``: This is the path to the NetCDF. 
+   - ``NCDF_PATH``: This is the path to the top level of NetCDF library directory. The directory typically contains ``bin include lib`` subdirectories. 
 
      Example (if netCDF is installed with homebrew)::
 
          export NCDF_PATH=/opt/homebrew/
 
-   - ``PNETCDF_PATH``: This is the path to the PnetCDF (optional).
+   - ``PNETCDF_PATH`` (optional): This is also the path to top level of the PnetCDF directory. 
 
      Example (if pnetcdf is intalled with homebrew)::
 
@@ -130,7 +147,13 @@ First, understand how mizuRoute directory is structured. There are hidden direct
      
          make FC=$FC FC_EXE=$FC_EXE F_MASTER=$BLDDIR NCDF_PATH=$NCDF_PATH PNETCDF_PATH=$PNETCDF_PATH EXE=route_runoff 
 
-NOTE:
+If the code compiles successfully, then the last line of output from the make process will tell you where the mizuRoute executable is installed (it goes into ``mizuRoute/route/bin``). 
+
+
+.. _Additional_Notes:
+
+Additional Notes:
+------------------
 
    - You may add the variables directly in the ``Makefile``, rather than setting them as environment variables. They are located under ``User configure part``. 
      if you do that, you will just execute ``make`` (make sure to define ``EXE=<mizuRoute executable name>``)
@@ -141,7 +164,7 @@ NOTE:
 
      ::
 
-         find / -type f( -name "libnetcdf*.so*" \)
+         find / -type f \( -name "libnetcdf*.a*" \) -print
 
    - Often, netCDF-fortran and netCDF (c-version) libraries are located in separate location. If so, set variables ``NCDF_FORTRAN_PATH`` and ``NCDF_C_PATH``
 
@@ -150,3 +173,6 @@ NOTE:
         export NCDF_FORTRAN_PATH=<path_to_netcdf-fortran>
         export NCDF_C_PATH=<path_to_netcdf>
         make FC=$FC FC_EXE=$FC_EXE F_MASTER=$BLDDIR NCDF_C_PATH=$NCDF_C_PATH NCDF_FORTRAN_PATH=$NCDF_FORTRAN_PATH PNETCDF_PATH=$PNETCDF_PATH EXE=route_runoff
+
+   - ParallelIO can be built with netCDF library instead of PnetCDF. If so, no need to set variables ``PNETCDF_PATH``. 
+     PnetCDF improves output performace through ParallelIO for large-domain, high resolution simulations, but for smaller domain, ParallelIO with regular netCDF may be sufficient.
