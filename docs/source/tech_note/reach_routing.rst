@@ -16,6 +16,12 @@ A fundamental equations for river reach routing start with Saint-Venant equation
 
    \frac{\partial Q }{\partial t} + \frac{\partial }{\partial x}(\frac{Q^{2}}{A}) + gA\frac{\partial h }{\partial x} = gA(S_{0}-S_{f})
 
+where *Q* is a discharge [m\ :sup:`3`\/s] at time t and a point of reach x,
+*A* is a flow cross-sectional area [m\ :sup:`2`],
+*h* is flow height [m],
+:math:`S_{0}` is a slope of reach [m/m],
+:math:`S_{f}` is a friction slope [m/m].
+LHS of :eq:`0.2` consists of advection, inertia, and pressure gradient from the 1st to 3rd terms, while force temrs of RHS of :eq:`0.2` consists of gravity and frictional force from a river bed.
 
 .. _Impulse_response_function:
 
@@ -37,12 +43,60 @@ Euler kinmatic wave
 --------------------------
 
 
+If advection, inertia and pressure gradient terms (i.e., all the terms in LHS of :eq:`0.2`) are neglected (and without lateral flow in :eq:`0.1`), 1-D Saint-Venant equation :eq:`0.1` and :eq:`0.2` is reduced to
+
+.. math::
+   :label: 3.1
+
+   \frac{\partial Q }{\partial t} + C\frac{\partial Q}{\partial x} = 0
+
+.. math::
+   :label: 3.2
+
+   C = \frac{1}{K}\frac{\partial K}{\partial A}
+
+.. math::
+   :label: 3.3
+
+   K = \frac{A}{n}R^{\frac{2}{3}}
+
+where Eq. :eq:`3.2` is a wave cerlerity [m/s] and Eq. :eq:`3.3` is a channel conveyance. *n* is manning coefficient [-] and *R* is hydraulic radius [m].
+
 
 .. _Muskingum-Cunge:
 
 Muskingum-Cunge
 --------------------------
 
+
+Muskingum-Cunge (M-C) routing formulation begins with a kinematic wave equation :eq:`3.1`.
+The kinematic wave equation can be discretized with weight factors X and Y to give:
+
+.. math::
+   :label: 4.1
+
+   \frac{X(I_{t+1}-I_{t})+(1-X)(O_{t+1}-O_{t})}{\Delta t} + C \frac{Y(O_{t}-I_{t})+(1-Y)(O_{t+1}-I_{t})}{\Delta x}=0
+
+where :math:`I_{t+1}` and :math:`I_{t}` are inflow to a reach segment (length is :math:`\Delta x`) at the end and beginning of the time step (time step is :math:`\Delta t` ) and :math:`O_{t+1}` and :math:`O_{t}` are outflow from a reach segment at the end and beginning of the time step.
+The spatial weight factor Y is set to 0.5 and then Eq. :eq:`4.1` is rearranged, giving:
+
+.. math::
+   :label: 4.2
+
+   O_{t+1} = \frac{-X+0.5 C_{n}}{1-X+0.5 C_{n}} I_{t+1} + \frac{X+0.5 C_{n}}{1-X+0.5 C_{n}} I_{t} + \frac{1-X-0.5 C_{n}}{1-X+0.5 C_{n}} O_{t}
+
+where :math:`C_{n}` is Courant Number defined by :math:`C \frac{\Delta t}{\Delta x}`. Eq :eq:`4.2` is generally called Muskingum equation,
+but Cunge (1969) found that the numerical diffusion in the explicit solution of Eq :eq:`4.2`, which can happen depending on weight factors, can match the physical diffusion by setting X (along with Y=0.5) to:
+
+.. math::
+   :label: 4.3
+
+   X=0.5(1-\frac{Q}{BS_{0} C\Delta x})
+
+where :math:`S_{0}` is the reach slope, *B* is a top widith of flow cross-section area. Here discharge *Q* and *B* can be estimated by 3-point Q values (:math:`I_{t+1}`, :math:`I_{t}`, and :math:`O_{t}`).
+Note that *B* is a function of Q given channel cross-section assumption (see section x-x).
+At every time step and reach, temporal weight factor X is update based on given 3-point discharge values. Since Muskingum-Cunge is explicitly solved, the solution can be unstable.
+To stabilize the solution, the sub time step (:math:`\Delta t`) is determined at every simulation step so that the Courant number is less than unity
 
 
 .. _Diffusive_wave:
@@ -51,7 +105,7 @@ Diffusive wave
 --------------------------
 
 
-If advection and inertia terms are neglected,  1-D Saint-Venant equation :eq:`0.1` and :eq:`0.2` is reduced to
+If advection and inertia terms are neglected (i.e., the 1st and 2nd terms in LHS of :eq:`0.2`), 1-D Saint-Venant equation :eq:`0.1` and :eq:`0.2` is reduced to
 
 .. math::
    :label: 5.1
@@ -61,19 +115,9 @@ If advection and inertia terms are neglected,  1-D Saint-Venant equation :eq:`0.
 .. math::
    :label: 5.2
 
-   C = \frac{1}{K}\frac{\partial K}{\partial A}
+   D = \frac{K^2}{2QB}
 
-.. math::
-   :label: 5.3
-
-   D = \frac{K^2}{2Qw}
-
-.. math::
-   :label: 5.4
-
-   K = \frac{A}{n}R^{\frac{2}{3}}
-
-where Eq. :eq:`5.2` is wave cerlerity [m/s], Eq. :eq:`5.3` is a wave diffusivity [m\ :sup:`2`\/s], and Eq. :eq:`5.4` is a channel conveyance.
+where *C* is a wave celerity [m/s] (Eq. :eq:`3.2` ) and *K* is a channel conveyance (Eq. :eq: `3.3` ). Eq. :eq:`5.2` is a diffusivity [m\ :sup:`2`\/s], and *B* is a top width of flow cross-sectional area [m].
 
 To solve the diffusive wave equation for discharge Q, Eq. :eq:`5.1` is discretized using weighted averaged finite-difference approximations across two time steps in space
 (Figure 1; i.e., second-order central difference in the RHS of :eq:`5.1` and first-order central difference for the second term of the LHS of :eq:`5.1`).
