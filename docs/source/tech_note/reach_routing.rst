@@ -1,8 +1,26 @@
-River routing methods
+Overall workflow
 ======================
 
-mizuRoute include five different routing methods. The routing method(s) are applied to each river reach to compute outflow from the reach. The methods are Impulse response function, Lagrangian kinmatic wave, Euler kinematic wave, Muskingum Cunge, and Diffusive wave.
-This section describe each method including numerical implementation.
+#. Compute HRU (Hydrologic Response Unit, or simply catchment) mean runoff [m/s]
+
+#. Perform overland routing with HRU mean runoff as an input to compute lateral runoff (:math:`R_{lat}`) [m/s]
+
+#. Convert :math:`R_{lat}` from depth unit to volume (lateral runoff times HRU area) to get lateral discharge (:math:`q_{lat}`) [m3/s]
+
+#. Route lateral discharge at each river reach through river network.
+
+The overland routing is optional, and currently simple unit hydrograph based on gamma distribution is used to delay instantaneous runoff.
+
+
+River routing schemes
+======================
+
+For river reach routing, mizuRoute include five different routing methods. The routing method(s) are applied to each river reach to compute outflow from the reach.
+The methods are Impulse response function, Lagrangian kinmatic wave, Euler kinematic wave, Muskingum Cunge, and Diffusive wave.
+
+This section describes each scheme including numerical implementation.
+Impulse response function and lagrangian kinematic wave, implemented eariler, are also described in :ref:`Mizukami et al. (2016) <Mizukami2016>`.
+The othter schemes were implemented afterwards, and described in appendices of :ref:`Cortes-Salazar et al. (2023) <Cortes2023>` (except for Euler kinematic wave).
 
 A fundamental equations for river reach routing start with Saint-Venant equations that consists of two equations
 
