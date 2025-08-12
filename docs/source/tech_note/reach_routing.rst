@@ -16,7 +16,7 @@ River routing schemes
 ======================
 
 For river reach routing, mizuRoute include five different routing methods. The routing method(s) are applied to each river reach to compute outflow from the reach.
-The methods are Impulse response function, Lagrangian kinmatic wave, Euler kinematic wave, Muskingum Cunge, and Diffusive wave.
+The methods are Impulse response function (routOpt=1 in mizuRoute), Lagrangian kinmatic wave (routOpt=2), Euler kinematic wave (routOpt=3), Muskingum Cunge (routOpt=4)), and Diffusive wave (routOpt=5).
 
 This section describes each scheme including numerical implementation.
 Impulse response function and lagrangian kinematic wave, implemented eariler, are also described in :ref:`Mizukami et al. (2016) <Mizukami2016>`.
@@ -41,6 +41,51 @@ where *Q* is a discharge [m\ :sup:`3`\/s] at time t and a point of reach x,
 :math:`S_{f}` is a friction slope [m/m].
 LHS of :eq:`0.2` consists of advection, inertia, and pressure gradient from the 1st to 3rd terms, while force temrs of RHS of :eq:`0.2` consists of gravity and frictional force from a river bed.
 
+The frictional slope is written as:
+
+.. math::
+   :label: 0.3
+
+   S_{f} = \frac{Q^2}{K^2}
+
+.. math::
+   :label: 0.4
+
+   K = \frac{A}{n}R^{\frac{2}{3}}
+
+where *K* (Eq. :eq:`0.4`) is a channel conveyance. *n* is manning coefficient [-] and *R* is hydraulic radius [m].
+
+If advection and inertia terms are neglected (i.e., the 1st and 2nd terms in LHS of :eq:`0.2`) and without lateral flow in :eq:`0.1`, 1-D Saint-Venant equation :eq:`0.1` and :eq:`0.2` is reduced to
+
+.. math::
+   :label: 0.5
+
+   \frac{\partial Q }{\partial t} + C\frac{\partial Q}{\partial x} = D\frac{\partial^2 Q}{\partial^2 x}
+
+.. math::
+   :label: 0.6
+
+   C = \frac{1}{K}\frac{\partial K}{\partial A}
+
+.. math::
+   :label: 0.7
+
+   D = \frac{K^2}{2QB}
+
+where *C* (Eq. :eq:`0.6`) is a wave celerity [m/s] and *D* (Eq. :eq:`0.7`) is a diffusivity [m\ :sup:`2`\/s]. *B* is a top width of flow cross-sectional area [m].
+
+If *D* is set to zero (i.e., diffusion is neglected), Eq. :eq:`0.5` becomes kinematic wave equation.
+The other way to derive kinematic wave equation is to neglect pressure gradient term in addition to advection and inertia and pressure gradient terms (i.e., all the terms in LHS of Eq. :eq:`0.2`).
+
+Eq. :eq:`0.5` serve a starting point of numerical implementation of
+Impulse response function (section :numref:`Impulse_response_function`),
+Euler Kinematic wave (section :numref:`Euler_kinematic_wave`),
+Muskingum-Cunge (section :numref:`Muskingum-Cunge`),
+Diffusive wave schemes (section :numref:`Diffusive_wave`).
+
+The numerical implementations of Euler kinematic wave and Diffusive wave are essentially identical. Therefore, a user is referred to section :numref:`Diffusive_wave` for Euler kinematic wave numerical schemes.
+
+
 .. _Impulse_response_function:
 
 Impulse response function
@@ -60,25 +105,7 @@ Lagrangian kinmatic wave
 Euler kinmatic wave
 --------------------------
 
-
-If advection, inertia and pressure gradient terms (i.e., all the terms in LHS of :eq:`0.2`) are neglected (and without lateral flow in :eq:`0.1`), 1-D Saint-Venant equation :eq:`0.1` and :eq:`0.2` is reduced to
-
-.. math::
-   :label: 3.1
-
-   \frac{\partial Q }{\partial t} + C\frac{\partial Q}{\partial x} = 0
-
-.. math::
-   :label: 3.2
-
-   C = \frac{1}{K}\frac{\partial K}{\partial A}
-
-.. math::
-   :label: 3.3
-
-   K = \frac{A}{n}R^{\frac{2}{3}}
-
-where Eq. :eq:`3.2` is a wave cerlerity [m/s] and Eq. :eq:`3.3` is a channel conveyance. *n* is manning coefficient [-] and *R* is hydraulic radius [m].
+See section :numref:`Diffusive_wave` for details on numerical implementatin of Euler kinematic wave.
 
 
 .. _Muskingum-Cunge:
@@ -87,7 +114,7 @@ Muskingum-Cunge
 --------------------------
 
 
-Muskingum-Cunge (M-C) routing formulation begins with a kinematic wave equation :eq:`3.1`.
+Muskingum-Cunge (M-C) routing formulation begins with a kinematic wave equation, :eq:`0.5` with *D* set to zero.
 The kinematic wave equation can be discretized with weight factors X and Y to give:
 
 .. math::
@@ -123,22 +150,8 @@ Diffusive wave
 --------------------------
 
 
-If advection and inertia terms are neglected (i.e., the 1st and 2nd terms in LHS of :eq:`0.2`), 1-D Saint-Venant equation :eq:`0.1` and :eq:`0.2` is reduced to
-
-.. math::
-   :label: 5.1
-
-   \frac{\partial Q }{\partial t} + C\frac{\partial Q}{\partial x} = D\frac{\partial^2 Q}{\partial^2 x}
-
-.. math::
-   :label: 5.2
-
-   D = \frac{K^2}{2QB}
-
-where *C* is a wave celerity [m/s] (Eq. :eq:`3.2` ) and *K* is a channel conveyance (Eq. :eq: `3.3` ). Eq. :eq:`5.2` is a diffusivity [m\ :sup:`2`\/s], and *B* is a top width of flow cross-sectional area [m].
-
-To solve the diffusive wave equation for discharge Q, Eq. :eq:`5.1` is discretized using weighted averaged finite-difference approximations across two time steps in space
-(Figure 1; i.e., second-order central difference in the RHS of :eq:`5.1` and first-order central difference for the second term of the LHS of :eq:`5.1`).
+To solve the diffusive wave equation for discharge Q, Eq. :eq:`0.5` is discretized using weighted averaged finite-difference approximations across two time steps in space
+(Figure 1; i.e., second-order central difference in the RHS of :eq:`0.5` and first-order central difference for the second term of the LHS of :eq:`0.5`).
 
 .. _Figure diffusive wave numerical discretization:
 
@@ -167,9 +180,9 @@ Rearranging Eq. :eq:`5.5` to:
 
    C_{a} = \frac{C \Delta t}{ \Delta x}, C_{d} = \frac{D \Delta t}{( \Delta x)^{2}}
 
-where :math:`\alpha` is the weight factor for the first-order space difference approximation of the second term of the LHS of :eq:`5.1`, and :math:`\beta` is a weight factor for the second-order space difference approximation in RHS of :eq:`5.1`.
+where :math:`\alpha` is the weight factor for the first-order space difference approximation of the second term of the LHS of :eq:`0.5`, and :math:`\beta` is a weight factor for the second-order space difference approximation in RHS of :eq:`0.5`.
 If both weights are set to 1, the finite difference becomes a fully implicit scheme, while setting both weights to zero results in a fully explicit scheme. For default, mizuRoute uses a fully implicit finite-difference approximation (i.e., :math:`\alpha` = :math:`\beta` = 1).
-Note that celerity (C) and diffusivity (D) include Q, which means the diffusive equation is actually non-linear. Here celerity (C) and diffusivity (D) are updated at every time step based on the discharges (Q) and flow area (A) at previous time step to liearize the diffusive equation.
+Note that celerity (C) and diffusivity (D) include Q, which means the diffusive equation is actually non-linear. Here celerity (*C*) and diffusivity (*D*) are updated at every time step based on the discharges (Q) and flow area (A) at previous time step to liearize the diffusive equation.
 Note that IRF routing is also based on diffusve equation. a major difference is that in IRF routing, celerity and diffusivity are provided as model parameters and constant in time, though they can be spatially distributed.
 
 To apply the numerical solution of discretized diffusive wave equation for each reach, the internal nodes need to be defined within each reach.
@@ -234,4 +247,6 @@ Neumann boundary condition at the downstream end is written by:
    \frac{\partial Q}{\partial x}\Big{|}_{x=5}
 
 which is discretized as :math:`Q_{5}^{t+1} - Q_{4}^{t+1} = a \cdot dx`. The gradient at downstream end :math:`a` is approximated by the Q computed at the nodes at previous time step.
+
+What makes this numerical solution become **kinematic wave solution** is simply to set *D* to zero.
 
