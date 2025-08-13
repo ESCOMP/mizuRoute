@@ -15,14 +15,14 @@ MizuRoute can be run in two ways:
 Currently, mizuRoute is coupled to Community Terrestrial Systems Model ([CTSM](https://github.com/ESCOMP/CTSM)), the land-model component of CESM. 
 
 
-# To get started for a stand-alone mode
+## To get started for a stand-alone mode
 1. Obtaining mizuRoute package. Just to use the tool, download the package by clicking “Download Zip” button on right column. 
 
 2. To compile the codes, and prepare for the input data, please refer to [User's Guide](https://mizuroute.readthedocs.io/en/main/)
 
 3. A user is encouraged to start with example data to get familiarize the process. Link to testCase data are given in [testCase data](https://mizuroute.readthedocs.io/en/main/users_guide/testCase.html) in User's Guide.
 
-# To get started for ctsm coupling mode
+## To get started for ctsm coupling mode
 
 User interested in using mizuRoute with CTSM is referred to CESM's user guide. Here, quick guide is provided.  
 
@@ -39,7 +39,7 @@ User interested in using mizuRoute with CTSM is referred to CESM's user guide. H
    ```
    (`./create_newcase -help --` to get help on the script)
 
-   # Setup the case
+3. Setup the case
 
    ```bash
    cd <testcase>
@@ -51,25 +51,25 @@ User interested in using mizuRoute with CTSM is referred to CESM's user guide. H
    ```
    (./case.setup -help -- to get help on the script)
 
-   # Add any namelist changes to the `user_nl_*` files
+3. Add any namelist changes to the `user_nl_*` files
 
    ```bash
    $EDITOR user_nl_*
    ```
 
-   # Compile the code
+4. Compile the code
 
    ```bash
    ./case.build
    ```
 
-   # Submit the run
+5. Submit the run
 
    ```bash
    ./case.submit
    ```
 
-# Prerequisite 
+## Prerequisite 
  1. Linux commands.
  2. Geographic Information System to develop and visualize river network data
  3. python or similar other languages to analyze/visualize data, prepare for the input
