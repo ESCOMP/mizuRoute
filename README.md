@@ -3,13 +3,17 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 # mizuRoute
-MizuRoute is a post-processor of runoff from a hydrologic model or Land surface model to produce streamflow estimates in the river network provided by a user. 
-Lakes can be inserted in the river network and then run with the river-lake combined network. At lakes, discharge and volume are computed with a simple natural lake model or parametric reservoir models.  
+MizuRoute is a tool that takes runoff data from a hydrologic or land surface model to compute streamflow in a user-defined catchment-based (vector) river network.
+A user can add Lakes into the river network, allowing the model to simulate discharge and volume in rivers and lakes (natural lakes or reservoir).
 
-MizuRoute was developed with Message Passing Interface (MPI) for the large domain network based river routing (e.g., river network over contiguous United States or larger), but works for gridded river network as well.
+MizuRoute uses Message Passing Interface (MPI) for parallel computing to work on multi-decdal to a century simulation over large river networks (e.g., the river network over the contiguous United States).
 
-MizuRoute can be run as a stand-alone model where runoff time series need to be provided as a model input. MizuRoute is also implemented as a river model component in Community Earth System Model (CESM).
-Currently, mizuRoute is coupled to  Community Terrestrial Systems Model[CTSM](https://github.com/ESCOMP/CTSM), Land model component of CESM. 
+MizuRoute can be run in two ways: 
+
+1. Stand-alone mode - users needs provides their own runoff time series as a model input. 
+2. CESM coupled model - MizuRoute runs as a river model component in Community Earth System Model (CESM).
+Currently, mizuRoute is coupled to Community Terrestrial Systems Model ([CTSM](https://github.com/ESCOMP/CTSM)), the land-model component of CESM. 
+
 
 # To get started for a stand-alone mode
 1. Obtaining mizuRoute package. Just to use the tool, download the package by clicking “Download Zip” button on right column. 
