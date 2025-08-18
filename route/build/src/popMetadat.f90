@@ -296,7 +296,7 @@ contains
 
  ! Impulse Response Function
  call meta_irf(ixIRF%qfuture)%init('irf_qfuture', 'future flow series',   'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh_irf] , .true.)
- call meta_irf(ixIRF%vol    )%init('volume_irf' , 'volume in reach/lake', 'm3'   ,ncd_double, [ixStateDims%seg,ixStateDims%tbound] , .true.)
+ call meta_irf(ixIRF%vol    )%init('volume_irf' , 'volume in reach/lake', 'm3'   ,ncd_double, [ixStateDims%seg], .true.)
  call meta_irf(ixIRF%qerror)%init('qerror_irf',   'discharge error',      'm3/s', ncd_double, [ixStateDims%seg], .false.)
 
  ! Basin Impulse Response Function
