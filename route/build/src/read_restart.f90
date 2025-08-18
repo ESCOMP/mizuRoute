@@ -334,7 +334,8 @@ CONTAINS
     do iVar=1,nVarsIRF
       select case(iVar)
         case(ixIRF%qfuture); allocate(state%var(iVar)%array_2d_dp(nSeg, ntdh_irf), stat=ierr)
-        case(ixIRF%vol : ixIRF%qerror); allocate(state%var(iVar)%array_2d_dp(nSeg, nTbound), stat=ierr)
+        case(ixIRF%vol); allocate(state%var(iVar)%array_1d_dp(nSeg), stat=ierr)
+        case(ixIRF%qerror); allocate(state%var(iVar)%array_1d_dp(nSeg), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//'problem allocating space for IRF routing state:'//trim(meta_irf(iVar)%varName); return; endif
@@ -346,7 +347,7 @@ CONTAINS
     do iVar=1,nVarsIRF
       select case(iVar)
         case(ixIRF%qfuture); call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,ntdh_irf], ierr, cmessage1)
-        case(ixIRF%vol);     call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,nTbound], ierr, cmessage1)
+        case(ixIRF%vol);     call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
         case(ixIRF%qerror)
           call open_nc(fname, 'r', ncidRestart, ierr, cmessage1)
           if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
@@ -369,7 +370,7 @@ CONTAINS
         do iVar=1,nVarsIRF
           select case(iVar)
             case(ixIRF%qfuture); RCHFLX(jSeg)%QFUTURE_IRF    = state%var(iVar)%array_2d_dp(iSeg,1:numQF(iSeg))
-            case(ixIRF%vol);     RCHFLX(jSeg)%ROUTE(idxIRF)%REACH_VOL(0:1) = state%var(iVar)%array_2d_dp(iSeg,1:2)
+            case(ixIRF%vol);     RCHFLX(jSeg)%ROUTE(idxIRF)%REACH_VOL(1) = state%var(iVar)%array_1d_dp(iSeg)
             case(ixIRF%qerror);  RCHFLX(iSeg)%ROUTE(idxIRF)%Qerror = state%var(iVar)%array_1d_dp(iSeg)
             case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
           end select

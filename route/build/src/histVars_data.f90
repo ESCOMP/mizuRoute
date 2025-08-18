@@ -570,30 +570,31 @@ MODULE histVars_data
             end if
           end if
 
-          if (meta_rflx(ixSoluteMass)%varFile) then
-            call read_dist_array(pioFileDesc, meta_rflx(ixSoluteMass)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
-            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-            ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
-            if (masterproc) then
-              this%solute_mass(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
-              this%solute_mass(nRch_mainstem+nTribOutlet+1:this%nRch, ixRoute) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
-            else
-              this%solute_mass(:,ixRoute) = array_tmp
+          if (routeMethods(ixRoute)==diffusiveWave) then
+            if (meta_rflx(ixSoluteMass)%varFile) then
+              call read_dist_array(pioFileDesc, meta_rflx(ixSoluteMass)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
+              if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+              ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
+              if (masterproc) then
+                this%solute_mass(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
+                this%solute_mass(nRch_mainstem+nTribOutlet+1:this%nRch, ixRoute) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
+              else
+                this%solute_mass(:,ixRoute) = array_tmp
+              end if
             end if
-          end if
 
-          if (meta_rflx(ixSoluteFlux)%varFile) then
-            call read_dist_array(pioFileDesc, meta_rflx(ixSoluteFlux)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
-            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-            ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
-            if (masterproc) then
-              this%solute_flux(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
-              this%solute_flux(nRch_mainstem+nTribOutlet+1:this%nRch, ixRoute) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
-            else
-              this%solute_flux(:,ixRoute) = array_tmp
+            if (meta_rflx(ixSoluteFlux)%varFile) then
+              call read_dist_array(pioFileDesc, meta_rflx(ixSoluteFlux)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
+              if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+              ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
+              if (masterproc) then
+                this%solute_flux(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
+                this%solute_flux(nRch_mainstem+nTribOutlet+1:this%nRch, ixRoute) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
+              else
+                this%solute_flux(:,ixRoute) = array_tmp
+              end if
             end if
-          end if
-
+          end if ! end of routeMethods==diffusiveWave if-statement
         end do ! end of ixRoute loop
       end if ! end of nRoute>0 if-statement
 

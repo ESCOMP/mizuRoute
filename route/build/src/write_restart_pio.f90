@@ -65,7 +65,6 @@ USE globalData,        ONLY: ioDesc_mesh_kw_double
 USE globalData,        ONLY: ioDesc_mesh_mc_double
 USE globalData,        ONLY: ioDesc_mesh_dw_double
 USE globalData,        ONLY: ioDesc_irf_double
-USE globalData,        ONLY: ioDesc_vol_double
 USE globalData,        ONLY: ioDesc_irf_bas_double
 
 implicit none
@@ -1015,13 +1014,13 @@ CONTAINS
           call write_pnetcdf(pioFileDesc, meta_irf(iVar)%varName, array_2d_dp, ioDesc_irf_double, ierr, cmessage)
           deallocate(array_2d_dp)
         case(ixIRF%vol)
-          allocate(array_2d_dp(nSeg,nTbound), stat=ierr, errmsg=cmessage)
+          allocate(array_1d_dp(nSeg), stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':IRF routing state:'//trim(meta_irf(iVar)%varName); return; endif
           do iSeg=1,nSeg
-            array_2d_dp(iSeg,1:nTbound) = RCHFLX_local(iSeg)%ROUTE(idxIRF)%REACH_VOL(0:1)
+            array_1d_dp(iSeg) = RCHFLX_local(iSeg)%ROUTE(idxIRF)%REACH_VOL(1)
           end do
-          call write_pnetcdf(pioFileDesc, meta_irf(iVar)%varName, array_2d_dp, ioDesc_vol_double, ierr, cmessage)
-          deallocate(array_2d_dp)
+          call write_pnetcdf(pioFileDesc, meta_irf(iVar)%varName, array_1d_dp, ioDesc_rch_double, ierr, cmessage)
+          deallocate(array_1d_dp)
         case(ixIRF%qerror) ! if data assimilation is off, no need to be written
           if (meta_irf(iVar)%varFile) then
             allocate(array_1d_dp(nSeg), stat=ierr, errmsg=cmessage)
@@ -1029,7 +1028,7 @@ CONTAINS
             do iSeg=1,nSeg
               array_1d_dp(iSeg) = RCHFLX_local(iSeg)%ROUTE(idxIRF)%Qerror
             end do
-            call write_pnetcdf(pioFileDesc, meta_irf(iVar)%varName, array_1d_dp, ioDesc_vol_double, ierr, cmessage)
+            call write_pnetcdf(pioFileDesc, meta_irf(iVar)%varName, array_1d_dp, ioDesc_rch_double, ierr, cmessage)
             deallocate(array_1d_dp)
           end if
         case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
