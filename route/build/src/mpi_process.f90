@@ -825,10 +825,9 @@ CONTAINS
   character(len=strLen),    intent(out) :: message                  ! error message
   ! local variables
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
-  integer(i4b)                          :: iSeg,jSeg,iTbound        ! loop indices
+  integer(i4b)                          :: iSeg,jSeg                ! loop indices
   integer(i4b)                          :: nTbound = 2
   real(dp),     allocatable             :: flux_global(:)           ! basin runoff (m/s) for entire reaches
-  real(dp),     allocatable             :: vol_global(:,:)          ! reach/lake volume (m3) for entire network
   real(dp),     allocatable             :: vol_global_tmp(:)        ! temporary reach/lake volume (m3) for entire network
   real(dp),     allocatable             :: flux_local(:)            ! basin runoff (m/s) for tributaries
   real(dp),     allocatable             :: vol_local(:)             ! reach/lake volume (m3) for tributaries
@@ -839,7 +838,7 @@ CONTAINS
 
   allocate(flux_global(nRch))
   allocate(flux_local(rch_per_proc(pid)))
-  allocate(vol_global(nRch,nTbound), vol_global_tmp(nRch))
+  allocate(vol_global_tmp(nRch))
   allocate(vol_local(rch_per_proc(pid)))
 
   if (masterproc) then
@@ -1076,33 +1075,30 @@ CONTAINS
     ! volume communication
     if (masterproc) then
       do iSeg = 1, nRch
-        vol_global(iSeg,1:2) = RCHFLX(iSeg)%ROUTE(idxIRF)%REACH_VOL(0:1)
+        vol_global_tmp(iSeg) = RCHFLX(iSeg)%ROUTE(idxIRF)%REACH_VOL(1)
       enddo
     else
-      vol_global(:,:) = realMissing
+      vol_global_tmp(:) = realMissing
     endif
-    do iTbound =1,nTbound
-      vol_global_tmp(:) = vol_global(:,iTbound)
-      call mpi_comm_single_flux(pid, nNodes,                              &
-                                vol_global_tmp,                           &
-                                vol_local,                                &
-                                rch_per_proc(root:nNodes-1),              &
-                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                                arth(1,1,rch_per_proc(pid)),              &
-                                scatter,                                  &
-                                ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call mpi_comm_single_flux(pid, nNodes,                              &
+                              vol_global_tmp,                           &
+                              vol_local,                                &
+                              rch_per_proc(root:nNodes-1),              &
+                              ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                              arth(1,1,rch_per_proc(pid)),              &
+                              scatter,                                  &
+                              ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      if (masterproc) then
-        do iSeg = 1, rch_per_proc(pid)
-          RCHFLX_trib(nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxIRF)%REACH_VOL(iTbound-1) = vol_local(iSeg)
-        enddo
-      else
-        do iSeg = 1, rch_per_proc(pid)
-          RCHFLX_trib(iSeg)%ROUTE(idxIRF)%REACH_VOL(iTbound-1) = vol_local(iSeg)
-        end do
-      end if
-    end do
+    if (masterproc) then
+      do iSeg = 1, rch_per_proc(pid)
+        RCHFLX_trib(nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxIRF)%REACH_VOL(1) = vol_local(iSeg)
+      enddo
+    else
+      do iSeg = 1, rch_per_proc(pid)
+        RCHFLX_trib(iSeg)%ROUTE(idxIRF)%REACH_VOL(1) = vol_local(iSeg)
+      end do
+    end if
   endif ! (onRoute(impulseResponseFunc))
 
   if (tracer) then
