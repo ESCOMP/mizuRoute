@@ -758,6 +758,22 @@ contains
     call t_stopf ('lc_mizuRoute_import')
 
     !--------------------------------
+    ! Determine if time to stop
+    !--------------------------------
+
+    call ESMF_ClockGetAlarm(clock, alarmname='alarm_stop', alarm=alarm, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+    if (ESMF_AlarmIsRinging(alarm, rc=rc)) then
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       nlend = .true.
+       call ESMF_AlarmRingerOff( alarm, rc=rc )
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    else
+       nlend = .false.
+    endif
+
+    !--------------------------------
     ! Determine if time to write restart
     !--------------------------------
 
@@ -774,22 +790,6 @@ contains
          call ESMF_AlarmRingerOff( alarm, rc=rc )
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
       endif
-    endif
-
-    !--------------------------------
-    ! Determine if time to stop
-    !--------------------------------
-
-    call ESMF_ClockGetAlarm(clock, alarmname='alarm_stop', alarm=alarm, rc=rc)
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-    if (ESMF_AlarmIsRinging(alarm, rc=rc)) then
-       if (ChkErr(rc,__LINE__,u_FILE_u)) return
-       nlend = .true.
-       call ESMF_AlarmRingerOff( alarm, rc=rc )
-       if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    else
-       nlend = .false.
     endif
 
     !--------------------------------
