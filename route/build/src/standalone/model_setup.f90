@@ -540,10 +540,10 @@ CONTAINS
   ! Compare sim_start vs. time at first time step in runoff data
   if (begDatetime < roBegDatetime) then
     write(iulog,'(2a)') new_line('a'),'WARNING: <sim_start> is before the first time step in input runoff'
-    write(iulog,fmt1)  ' runoff_start: ', roCal(1)%year(),'-',roCal(1)%month(),'-',roCal(1)%day(), roCal(1)%hour(),':', roCal(1)%minute(),':',roCal(1)%sec()
+    write(iulog,fmt1)  ' runoff_start: ', roBegDatetime%year(),'-',roBegDatetime%month(),'-',roBegDatetime%day(), roBegDatetime%hour(),':', roBegDatetime%minute(),':',roBegDatetime%sec()
     write(iulog,fmt1)  ' <sim_start> : ', begDatetime%year(),'-',begDatetime%month(),'-',begDatetime%day(), begDatetime%hour(),':', begDatetime%minute(),':',begDatetime%sec()
     write(iulog,'(a)') ' Reset <sim_start> to runoff_start'
-    begDatetime = roCal(1)
+    begDatetime = roBegDatetime
   endif
 
   ! Compare sim_end vs. time at last time step in runoff data
@@ -552,7 +552,7 @@ CONTAINS
     write(iulog,fmt1)   ' runoff_end: ', roDatetime_end%year(),'-',roDatetime_end%month(),'-',roDatetime_end%day(), roDatetime_end%hour(),':', roDatetime_end%minute(),':',roDatetime_end%sec()
     write(iulog,fmt1)   ' <sim_end> : ', endDatetime%year(),'-',endDatetime%month(),'-',endDatetime%day(), endDatetime%hour(),':', endDatetime%minute(),':',endDatetime%sec()
     write(iulog,'(a)')  ' Reset <sim_end> to runoff_end'
-    endDatetime = roCal(nTime)
+    endDatetime = roDatetime_end
   endif
 
   ! water management options on
