@@ -750,7 +750,9 @@ CONTAINS
 
    nTribSeg = 0  ! number of tributary reaches
    nTrib = 0     ! number of tributaries
+   nSubSeg(:) = 0
    do ix = 1,nDomain
+    if (domains(ix)%basinType==endorheic) cycle
     nSubSeg(ix) = size(domains(ix)%segIndex)
     if (domains(ix)%basinType==tributary) then
      nTribSeg = nTribSeg + nSubSeg(ix)
