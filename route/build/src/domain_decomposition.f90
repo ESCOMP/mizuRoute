@@ -776,6 +776,9 @@ CONTAINS
     endif
    end do
 
+   ! ensure that top (nNodes-1) largest domain should be unassigned so that they are assinged to non-main tasks below
+   if (nNodes>1) isAssigned(nDomain-nNodes+2:nDomain) = .false.
+
    ! Distribute mainstem and "large" tributary to distributed cores (if more than one procs are available)
    nWork = 0
    do ix = nDomain,1,-1  ! Going through domain from the largest size

@@ -98,8 +98,10 @@ implicit none
  endtype var_clength
 
  type,public :: var
+  integer(i4b),  allocatable  :: array_1d_int(:)
   integer(i4b),  allocatable  :: array_2d_int(:,:)
   integer(i4b),  allocatable  :: array_3d_int(:,:,:)
+  real(dp),      allocatable  :: array_1d_dp(:)
   real(dp),      allocatable  :: array_2d_dp(:,:)
   real(dp),      allocatable  :: array_3d_dp(:,:,:)
   logical(lgt),  allocatable  :: array_2d_lgt(:,:)

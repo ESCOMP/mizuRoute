@@ -232,18 +232,18 @@ CONTAINS
       wb_trib     = 0._dp
       wb_mainstem = 0._dp
       if (nRch_mainstem > 0) then
-        call accum_water_balance(NETOPO_main(1:nRch_mainstem), RCHFLX_trib(1,1:nRch_mainstem), wb_mainstem, ierr, cmessage)
+        call accum_water_balance(NETOPO_main(1:nRch_mainstem), RCHFLX_trib(1:nRch_mainstem), wb_mainstem, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
       if (nRch_trib > 0) then
         lwr = nRch_mainstem + nTribOutlet + 1
         upr = nRch_mainstem + nTribOutlet + nRch_trib
-        call accum_water_balance(NETOPO_trib, RCHFLX_trib(1,lwr:upr), wb_trib, ierr, cmessage)
+        call accum_water_balance(NETOPO_trib, RCHFLX_trib(lwr:upr), wb_trib, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
       wb_local = wb_mainstem + wb_trib
     else ! non-main processors
-      call accum_water_balance(NETOPO_trib, RCHFLX_trib(1,:), wb_local, ierr, cmessage)
+      call accum_water_balance(NETOPO_trib, RCHFLX_trib, wb_local, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if
 

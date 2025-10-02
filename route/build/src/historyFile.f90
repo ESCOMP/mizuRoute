@@ -121,7 +121,6 @@ MODULE historyFile
       ! 2. Define dimension
       call def_dim(this%pioFileDesc, meta_qDims(ixQdims%time)%dimName,   recordDim, meta_qDims(ixQdims%time)%dimId)
       call def_dim(this%pioFileDesc, meta_qDims(ixQdims%tbound)%dimName, 2,         meta_qDims(ixQdims%tbound)%dimId)
-      call def_dim(this%pioFileDesc, meta_qDims(ixQdims%ens)%dimName,    1,         meta_qDims(ixQdims%ens)%dimId)
       if (nRch_local>0) then
         call def_dim(this%pioFileDesc, meta_qDims(ixQdims%seg)%dimName, nRch_in, meta_qDims(ixQdims%seg)%dimId)
       end if
