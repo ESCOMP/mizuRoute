@@ -3,40 +3,82 @@
 Lake Model
 ==========
 
-To simulate lakes, the variable ``<is_lake_sim>`` in the control file **must always be set to true**. 
-If it is false, lakes will not be simulated.
+To simulate lakes, the variable ``<is_lake_sim>`` in the control file **must be set to true**.
+This flag is false by default and therefore if not specify otherwise mizuRoute does not simulate lakes.
 
-.. list-table:: General Control Variable in Control File
-   :widths: 25 75
+.. list-table:: Global control keys for lake simulation
+   :header-rows: 1
+   :widths: 20 15 15 50
+
+   * - Control key
+     - Type
+     - Default
+     - Description
+   * - ``<is_lake_sim>``
+     - Logical (Global Flag)
+     - ``F``
+     - Indicates whether lakes are simulated.
+
+       * ``F`` → lakes are not simulated.
+       * ``T`` → lakes are included in the routing.
+   * - ``<lakeRegulate>``
+     - Logical (Global Flag)
+     - ``T``
+     - Controls whether all lakes are treated as natural or regulated.
+
+       * ``F`` → all lakes are treated as natural (``lakeType = 1``) regardless of individual ``lakeModelType``.
+       * ``T`` → regulation is applied (default).
+   * - ``<LakeInputOption>``
+     - Integer (Global Flag)
+     - ``0``
+     - Selects the type of fluxes used in lake simulation:
+
+       * ``0`` → evaporation + precipitation (default, ignores runoff provided for lakes and reservoirs)
+       * ``1`` → runoff (for cases that simulated runoff account for processes such as snow melt, ice formation, etc – resolving lakes and reservoirs water and energy balances in land surface model for example)
+       * ``2`` → evaporation + precipitation + runoff
+
+
+
+
+The following variables need to be specified in the network topology data for each element of network topology that is identified as lake.
+
+.. list-table:: Lake-related control keys in the network topology file
+   :widths: 20 20 15 15 15 15 30
    :header-rows: 1
 
-   * - Variable
+   * - Control key
+     - Type
+     - Variable type
+     - Variable dimension
+     - Variable unit
+     - Default
      - Description
-   * - <is_lake_sim>
-     - Logical; indicates whether lakes are simulated
-   * - <lakeRegulate>
-     - Logical; F -> all lakes are treated as natural (lakeType=1) regardless of individual lakeModelType, T (default)
-   * - <LakeInputOption>
-     - Fluxes for lake simulation; 0 -> evaporation + precipitation (default), 1 -> runoff, 2 -> evaporation + precipitation + runoff
+   * - ``<varname_islake>``
+     - NetCDF variable name
+     - int
+     - seg
+     - flag (0/1)
+     - ``-``
+     - Flag to define whether the segment is a lake (``1`` = lake, ``0`` = reach).
+   * - ``<varname_lakeModelType>``
+     - NetCDF variable name
+     - int
+     - seg
+     - categorical
+     - ``-``
+     - Defines the lake model type for the segment:
+       ``0`` = Endorheic, ``1`` = Döll, ``2`` = Hanasaki, ``3`` = HYPE.
+   * - ``<varname_LakeTargVol>``
+     - NetCDF variable name
+     - int
+     - seg
+     - flag (0/1)
+     - ``-``
+     - Flag to follow the provided target volume for the lake (``1`` = yes, ``0`` = no).
 
 
 
-The following variables need to be specified in the network topology data for each segment that may contain a lake.
-
-.. list-table:: Lake Variables that need to be specified in Network Topology
-   :widths: 25 75
-   :header-rows: 1
-
-   * - Variable
-     - Description
-   * - <varname_islake>
-     - Flag to define a lake (1 = lake, 0 = reach)
-   * - <varname_lakeModelType>
-     - Defines the lake model type (1 = Döll, 2 = Hanasaki, 3 = HYPE, 0 = Endorehic)
-   * - <varname_LakeTargVol>
-     - Flag to follow the provided target volume (1 = yes, 0 = no)
-
-For further reading about the below formulation, please see 
+For further reading about the below formulation, please see
 `Gharari et al., 2024 <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022WR032400>`_.
 
 
@@ -45,9 +87,9 @@ For further reading about the below formulation, please see
 Storage-based model (Döll)
 --------------------------
 
-The least complex lake model in *mizuRoute-Lake* is the Döll formulation 
-(based on Döll, 2003; Hanasaki, 2006).  
-The Döll formulation links the outflow from the lake to the ratio of 
+The least complex lake model in *mizuRoute-Lake* is the Döll formulation
+(based on Döll, 2003; Hanasaki, 2006).
+The Döll formulation links the outflow from the lake to the ratio of
 active storage to maximum active storage through a power function.
 
 .. list-table::
@@ -86,7 +128,7 @@ active storage to maximum active storage through a power function.
 Elevation-based model (HYPE - Hydropower Reservoir Formulation)
 ---------------------------------------------------------------
 
-The HYPE formulation describes the representation of a hydropower reservoir in *mizuRoute-Lake*. 
+The HYPE formulation describes the representation of a hydropower reservoir in *mizuRoute-Lake*.
 This includes parameters for spillways, turbine operations, and reservoir management rules.
 
 .. list-table::
@@ -165,8 +207,8 @@ This includes parameters for spillways, turbine operations, and reservoir manage
 Demand-based model (Hanasaki)
 -----------------------------
 
-The Hanasaki 2006 formulation represents reservoirs with explicit consideration of water demand. 
-It calculates target release based on storage, inflow, and demand, differentiating between “within-a-year” 
+The Hanasaki 2006 formulation represents reservoirs with explicit consideration of water demand.
+It calculates target release based on storage, inflow, and demand, differentiating between “within-a-year”
 and “multi-year” reservoirs.
 
 .. list-table::
