@@ -9,6 +9,7 @@ This flag is false by default and therefore if not specify otherwise mizuRoute d
 .. list-table:: Global control keys for lake simulation
    :header-rows: 1
    :widths: 20 15 15 50
+   :name: lake-global-flags
 
    * - Control key
      - Type
@@ -39,12 +40,12 @@ This flag is false by default and therefore if not specify otherwise mizuRoute d
 
 
 
-
 The following variables need to be specified in the network topology data for each element of network topology that is identified as lake.
 
 .. list-table:: Lake-related control keys in the network topology file
    :widths: 20 20 15 15 15 15 30
    :header-rows: 1
+   :name: lake-individual-flags
 
    * - Control key
      - Type
@@ -82,6 +83,18 @@ For further reading about the below formulation, please see
 `Gharari et al., 2024 <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022WR032400>`_.
 
 
+.. _Lake_model_Endorheic:
+
+Endorheic (Closed) Lake Model
+-----------------------------
+
+This lake type represents **endorheic or closed lakes**, where **outflow is set to zero**. Water enters the lake only from upstream river segments or direct precipitation and is lost through **evaporation** or **water abstraction**.
+
+This model does not require any specific parameters.
+
+To designate a lake as endorheic, set the corresponding flag in the network topology file to ``0`` (variable identified by ``<varname_lakeModelType>``).
+
+
 .. _Lake_model_Doll:
 
 Storage-based model (Döll)
@@ -92,114 +105,65 @@ The least complex lake model in *mizuRoute-Lake* is the Döll formulation
 The Döll formulation links the outflow from the lake to the ratio of
 active storage to maximum active storage through a power function.
 
-.. list-table::
-   :widths: 20 15 10 10 45
+.. list-table:: Doll lake model control keys in the network topology file
+   :widths: 20 20 15 15 15 15 30
    :header-rows: 1
+   :name: lake-doll-parameters
 
-   * - Variable
-     - Dimension
-     - Unit
+   * - Control key
      - Type
+     - Variable type
+     - Variable dimension
+     - Variable unit
+     - Default
      - Description
-   * - <varname_D03_MaxStorage>
+   * - ``<varname_D03_MaxStorage>``
+     - NetCDF variable name
+     - real
      - seg
      - m³
+     - ``-``
+     - Maximum active storage for Döll formulation.
+   * - ``<varname_D03_Coefficient>``
+     - NetCDF variable name
      - real
-     - Maximum active storage for Doll 2003 formulation
-   * - <varname_D03_Coefficient>
      - seg
      - d⁻¹
+     - ``-``
+     - Release coefficient for Döll formulation.
+   * - ``<varname_D03_Power>``
+     - NetCDF variable name
      - real
-     - Coefficient for Doll 2003 formulation (release coefficient)
-   * - <varname_D03_Power>
      - seg
      - –
+     - ``-``
+     - Power scaling exponent for Döll formulation.
+   * - ``<varname_D03_S0>``
+     - NetCDF variable name
      - real
-     - Power scaling for Doll 2003 formulation
-   * - <varname_D03_S0>
      - seg
      - m³
-     - real
-     - Inactive storage for Doll 2003 formulation
+     - ``-``
+     - Inactive storage for Döll formulation.
 
+For the case when the storage is larger than inactive storage, :math:`S_0 < S`, the outflow is calculated as:
 
-.. _Lake_model_HYPE:
+.. math::
+   :name: lake-doll-equation
 
-Elevation-based model (HYPE - Hydropower Reservoir Formulation)
----------------------------------------------------------------
+   O = K \, (S - S_0) \left( \frac{S - S_0}{S_{\text{max}} - S_0} \right)^P
 
-The HYPE formulation describes the representation of a hydropower reservoir in *mizuRoute-Lake*.
-This includes parameters for spillways, turbine operations, and reservoir management rules.
+Outflow is set to zero, :math:`O = 0`, when the storage is equal to or smaller than inactive storage, :math:`S <= S0`.
 
-.. list-table::
-   :widths: 20 15 10 10 45
-   :header-rows: 1
+Where:
 
-   * - Variable
-     - Dimension
-     - Unit
-     - Type
-     - Description
-   * - <varname_HYP_E_emr>
-     - seg
-     - m
-     - real
-     - Elevation of emergency spillway
-   * - <varname_HYP_E_lim>
-     - seg
-     - m
-     - real
-     - Elevation below which primary spillway flow is restricted
-   * - <varname_HYP_E_min>
-     - seg
-     - m
-     - real
-     - Elevation below which outflow is zero
-   * - <varname_HYP_E_zero>
-     - seg
-     - m
-     - real
-     - Elevation at which lake/reservoir storage is zero
-   * - <varname_HYP_Qrate_emr>
-     - seg
-     - m³ s⁻¹
-     - real
-     - Emergency rate of flow for each unit of elevation above HYP_E_emr
-   * - <varname_HYP_Erate_emr>
-     - seg
-     - –
-     - real
-     - Power for the emergency spillway exponential flow curve
-   * - <varname_HYP_Qrate_prim>
-     - seg
-     - m³ s⁻¹
-     - real
-     - Average yearly/long-term output from primary spillway
-   * - <varname_HYP_Qrate_amp>
-     - seg
-     - –
-     - real
-     - Amplitude of the primary spillway outflow
-   * - <varname_HYP_Qrate_phs>
-     - seg
-     - –
-     - real
-     - Phase of the primary spillway outflow (day of year; default = 100)
-   * - <varname_HYP_prim_F>
-     - seg
-     - –
-     - real
-     - Reservoir primary spillway flag (1 if present, else 0)
-   * - <varname_HYP_A_avg>
-     - seg
-     - m²
-     - real
-     - Average area of lake (unused if bathymetry is provided)
-   * - <varname_HYP_Qsim_mode>
-     - seg
-     - –
-     - real
-     - Outflow calculation mode (1 = sum of emergency + primary spillway; else = maximum)
+- :math:`O` = outflow from the lake segment
+- :math:`S` = storage of the lake segment
+- :math:`S_0` = inactive storage of the lake segment (network topology variable name is identified by control key ``<varname_D03_S0>``)
+- :math:`S_{\text{max}}` = maximum active storage of the lake segment (network topology variable name is identified by control key ``<varname_D03_MaxStorage>``)
+- :math:`K` = release coefficient (network topology variable name is identified by control key ``<varname_D03_Coefficient>``)
+- :math:`P` = power scaling exponent (network topology variable name is identified by control key ``<varname_D03_Power>``)
+
 
 
 .. _Lake_model_Hanasaki:
@@ -311,3 +275,163 @@ and “multi-year” reservoirs.
      - real
      - Memory length in years for demand
 
+
+.. _Lake_model_HYPE:
+
+Elevation-based model (HYPE - Hydropower Reservoir Formulation)
+---------------------------------------------------------------
+
+The HYPE formulation describes the representation of a hydropower reservoir in *mizuRoute-Lake*.
+This includes parameters for spillways, turbine operations, and reservoir management rules.
+
+.. list-table:: HYPE lake model control keys in the network topology file
+   :widths: 20 20 15 15 15 15 30
+   :header-rows: 1
+   :name: lake-hype-parameters
+
+   * - Control key
+     - Type
+     - Variable type
+     - Variable dimension
+     - Variable unit
+     - Default
+     - Description
+   * - ``<varname_HYP_E_emr>``
+     - NetCDF variable name
+     - real
+     - seg
+     - m
+     - ``-``
+     - Elevation of emergency spillway
+   * - ``<varname_HYP_E_lim>``
+     - NetCDF variable name
+     - real
+     - seg
+     - m
+     - ``-``
+     - Elevation below which primary spillway flow is restricted
+   * - ``<varname_HYP_E_min>``
+     - NetCDF variable name
+     - real
+     - seg
+     - m
+     - ``-``
+     - Elevation below which outflow is zero
+   * - ``<varname_HYP_E_zero>``
+     - NetCDF variable name
+     - real
+     - seg
+     - m
+     - ``-``
+     - Elevation at which lake/reservoir storage is zero
+   * - ``<varname_HYP_Qrate_emr>``
+     - NetCDF variable name
+     - real
+     - seg
+     - m³ s⁻¹
+     - ``-``
+     - Emergency rate of flow for each unit of elevation above HYP_E_emr
+   * - ``<varname_HYP_Erate_emr>``
+     - NetCDF variable name
+     - real
+     - seg
+     - –
+     - ``-``
+     - Power for the emergency spillway exponential flow curve
+   * - ``<varname_HYP_Qrate_prim>``
+     - NetCDF variable name
+     - real
+     - seg
+     - m³ s⁻¹
+     - ``-``
+     - Average yearly/long-term output from primary spillway
+   * - ``<varname_HYP_Qrate_amp>``
+     - NetCDF variable name
+     - real
+     - seg
+     - –
+     - ``-``
+     - Amplitude of the primary spillway outflow
+   * - ``<varname_HYP_Qrate_phs>``
+     - NetCDF variable name
+     - int
+     - seg
+     - –
+     - ``100``
+     - Phase of the primary spillway outflow (day of year; default = 100)
+   * - ``<varname_HYP_prim_F>``
+     - NetCDF variable name
+     - int
+     - seg
+     - –
+     - ``0``
+     - Reservoir primary spillway flag (1 if present, else 0)
+   * - ``<varname_HYP_A_avg>``
+     - NetCDF variable name
+     - real
+     - seg
+     - m²
+     - ``-``
+     - Average area of lake (unused if bathymetry is provided)
+   * - ``<varname_HYP_Qsim_mode>``
+     - NetCDF variable name
+     - int
+     - seg
+     - –
+     - ``1``
+     - Outflow calculation mode (1 = sum of emergency + primary spillway; else = maximum of emergency or primary spillway)
+
+
+For hydropower reservoirs, a sinusoidal function defines the target hydropower production outflow.
+This function is shifted in time based on a day of the year, :math:`B_{\mathrm{phase}}`, as:
+
+.. math::
+
+   F_{\mathrm{sin}} = \max \Big(0, 1 + A_{\mathrm{amp}} \sin\Big(\frac{2 \pi D_{\mathrm{julian}} + B_{\mathrm{phase}}}{365}\Big) \Big)
+
+Next, the limiting factor is defined when the lake elevation is between :math:`E_{\mathrm{prim}}` and :math:`E_{\mathrm{lim}}`.
+The linear scaling for restricted hydropower production is:
+
+.. math::
+
+   F_{\mathrm{lim}} = \min \Big( \max \Big( \frac{E - E_{\mathrm{prim}}}{E_{\mathrm{lim}} - E_{\mathrm{prim}}}, 0 \Big), 1 \Big)
+
+If the water level is below :math:`E_{\mathrm{prim}}`, :math:`F_{\mathrm{lim}} = 0`.
+If the water level is above :math:`E_{\mathrm{lim}}`, :math:`F_{\mathrm{lim}} = 1`.
+
+The production outflow for hydropower is then calculated as:
+
+.. math::
+
+   Q_{\mathrm{main}} = F_{\mathrm{sin}} \, F_{\mathrm{lim}} \, F_{\mathrm{managed}} \, Q_{\mathrm{avg,rate}}
+
+If the reservoir elevation, :math:`E`, exceeds the emergency spillway elevation, :math:`E_{\mathrm{emg}}`, the emergency spillway is activated:
+
+.. math::
+   :label: HYPE_emg_equation
+
+   Q_{\mathrm{emg}} = Q_{\mathrm{emg,rate}} (E - E_{\mathrm{emg}})^{P_{\mathrm{emg}}}
+
+Finally, the outflow from the reservoir is either the maximum of :math:`Q_{\mathrm{emg}}` and :math:`Q_{\mathrm{main}}` or their summation (depending on mizuRoute settings):
+
+.. math::
+
+   O = \max(Q_{\mathrm{emg}}, Q_{\mathrm{main}})
+
+Where the parameters are defined as:
+
+- :math:`A_{\mathrm{amp}}` = amplitude of the sinusoidal function (network topology variable name is identified by control key ``<varname_HYP_Qrate_amp>``)
+- :math:`B_{\mathrm{phase}}` = phase shift for the sinusoidal function (network topology variable name is identified by control key ``<varname_HYP_Qrate_phs>``)
+- :math:`E_{\mathrm{prim}}` = primary spillway elevation (flow restricted below this) (network topology variable name is identified by control key ``<varname_HYP_E_prim>``)
+- :math:`E_{\mathrm{lim}}` = elevation at which primary spillway flow is unrestricted (network topology variable name is identified by control key ``<varname_HYP_E_lim>``)
+- :math:`F_{\mathrm{managed}}` = management factor (optional control) (network topology variable name is identified by control key ``<varname_HYP_prim_F>``)
+- :math:`Q_{\mathrm{avg,rate}}` = average rated outflow of primary spillway/turbine (network topology variable name is identified by control key ``<varname_HYP_Qrate_prim>``)
+- :math:`Q_{\mathrm{emg,rate}}` = emergency spillway flow coefficient (network topology variable name is identified by control key ``<varname_HYP_Qrate_emr>``)
+- :math:`P_{\mathrm{emg}}` = emergency spillway exponent (network topology variable name is identified by control key ``<varname_HYP_Erate_emr>``)
+- :math:`D_{\mathrm{julian}}` = Julian day of the year
+- :math:`E` = reservoir elevation
+- :math:`F_{\mathrm{sin}}` = sinusoidal target flow fraction
+- :math:`F_{\mathrm{lim}}` = limiting factor due to reservoir elevation
+- :math:`Q_{\mathrm{emg}}` = emergency spillway outflow
+- :math:`Q_{\mathrm{main}}` = main hydropower production outflow
+- :math:`O` = final outflow from the reservoir (m³/s) (network topology variable name is identified by control key ``<varname_HYP_Qsim_mode>``)

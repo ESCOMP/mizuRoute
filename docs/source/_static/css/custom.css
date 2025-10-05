@@ -15,3 +15,7 @@
     /* Place link in margin and keep equation number aligned with boundary */
     margin-right: -0.7em;
 }
+/* left aligned for table captions */
+caption {
+  text-align: left !important;
+}

@@ -44,6 +44,12 @@ extensions = [
 
 math_numfig = True
 numfig = True
+numfig_secnum_depth = 3 # makes numbering follow your section depth:
+numfig_format = {
+    'figure': 'Figure %s',
+    'table': 'Table %s',
+    'code-block': 'Listing %s',
+}
 
 def setup(app):
     app.add_css_file('css/custom.css')
