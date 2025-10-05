@@ -386,6 +386,7 @@ For hydropower reservoirs, a sinusoidal function defines the target hydropower p
 This function is shifted in time based on a day of the year, :math:`B_{\mathrm{phase}}`, as:
 
 .. math::
+   :label: HYPE_sin_equation
 
    F_{\mathrm{sin}} = \max \Big(0, 1 + A_{\mathrm{amp}} \sin\Big(\frac{2 \pi D_{\mathrm{julian}} + B_{\mathrm{phase}}}{365}\Big) \Big)
 
@@ -393,6 +394,7 @@ Next, the limiting factor is defined when the lake elevation is between :math:`E
 The linear scaling for restricted hydropower production is:
 
 .. math::
+   :label: HYPE_lim_equation
 
    F_{\mathrm{lim}} = \min \Big( \max \Big( \frac{E - E_{\mathrm{prim}}}{E_{\mathrm{lim}} - E_{\mathrm{prim}}}, 0 \Big), 1 \Big)
 
@@ -402,6 +404,7 @@ If the water level is above :math:`E_{\mathrm{lim}}`, :math:`F_{\mathrm{lim}} = 
 The production outflow for hydropower is then calculated as:
 
 .. math::
+   :label: HYPE_main_equation
 
    Q_{\mathrm{main}} = F_{\mathrm{sin}} \, F_{\mathrm{lim}} \, F_{\mathrm{managed}} \, Q_{\mathrm{avg,rate}}
 
@@ -415,6 +418,7 @@ If the reservoir elevation, :math:`E`, exceeds the emergency spillway elevation,
 Finally, the outflow from the reservoir is either the maximum of :math:`Q_{\mathrm{emg}}` and :math:`Q_{\mathrm{main}}` or their summation (depending on mizuRoute settings):
 
 .. math::
+   :label: HYPE_outflow_equation
 
    O = \max(Q_{\mathrm{emg}}, Q_{\mathrm{main}})
 
