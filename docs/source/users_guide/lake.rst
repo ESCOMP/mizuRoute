@@ -1,7 +1,7 @@
-.. _Lake_model:
+.. _Lake_res_model:
 
-Lake Model
-==========
+Lake and Reservoir Models
+=========================
 
 To simulate lakes, the variable ``<is_lake_sim>`` in the control file **must be set to true**.
 This flag is false by default and therefore if not specify otherwise mizuRoute does not simulate lakes.
@@ -85,8 +85,8 @@ For further reading about the below formulation, please see
 
 .. _Lake_model_Endorheic:
 
-Endorheic (Closed) Lake Model
------------------------------
+Endorheic (closed) model
+------------------------
 
 This lake type represents **endorheic or closed lakes**, where **outflow is set to zero**. Water enters the lake only from upstream river segments or direct precipitation and is lost through **evaporation** or **water abstraction**.
 
@@ -105,7 +105,7 @@ The least complex lake model in *mizuRoute-Lake* is the Döll formulation
 The Döll formulation links the outflow from the lake to the ratio of
 active storage to maximum active storage through a power function.
 
-.. list-table:: Doll lake model control keys in the network topology file
+.. list-table:: Doll lake model control keys for variables in the network topology file
    :widths: 20 20 15 15 15 15 30
    :header-rows: 1
    :name: lake-doll-parameters
@@ -175,116 +175,156 @@ The Hanasaki 2006 formulation represents reservoirs with explicit consideration 
 It calculates target release based on storage, inflow, and demand, differentiating between “within-a-year”
 and “multi-year” reservoirs.
 
-.. list-table::
-   :widths: 20 15 10 10 45
+.. list-table:: Hanasaki lake model control keys for variables in the network topology file
+   :widths: 20 20 15 15 15 15 30
    :header-rows: 1
+   :name: lake-hanasaki-parameters
 
-   * - Variable
-     - Dimension
-     - Unit
+   * - Control key
      - Type
+     - Variable type
+     - Variable dimension
+     - Variable unit
+     - Default
      - Description
-   * - <varname_H06_Smax>
+   * - ``<varname_H06_Smax>``
+     - NetCDF variable name
+     - real
      - seg
      - m³
-     - real
+     - ``-``
      - Maximum reservoir storage
-   * - <varname_H06_alpha>
+   * - ``<varname_H06_alpha>``
+     - NetCDF variable name
+     - real
      - seg
      - –
-     - real
+     - ``-``
      - Fraction of active storage compared to total storage
-   * - <varname_H06_envfact>
+   * - ``<varname_H06_envfact>``
+     - NetCDF variable name
+     - real
      - seg
      - –
-     - real
+     - ``-``
      - Fraction of inflow that can be used to meet demand
-   * - <varname_H06_S_ini>
+   * - ``<varname_H06_S_ini>``
+     - NetCDF variable name
+     - real
      - seg
      - m³
-     - real
+     - ``-``
      - Initial storage used for estimating release coefficient
-   * - <varname_H06_c1>
+   * - ``<varname_H06_c1>``
+     - NetCDF variable name
+     - real
      - seg
      - –
-     - real
+     - ``-``
      - Coefficient 1 for target release for irrigation reservoir
-   * - <varname_H06_c2>
+   * - ``<varname_H06_c2>``
+     - NetCDF variable name
+     - real
      - seg
      - –
-     - real
+     - ``-``
      - Coefficient 2 for target release for irrigation reservoir
-   * - <varname_H06_exponent>
+   * - ``<varname_H06_exponent>``
+     - NetCDF variable name
+     - real
      - seg
      - –
-     - real
+     - ``-``
      - Exponent for actual release for “within-a-year” reservoir
-   * - <varname_H06_denominator>
+   * - ``<varname_H06_denominator>``
+     - NetCDF variable name
+     - real
      - seg
      - –
-     - real
+     - ``-``
      - Denominator of actual release for “within-a-year” reservoir
-   * - <varname_H06_c_compare>
+   * - ``<varname_H06_c_compare>``
+     - NetCDF variable name
+     - real
      - seg
      - –
-     - real
+     - ``-``
      - Criterion to distinguish “within-a-year” vs “multi-year” reservoir
-   * - <varname_H06_frac_Sdead>
+   * - ``<varname_H06_frac_Sdead>``
+     - NetCDF variable name
+     - real
      - seg
      - –
-     - real
+     - ``-``
      - Fraction of dead storage to maximum storage
-   * - <varname_H06_E_rel_ini>
+   * - ``<varname_H06_E_rel_ini>``
+     - NetCDF variable name
+     - real
      - seg
      - –
-     - real
+     - ``-``
      - Initial release coefficient
-   * - <varname_H06_I_Jan> … <varname_H06_I_Dec>
+   * - ``<varname_H06_I_Jan>`` … ``<varname_H06_I_Dec>``
+     - NetCDF variable name
+     - real
      - seg
      - m³ s⁻¹
-     - real
+     - ``-``
      - Average monthly inflow for each month
-   * - <varname_H06_D_Jan> … <varname_H06_D_Dec>
+   * - ``<varname_H06_D_Jan>`` … ``<varname_H06_D_Dec>``
+     - NetCDF variable name
+     - real
      - seg
      - m³ s⁻¹
-     - real
+     - ``-``
      - Average monthly demand for each month
-   * - <varname_H06_purpose>
+   * - ``<varname_H06_purpose>``
+     - NetCDF variable name
+     - int
      - seg
      - –
-     - real
-     - Reservoir purpose flag (0=non-irrigation, 1=irrigation)
-   * - <varname_H06_I_mem_F>
+     - ``-``
+     - Reservoir purpose flag (0 = non-irrigation, 1 = irrigation)
+   * - ``<varname_H06_I_mem_F>``
+     - NetCDF variable name
+     - int
      - seg
      - –
-     - real
+     - ``-``
      - Flag to transition to modelled inflow
-   * - <varname_H06_D_mem_F>
+   * - ``<varname_H06_D_mem_F>``
+     - NetCDF variable name
+     - int
      - seg
      - –
-     - real
+     - ``-``
      - Flag to transition to modelled/provided demand
-   * - <varname_H06_I_mem_L>
+   * - ``<varname_H06_I_mem_L>``
+     - NetCDF variable name
+     - int
      - seg
      - year
-     - real
+     - ``-``
      - Memory length in years for inflow
-   * - <varname_H06_D_mem_L>
+   * - ``<varname_H06_D_mem_L>``
+     - NetCDF variable name
+     - int
      - seg
      - year
-     - real
+     - ``-``
      - Memory length in years for demand
+
 
 
 .. _Lake_model_HYPE:
 
-Elevation-based model (HYPE - Hydropower Reservoir Formulation)
----------------------------------------------------------------
+Elevation-based model (Hydropower Reservoir Formulation from HYPE)
+------------------------------------------------------------------
 
 The HYPE formulation describes the representation of a hydropower reservoir in *mizuRoute-Lake*.
 This includes parameters for spillways, turbine operations, and reservoir management rules.
 
-.. list-table:: HYPE lake model control keys in the network topology file
+.. list-table:: HYPE lake model control keys for variables in the network topology file
    :widths: 20 20 15 15 15 15 30
    :header-rows: 1
    :name: lake-hype-parameters
@@ -357,14 +397,14 @@ This includes parameters for spillways, turbine operations, and reservoir manage
      - int
      - seg
      - –
-     - ``100``
+     - ``-``
      - Phase of the primary spillway outflow (day of year; default = 100)
    * - ``<varname_HYP_prim_F>``
      - NetCDF variable name
      - int
      - seg
      - –
-     - ``0``
+     - ``-``
      - Reservoir primary spillway flag (1 if present, else 0)
    * - ``<varname_HYP_A_avg>``
      - NetCDF variable name
@@ -378,7 +418,7 @@ This includes parameters for spillways, turbine operations, and reservoir manage
      - int
      - seg
      - –
-     - ``1``
+     - ``-``
      - Outflow calculation mode (1 = sum of emergency + primary spillway; else = maximum of emergency or primary spillway)
 
 
