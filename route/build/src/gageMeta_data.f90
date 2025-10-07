@@ -1,6 +1,6 @@
 module gageMeta_data
 
-  use nrtype
+  use nrtype,        only: i4b, lgt, strLen, gageStrLen
   use public_var,    only: integerMissing
   use csv_data,      only: csv
   use nr_utils,      only: match_index
@@ -12,7 +12,7 @@ module gageMeta_data
   type :: gageMeta
     private
     integer(i4b)                   :: nGage
-    character(len=30), allocatable :: gageID(:)
+    character(len=gageStrLen), allocatable :: gageID(:)
     integer(i4b),      allocatable :: reachID(:)
 
     contains
@@ -86,7 +86,7 @@ module gageMeta_data
     function fn_get_gageID(this) result(gageID)
       implicit none
       class(gageMeta), intent(in) :: this
-      character(30), allocatable  :: gageID(:)
+      character(len=gageStrLen), allocatable :: gageID(:)
       allocate(gageID(this%nGage))
       gageID = this%gageID
     end function fn_get_gageID
@@ -95,7 +95,7 @@ module gageMeta_data
       implicit none
       class(gageMeta), intent(in) :: this
       integer(i4b)                :: ix(:)
-      character(30), allocatable  :: gageID(:)
+      character(len=gageStrLen), allocatable :: gageID(:)
       allocate(gageID(size(ix)))
       gageID = this%gageID(ix)
     end function fn_get_gageID_vec
@@ -104,7 +104,7 @@ module gageMeta_data
       implicit none
       class(gageMeta), intent(in) :: this
       integer(i4b)                :: ix
-      character(30)               :: gageID
+      character(len=gageStrLen)   :: gageID
       gageID = this%gageID(ix)
     end function fn_get_gageID_scalar
 

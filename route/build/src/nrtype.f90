@@ -10,6 +10,7 @@ MODULE nrtype
     integer, parameter     :: DPC = KIND((1.0D0,1.0D0))
     integer, parameter     :: LGT = KIND(.true.)
     ! common variables
-    integer(i4b),parameter :: strLen=256            ! string length
+    integer(i4b),parameter :: strLen=256            ! general string length
     integer(i4b),parameter :: FileStrLen=300        ! File string length
+    integer(i4b),parameter :: gageStrLen=30         ! gauge id string length
 END MODULE nrtype

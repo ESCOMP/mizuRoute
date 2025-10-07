@@ -53,7 +53,8 @@ CONTAINS
     ! local variables
     logical(lgt)                    :: createNewFile       ! logical to make alarm for restart writing
     integer(i4b)                    :: nGage               ! number of gauge points
-    integer(i4b), allocatable       :: reach_id_local(:)   ! logical to make alarm for restart writing
+    integer(i4b), allocatable       :: reach_id_local(:)   ! reach id
+    character(len=30), allocatable  :: gage_id_local(:)    !
     character(len=strLen)           :: cmessage            ! error message of downwind routine
 
     ierr=0; message='main_new_file/'
@@ -84,8 +85,9 @@ CONTAINS
 
         hist_gage = histFile(hfileout_gage, gageOutput=.true.)
         nGage = gage_meta_data%gage_num()
-        allocate(reach_id_local(nGage))
+
         reach_id_local = gage_meta_data%reach_id()
+        gage_id_local = gage_meta_data%gage_id()
 
         call hist_gage%createNC(ierr, cmessage, nRch_in= nGage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -94,6 +96,9 @@ CONTAINS
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         call hist_gage%write_loc(reach_id_local, ierr, message)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        call hist_gage%write_loc(gage_id_local, ierr, message)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
