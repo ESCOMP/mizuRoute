@@ -228,7 +228,7 @@ CONTAINS
     domain:do ix = 1, nDomain_mpi
       ! get the number of stream segments and HRUs in each domain
       ixx = rnkIdNode(ix)
-      associate (nSubSeg => size(domains_mpi(ixx)%segIndex), nSubHru => size(domains_mpi(ixx)%hruIndex) )
+      associate (nSubSeg => sizeo(domains_mpi(ixx)%segIndex), nSubHru => size(domains_mpi(ixx)%hruIndex) )
 
       ! define reach global index array in order of node assignment
       if (domains_mpi(ixx)%basinType /= endorheic ) then   ! endorheic domain does not have reaches
