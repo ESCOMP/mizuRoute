@@ -228,7 +228,7 @@ CONTAINS
     domain:do ix = 1, nDomain_mpi
       ! get the number of stream segments and HRUs in each domain
       ixx = rnkIdNode(ix)
-      associate (nSubSeg => sizeo(domains_mpi(ixx)%segIndex), nSubHru => size(domains_mpi(ixx)%hruIndex) )
+      associate (nSubSeg => sizeo(domains_mpi(ixx)%segIndex), nSubHru => sizeo(domains_mpi(ixx)%hruIndex) )
 
       ! define reach global index array in order of node assignment
       if (domains_mpi(ixx)%basinType /= endorheic ) then   ! endorheic domain does not have reaches
@@ -1310,7 +1310,7 @@ CONTAINS
       ! KWT state communication
       call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
                               tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
-                              RCHSTA_trib(1:nRch_mainstem+nTribOutlet), & ! input:
+                              RCHSTA_trib,         & ! input:
                               RCHSTA_trib,         & ! input:
                               global_ix_main,      & ! input:
                               local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
@@ -1363,7 +1363,7 @@ CONTAINS
       call t_startf ('route/scatter-kwt-state')
       call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
                               tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
-                              RCHSTA_trib(1:nRch_mainstem+nTribOutlet), & ! input:
+                              RCHSTA_trib,         & ! input:
                               RCHSTA_trib,         & ! input:
                               global_ix_main,      &
                               local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
