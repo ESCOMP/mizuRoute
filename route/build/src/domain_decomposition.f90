@@ -12,7 +12,7 @@ USE var_lookup,        ONLY: ixHRU2SEG     ! index of variables for the netowork
 USE nr_utils,          ONLY: indexx        ! sorting array
 USE nr_utils,          ONLY: indexTrue     ! index at only true in array
 USE nr_utils,          ONLY: arth          ! generate sequential array
-USE nr_utils,          ONLY: sizeo         ! generate sequential array
+USE nr_utils,          ONLY: sizeo         ! size of array, allowing unallocated array (=>0)
 ! updated and saved data
 USE public_var
 
