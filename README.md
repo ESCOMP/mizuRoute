@@ -76,6 +76,13 @@ User interested in using mizuRoute with CTSM is referred to CESM's user guide. H
  4. Fortran (if a user desires to change the codes)
 
 
+## Funding
+ - U.S. Army Corps of Engineers
+ - Bureau of Reclamation
+ - NASA’s Advanced Information Systems Technology program
+ - National Science Foundation
+
+
 LICENSE
 -------
 
