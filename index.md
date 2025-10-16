@@ -57,6 +57,12 @@ Mizukami, N., Clark, M. P., Gharari, S., Kluzek, E., Pan, M., Lin, P., et al. (2
 Mizukami, N., Clark, M. P., Sampson, K., Nijssen, B., Mao, Y., McMillan, H., Viger, R. J., Markstrom, S. L., Hay, L. E., Woods, R., Arnold, J. R., and Brekke, L. D.: mizuRoute version 1: a river network routing tool for a continental domain water resources applications, Geosci. Model Dev., 9, 2223–2238, https://doi.org/10.5194/gmd-9-2223-2016, 2016.
 
 
+## Funding
+
+The model development was supported by the following funding agencies:
+U.S. Army Corps of Engineers, Bureau of Reclamation, NASA's Advanced Information Systems Technology program, National Science Foundation
+
+
 ## Authors of the page
 
 Naoki Mizukami
