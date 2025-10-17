@@ -1,7 +1,7 @@
 .. _Control_file:
 
 ============
-Control file
+Control File
 ============
 
 **Control file** is a plain-text configuration file that defins all model settings, including simulation periods, file paths, routing option and more.

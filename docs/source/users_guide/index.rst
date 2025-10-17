@@ -7,11 +7,12 @@ User's Guide
 .. toctree::
    :maxdepth: 2
 
-   Intro.rst
-   Build_model.rst
-   Control_file.rst
-   Input_data.rst
-   seg_hru_param.rst
+   intro.rst
+   build_model.rst
+   control_file.rst
+   input_files.rst
+   hill.rst
+   riv.rst
    lake.rst
-   water_management.rst
+   output_files.rst
    testCase.rst
