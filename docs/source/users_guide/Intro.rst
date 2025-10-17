@@ -3,13 +3,13 @@
 Introduction
 ============
 
-Desired technical knowledge:
+Desired technical knowledge to prepare mizuRoute inputs and process/visualize outputs:
 
-**Geographic Information System (GIS)**: River and catchment are represented by line and polygon respectively in mizuRoute. These "vector" spatial data (ESRI shapefile, Geopackage) are handled with GIS software. 
+**Geographic Information System (GIS)**: River and catchment are represented by line and polygon respectively in mizuRoute. These "vector" spatial data (ESRI shapefile, Geopackage) are handled with GIS software.
 `QGIS <https://qgis.org/>`_ is a free GIS software that works on Windows, Mac and Linux. QGIS is intuitive, and convenient when interactively viewing spatial data (zoom, pan) and creating a map, and query of spatial elements.
 GDAL library, and/or python packages e.g., geopanda, are also usefull and best used programically to manupulate the geometries and attributes.
 
-**netCDF**: Though river spatial data usually originate from line and polygon vector spatial data, these vector data are eventually converted into netCDF for mizuRoute input. 
+**netCDF**: Though river spatial data usually originate from line and polygon vector spatial data, these vector data are eventually converted into netCDF for mizuRoute input.
 Output from mizuRoute is also netCDF file.
 Basic technical knowledge on netCDF operations using netCDF commands (ncdump, nccopy etc.) and NCO and python are required to effectively work on mizuRoute input and output.
 

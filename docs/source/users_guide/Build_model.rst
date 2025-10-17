@@ -3,12 +3,12 @@
 Build model
 ============
 
-This version can be used as stand-alone model, and also coupled with NCAR Community Terrestrial System Model (CTSM). This page is for building for stand-alone use.
+This version can be used as stand-alone model, and also coupled with NCAR Community Terrestrial System Model (CTSM). This page is for building for stand-alone use. For building CTSM coupled mode, please refer to `CESM documentation <https://escomp.github.io/CESM/versions/cesm2.2/html/index.html>`_.
 
 - A copy of the mizuRoute source code from `this repo <https://github.com/ESCOMP/mizuRoute>`_. You have a few options:
 
   - If you just want to use the latest release of mizuRoute, then simply look for the `latest release <https://github.com/ESCOMP/mizuRoute/releases>`_;
-  - If you want the latest and greatest (and potentially erroneous), download a copy of the `cesm-coupling branch <https://github.com/ESCOMP/mizuRoute/tree/cesm-coupling>`_ (or clone it);
+  - If you want the latest and greatest (and potentially erroneous), download a copy of the `main branch <https://github.com/ESCOMP/mizuRoute/tree/main>`_ (or clone it);
 
 .. _Dependencies:
 
@@ -17,15 +17,19 @@ Dependencies
 
 To compile mizuRoute, you will need:
 
+- **Linux like operating system**: Linux and Mac OS. Windows users can use a Unix-like system in Windows through the Windows Subsystem for Linux (WSL) or by using compatibility layers like Cygwin, MSYS, or running a virtual machine.
+
+..
+
 - **Fortran compiler**: We recommend using the intel Fortran compiler or the gcc compiler, the latter of which is freely available. Since mizuRoute does not use any compiler-specific extensions, you should be able to compile mizuRoute with other Fortran compilers.
 
 ..
 
-- **MPI (message passing interface) library**: `OpenMPI <https://www.open-mpi.org/>`_ is freely available and has been tested in mizuRoute. 
+- **MPI (message passing interface) library**: `OpenMPI <https://www.open-mpi.org/>`_ is freely available and has been tested in mizuRoute.
 
 ..
 
-- **NetCDF libraries**: `NetCDF <http://www.unidata.ucar.edu/software/netcdf/>`_ or the Network Common Data Format is a set of software libraries and self-describing, machine-independent data formats that support the creation, access, and sharing of array-oriented scientific data. 
+- **NetCDF libraries**: `NetCDF <http://www.unidata.ucar.edu/software/netcdf/>`_ or the Network Common Data Format is a set of software libraries and self-describing, machine-independent data formats that support the creation, access, and sharing of array-oriented scientific data.
 
   Most \*nix package managers include a NetCDF port. Note that you need to ensure that:
 
@@ -37,7 +41,7 @@ To compile mizuRoute, you will need:
 
 ..
 
-- **CMake**: 
+- **CMake**:
 
 We recommend using the latest versions of all the libraries.
 For Mac or Linux user, you may consider using `Homebrew <https://brew.sh/>`_ free and open-source software package management to obration all the libraries. The series of commands can be as simple as:
@@ -84,11 +88,11 @@ First, understand how mizuRoute directory is structured. There are hidden direct
 Once you have all the external libraries, you can try compiling mizuRoute using the following steps for using the ``Makefile`` under ``mizuRoute/route/build``.
 Here assume that all the libaries are installed using homebrew 🍺, and gnu compiler is used.
 
-1. Navigate to your local copy of the mizuRoute top directory. 
+1. Navigate to your local copy of the mizuRoute top directory.
 
 ..
 
-2. Obtain `ParallelIO <https://github.com/NCAR/ParallelIO>`_ through git-fleximod tool that is already installed under ``mizuRoute/bin``. 
+2. Obtain `ParallelIO <https://github.com/NCAR/ParallelIO>`_ through git-fleximod tool that is already installed under ``mizuRoute/bin``.
    Note: please do not confuse ParallelIO and PnetCDF. ParallelIO can use PnetCDF or just standard netCDf library.
 
      Execute::
@@ -96,13 +100,13 @@ Here assume that all the libaries are installed using homebrew 🍺, and gnu com
          mk -p libraries/parallelio
          ./bin/git-fleximod -g .gitmodules update
 
-     See mizuRoute/README_EXTERNALS.rst for more details. 
+     See mizuRoute/README_EXTERNALS.rst for more details.
 
 3. Go to the ``route/build`` subdirectory.
 
 ..
 
-4. Specify a number of environment variables that are used by the build process. 
+4. Specify a number of environment variables that are used by the build process.
    If you are using the ``bash`` shell, then you would set these environment variables with ``export``, e.g., ``export FC=gnu``.
    You will need to set the following:
 
@@ -128,13 +132,13 @@ Here assume that all the libaries are installed using homebrew 🍺, and gnu com
 
          export FC_EXE=mpif90
 
-   - ``NCDF_PATH``: This is the path to the top level of NetCDF library directory. The directory typically contains ``bin include lib`` subdirectories. 
+   - ``NCDF_PATH``: This is the path to the top level of NetCDF library directory. The directory typically contains ``bin include lib`` subdirectories.
 
      Example (if netCDF is installed with homebrew)::
 
          export NCDF_PATH=/opt/homebrew/
 
-   - ``PNETCDF_PATH`` (optional): This is also the path to top level of the PnetCDF directory. 
+   - ``PNETCDF_PATH`` (optional): This is also the path to top level of the PnetCDF directory.
 
      Example (if pnetcdf is intalled with homebrew)::
 
@@ -144,10 +148,10 @@ Here assume that all the libaries are installed using homebrew 🍺, and gnu com
 5. Once you have set up the environmental variables above, use the following command.
 
      ::
-     
-         make FC=$FC FC_EXE=$FC_EXE F_MASTER=$BLDDIR NCDF_PATH=$NCDF_PATH PNETCDF_PATH=$PNETCDF_PATH EXE=route_runoff 
 
-If the code compiles successfully, then the last line of output from the make process will tell you where the mizuRoute executable is installed (it goes into ``mizuRoute/route/bin``). 
+         make FC=$FC FC_EXE=$FC_EXE F_MASTER=$BLDDIR NCDF_PATH=$NCDF_PATH PNETCDF_PATH=$PNETCDF_PATH EXE=route_runoff
+
+If the code compiles successfully, then the last line of output from the make process will tell you where the mizuRoute executable is installed (it goes into ``mizuRoute/route/bin``).
 
 
 .. _Additional_Notes:
@@ -155,7 +159,7 @@ If the code compiles successfully, then the last line of output from the make pr
 Additional Notes:
 ------------------
 
-   - You may add the variables directly in the ``Makefile``, rather than setting them as environment variables. They are located under ``User configure part``. 
+   - You may add the variables directly in the ``Makefile``, rather than setting them as environment variables. They are located under ``User configure part``.
      if you do that, you will just execute ``make`` (make sure to define ``EXE=<mizuRoute executable name>``)
 
 ..
@@ -174,5 +178,5 @@ Additional Notes:
         export NCDF_C_PATH=<path_to_netcdf>
         make FC=$FC FC_EXE=$FC_EXE F_MASTER=$BLDDIR NCDF_C_PATH=$NCDF_C_PATH NCDF_FORTRAN_PATH=$NCDF_FORTRAN_PATH PNETCDF_PATH=$PNETCDF_PATH EXE=route_runoff
 
-   - ParallelIO can be built with netCDF library instead of PnetCDF. If so, no need to set variables ``PNETCDF_PATH``. 
+   - ParallelIO can be built with netCDF library instead of PnetCDF. If so, no need to set variables ``PNETCDF_PATH``.
      PnetCDF improves output performace through ParallelIO for large-domain, high resolution simulations, but for smaller domain, ParallelIO with regular netCDF may be sufficient.
