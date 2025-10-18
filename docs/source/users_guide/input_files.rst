@@ -13,8 +13,8 @@ In this case, one additional data, remapping data, is required. All the data nee
 
 Basic netCDF requirement (variable, dimension, etc) are discussed below.
 Dimension and variable names list mizuRoute default name but can be whatever.
-If they are not default name, the variable names need to be speficied in :doc:`control file <Control_file>`.
-Some of variables and dimensions (even if they are the same as default name) have to be specified in :doc:`control file <Control_file>`
+If they are not default name, the variable names need to be speficied in :doc:`control file <control_file>`.
+Some of variables and dimensions (even if they are the same as default name) have to be specified in :doc:`control file <control_file>`
 
 .. _River_network_data:
 
@@ -22,7 +22,7 @@ River network data (required)
 -----------------------------
 
 River network netCDF holds river reach-reach topology, reach-hru topology, and river and hru physical parameters. The tables below list minimum requirement.
-Full list of reach/hru physical parameters possibly included are :doc:`full list of river and hru physical parameters <seg_hru_param>`.
+Full list of reach/hru physical parameters possibly included are :doc:`full list of river and hru physical parameters <riv>`.
 
 It is recommended that river network topology is built within mizuRoute instead of computing outside, while physically parameters are ideally provided per reach and hru.
 
