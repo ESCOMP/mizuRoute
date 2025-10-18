@@ -1,7 +1,7 @@
 .. _Build_model:
 
-Build model
-============
+Building the Source Code
+========================
 
 This version can be used as stand-alone model, and also coupled with NCAR Community Terrestrial System Model (CTSM). This page is for building for stand-alone use. For building CTSM coupled mode, please refer to `CESM documentation <https://escomp.github.io/CESM/versions/cesm2.2/html/index.html>`_.
 
