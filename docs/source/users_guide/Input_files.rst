@@ -112,6 +112,10 @@ Time unit format is shown in the table.
 Runoff mapping file (required depending on case)
 ------------------------------------------------
 
+mizuRoute has a capability to remap forcing at different catchments or grid to catchment or grid defined in river network used for routing using weighted average. A user needs to provide a mapping file in netCDF.
+See :ref:`Runoff mapping data <Runoff_mapping_data>` for mapping file structure.
+Breifly, mapping can be either catchment (i.e., unstructure grid) to river network catchment (option 2) or grid to river network catchment (option 3). option 1 is forcing provided at the same catchment as the one in river network, in which case no mapping is required.
+
 For runoff input options 2 and 3, runoff mapping data in netCDF must be provided so that weighted average runoff value is computed for each river network HRU.
 
 +--------+-----------+---------------------------------------------+
@@ -122,7 +126,38 @@ For runoff input options 2 and 3, runoff mapping data in netCDF must be provided
 | 2,3    | data      | Vectorized overlapping HRU (or grid boxes)  |
 +--------+-----------+---------------------------------------------+
 
+Control file keys for remapping.
+
++--------+------------------------+----------------------------------------------------------------------------------------------------+
+| option | control variable       | Descriptions                                                                                       |
++========+========================+====================================================================================================+
+|        | <is_remap>             | Logical to indicate runoff needs to be remapped to RN_HRU. set T to activate remapping option      |
++--------+------------------------+----------------------------------------------------------------------------------------------------+
+|   2,3  | <fname_remap>          | netCDF name of runoff remapping                                                                    |
++--------+------------------------+----------------------------------------------------------------------------------------------------+
+
 Required runoff mapping netCDF variables
+
++--------+------------------------+----------------------------------------------------------------------------------------------------+
+| option | control variable       | Descriptions                                                                                       |
++========+========================+====================================================================================================+
+|   2,3  | <vname_hruid_in_remap> | variable name for RN_HRUs                                                                          |
++--------+------------------------+----------------------------------------------------------------------------------------------------+
+|   2,3  | <vname_weight>         | variable name for areal weights of overlapping HM_HRUs                                             |
++--------+------------------------+----------------------------------------------------------------------------------------------------+
+|   2    | <vname_qhruid>         | variable name for HM_HRU ID                                                                        |
++--------+------------------------+----------------------------------------------------------------------------------------------------+
+|     3  | <vname_i_index>        | variable name of ylat index                                                                        |
++--------+------------------------+----------------------------------------------------------------------------------------------------+
+|     3  | <vname_j_index>        | variable name of xlon index                                                                        |
++--------+------------------------+----------------------------------------------------------------------------------------------------+
+|   2,3  | <vname_num_qhru>       | variable name for a numbers of overlapping HM_HRUs with RN_HRUs                                    |
++--------+------------------------+----------------------------------------------------------------------------------------------------+
+|   2,3  | <dname_hru_remap>      | dimension name for HM_HRU                                                                          |
++--------+------------------------+----------------------------------------------------------------------------------------------------+
+|   2,3  | <dname_data_remap>     | dimension name for data                                                                            |
++--------+------------------------+----------------------------------------------------------------------------------------------------+
+
 
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
 | Option | Variable   | Dimension | Unit  | type  | Descriptions                                  |
@@ -175,3 +210,44 @@ Water management file (optional)
 
 Gauge data file (optional)
 --------------------------
+
+mizuRoute can read gauge observed discharge data (in netCDF) along with gauge meta ascii data. To read gauge observation and gauge metadata, the following control variables need to be specified.
+gauge meta ascii file is csv format, and  should include at least gauge id and corresponding reach id
+gauge discharge data is used for data assimilation (current version does not include this at this moment)
+Using gauge data, a user can output the simulation at gauge only output in addition to at the entire river network and/or direct insertion to modify discharge whenever observed discharge is available.
+
++---------------------+---------------------------------------------------------------------------------------------------------+
+| control variable    | Description                                                                                             |
++=====================+=========================================================================================================+
+| <gageMetaFile>      | gauge meta file (two column csv format): gauge_id (non-numeric ID is accepted), seg_id                  |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <outputAtGage>      | logical value (T or F) to limit history variable output at gauge reaches.                               |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <fname_gageObs>     | gauge discharge data                                                                                    |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <vname_gageFlow>    | variable name for discharge [m3/s]                                                                      |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <vname_gageSite>    | variable name for gauge site name (character array)                                                     |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <vname_gageTime>    | variable name for time                                                                                  |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <dname_gageSite>    | dimension name for site                                                                                 |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <dname_gageTime>    | dimension name for time                                                                                 |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <strlen_gageSite>   | maximum gauge name string length                                                                        |
++---------------------+---------------------------------------------------------------------------------------------------------+
+
+Direct insertion, the simplest data assimilation, can be  performed at a list of reaches in the metadata. Two parameters, <QerrTrend> and <ntsQmodStop>, are needed.
+<QerrTrend> tells how bias computed at observation time at each reach evolves in the subsequent future <ntsQmodStop> time steps.
+To activate direct insertion of observed discharge into simulated discharge, the following control variables need to be specified.
+
++---------------------+---------------------------------------------------------------------------------------------------------+
+| control variable    | Description                                                                                             |
++=====================+=========================================================================================================+
+| <qmodOption>        | activation of direct insertion. 0 -> do nothing, 1=> discharge direct insertion                         |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <ntsQmodStop>       | the number of time steps when flow correction stops                                                     |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <QerrTrend>         | temporal discharge error trend. 1->constant, 2->linear, 3->logistic, 4->exponential                     |
++---------------------+---------------------------------------------------------------------------------------------------------+
