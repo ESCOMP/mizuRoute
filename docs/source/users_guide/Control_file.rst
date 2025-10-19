@@ -5,8 +5,8 @@ Control file
 ============
 
 **Control file** is a plain-text configuration file that defins all model settings, including simulation periods, file paths, routing option and more.
-Each setting is called **contriol variables** and is specified using a variable name enclosed in angle brackets (``<variable_name>``). 
-These control variables are read at the start of the simulation (see ``./route/build/src/read_control.f90``) and 
+Each setting is called **contriol variables** and is specified using a variable name enclosed in angle brackets (``<variable_name>``).
+These control variables are read at the start of the simulation (see ``./route/build/src/read_control.f90``) and
 stored in fortran's public variables defined in ``./route/build/src/public_var.f90``.
 
 🔧Key Features:
@@ -15,7 +15,7 @@ stored in fortran's public variables defined in ``./route/build/src/public_var.f
 
 📌Syntax Rules:
 
-* Lines starting or after exclamation mark (``!``) are treated as comments and ignored. 
+* Lines starting or after exclamation mark (``!``) are treated as comments and ignored.
 * Each line must follow the Format: ``<control variable name>    value    ! comments``
 * Control variable name must match the corresponding Fortran variable name **exactly**.
 * A exclamation mark (``!``) must appear after the value even if you don't put any comment text; otherwise getting error.
@@ -30,13 +30,13 @@ Basic routing setup
 
 It is difficult to instruct exactly which control variables every user needs to include, becase configurations can vary widely depending on user's goal of simulation, e.g., turn on/off lakes, water management, floodplain etc.
 
-For a simple river routing without lake or water management-with cold start and runoff input provided at the same catchment as the river network, a user can get started with following control variables. 
+For a simple river routing without lake or water management-with cold start and runoff input provided at the same catchment as the river network, a user can get started with following control variables.
 Control variable with None in default value must be included and assigned the appropriate value.
-Additional control variables, needed for more advanced simulations, are listed after this basic set of the control variables. 
+Additional control variables, needed for more advanced simulations, are listed after this basic set of the control variables.
 
 For lake model option, See :doc:`Lake model option <lake>`.
 
-For water management option, See :doc:`Water management option <water_management>`.
+For water management option, See :doc:`Water management option <Input_files>`.
 
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
 | control variable       | Default value   | Description                                                                                             |
@@ -87,7 +87,7 @@ For water management option, See :doc:`Water management option <water_management
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
 | <ro_time_units>        | None            | time units used in runoff input netCDF. See Note 3                                                      |
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <ro_time_stamp>        | 'start'         | time stamp used in runoff input - start (default), middle, or end, otherwise error                      | 
+| <ro_time_stamp>        | 'start'         | time stamp used in runoff input - start (default), middle, or end, otherwise error                      |
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
 | <fname_output>         | None            | output netCDF name for model simulation results. See Note 4                                             |
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
@@ -99,7 +99,7 @@ For water management option, See :doc:`Water management option <water_management
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
 | <route_opt>            | 0               | routing schem options: 0->Sum, 1->IRF, 2->KWT, 3->KW, 4->MC, 5->DW, otherwise error. See Note 5         |
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <floodplain>           | F               | logical to add floodplain to main channel. flood water is computed if floodplain is added.              | 
+| <floodplain>           | F               | logical to add floodplain to main channel. flood water is computed if floodplain is added.              |
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
 | <dt_qsim>              | None            | time interval of simulation in second. e.g., 86400 sec for daily step                                   |
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
@@ -118,7 +118,7 @@ For water management option, See :doc:`Water management option <water_management
 
 Terminologies: RN_HRU=River Network HRU (Hydrologic Response Unit or simply catchment), HM_HRU=hydrologic model (or forcing) HRU. HRU can be grid box. "Forcing" for river model means runoff, evaporation and precipitation for lake routing, solutes for solute transport
 
-1. Often river network data has different variable names than defaults. In this case, variable names can be speficied in control file as well. See :doc:`River parameters <seg_hru_param>`.
+1. Often river network data has different variable names than defaults. In this case, variable names can be speficied in control file as well. See :doc:`River parameters <Riv>`.
 
 2. Calendar in runoff input time should be read from netCDF, but If runoff input netCDF does not have calendar attribute, it can be specified. Make sure time variable in runoff data use either ``noleap``, ``standard``, ``gregorian``, or ``proleptic_gregorian``. case insensitive
 
@@ -136,10 +136,10 @@ Terminologies: RN_HRU=River Network HRU (Hydrologic Response Unit or simply catc
 
   * outputFrequency can be integer numeric (e.g, 1, 2 etc), which is interpreted as a number of simulation time steps for temporal aggregation of the history flux variables, or literal (daily, monthly yearly).
     The numeric outputFrequency can be used for sub-daily dt_qsim, and remainder of 86400 divided by numeric x dt_qsim must be zero. For example, if dt_qsim is 10800 sec (=3hr), accepted outputFrequency are
-    1, 2, 4, 8 
+    1, 2, 4, 8
 
   * newFileFrequency must be the same as or shorter than outputFrequency. For example, with monthly outputFrequency, newFileFrequency must be monthly, yearly or single
-   
+
   * The abovementioned restrictions are check in the code, so any violations are notified as error and the program is terminated.
 
 
@@ -165,14 +165,14 @@ River network augmentation or subsetting
 
 .. _Runoff_input_and_remapping_options:
 
-Runoff input and remapping options 
+Runoff input and remapping options
 ----------------------------------
 
-mizuRoute forcing (runoff, precipitation and evaporation, solutes) may be provided at the different HRU than mizuRoute river network HRU. In such a case, remapping (or regridding) are required to estimate forcing variables at mizuRoute HRU. 
-mizuRoute has a capability to remap forcing at different catchments or grid to catchment or grid defined in river network used for routing using weighted average. A user needs to provide a mapping file in netCDF. 
-See :ref:`Runoff mapping data <Runoff_mapping_data>` for mapping file structure. 
+mizuRoute forcing (runoff, precipitation and evaporation, solutes) may be provided at the different HRU than mizuRoute river network HRU. In such a case, remapping (or regridding) are required to estimate forcing variables at mizuRoute HRU.
+mizuRoute has a capability to remap forcing at different catchments or grid to catchment or grid defined in river network used for routing using weighted average. A user needs to provide a mapping file in netCDF.
+See :ref:`Runoff mapping data <Runoff_mapping_data>` for mapping file structure.
 Breifly, mapping can be either catchment (i.e., unstructure grid) to river network catchment (option 2) or grid to river network catchment (option 3). option 1 is forcing provided at the same catchment as the one in river network, in which case no mapping is required.
-Here in control file, user needs to provides the following information on the maping file. 
+Here in control file, user needs to provides the following information on the maping file.
 
 +--------+------------------------+----------------------------------------------------------------------------------------------------+
 | option | control variable       | Descriptions                                                                                       |
@@ -201,7 +201,7 @@ Here in control file, user needs to provides the following information on the ma
 
 .. _Restart_options:
 
-Restart options 
+Restart options
 ---------------
 
 mizuRoute does not write restart netCDF as default. The following control variables are used to control restart dropoff timing and use restart file for continuous run from the previous simulations.
@@ -231,7 +231,7 @@ The restart file name convension:  <case_name>.r.yyyy-mm-dd-sssss.nc
 
 .. _History_output_options:
 
-History output options 
+History output options
 -----------------------
 
 The following variables, besides time, basinID (RN_HRU ID) and reachID can be output in netCDF. Users can control which variables are output by setting <variable_name> to T or F in control file. All the variables are set to T by default.
@@ -287,7 +287,7 @@ Gauge data options
 mizuRoute can read gauge observed discharge data (in netCDF) along with gauge meta ascii data. To read gauge observation and gauge metadata, the following control variables need to be specified.
 gauge meta ascii file is csv format, and  should include at least gauge id and corresponding reach id
 gauge discharge data is used for data assimilation (current version does not include this at this moment)
-Using gauge data, a user can output the simulation at gauge only output in addition to at the entire river network and/or direct insertion to modify discharge whenever observed discharge is available. 
+Using gauge data, a user can output the simulation at gauge only output in addition to at the entire river network and/or direct insertion to modify discharge whenever observed discharge is available.
 
 +---------------------+---------------------------------------------------------------------------------------------------------+
 | control variable    | Description                                                                                             |
@@ -311,16 +311,16 @@ Using gauge data, a user can output the simulation at gauge only output in addit
 | <strlen_gageSite>   | maximum gauge name string length                                                                        |
 +---------------------+---------------------------------------------------------------------------------------------------------+
 
-Direct insertion, the simplest data assimilation, can be  performed at a list of reaches in the metadata. Two parameters, <QerrTrend> and <ntsQmodStop>, are needed. 
+Direct insertion, the simplest data assimilation, can be  performed at a list of reaches in the metadata. Two parameters, <QerrTrend> and <ntsQmodStop>, are needed.
 <QerrTrend> tells how bias computed at observation time at each reach evolves in the subsequent future <ntsQmodStop> time steps.
 To activate direct insertion of observed discharge into simulated discharge, the following control variables need to be specified.
 
 +---------------------+---------------------------------------------------------------------------------------------------------+
 | control variable    | Description                                                                                             |
 +=====================+=========================================================================================================+
-| <qmodOption>        | activation of direct insertion. 0 -> do nothing, 1=> discharge direct insertion                         | 
+| <qmodOption>        | activation of direct insertion. 0 -> do nothing, 1=> discharge direct insertion                         |
 +---------------------+---------------------------------------------------------------------------------------------------------+
-| <ntsQmodStop>       | the number of time steps when flow correction stops                                                     | 
+| <ntsQmodStop>       | the number of time steps when flow correction stops                                                     |
 +---------------------+---------------------------------------------------------------------------------------------------------+
 | <QerrTrend>         | temporal discharge error trend. 1->constant, 2->linear, 3->logistic, 4->exponential                     |
 +---------------------+---------------------------------------------------------------------------------------------------------+
@@ -330,7 +330,7 @@ To activate direct insertion of observed discharge into simulated discharge, the
 Control file basic examples
 ----------------------------
 
-These are examples for three cases of runoff input. These are just templates to start with. 
+These are examples for three cases of runoff input. These are just templates to start with.
 Users need to specify appropreate directories, netCDF variables/dimension names based on their data
 
 Option 1 - runoff input is given at RN_HRU
@@ -342,10 +342,10 @@ Option 1 - runoff input is given at RN_HRU
   ! *************************************************************************************************************************
   ! *************************************************************************************************************************
   ! Note: lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines.
-  !    lines starting with <xxx> are read till "!" 
+  !    lines starting with <xxx> are read till "!"
   !
   ! *************************************************************************************************************************
-  ! DEFINE DIRECTORIES 
+  ! DEFINE DIRECTORIES
   ! --------------------------
   <ancil_dir>         ./ancillary_data/               ! directory containing ancillary data (river network, remapping netCDF)
   <input_dir>         ./input/                        ! directory containing input data (runoff netCDF)
@@ -389,7 +389,7 @@ Option 1 - runoff input is given at RN_HRU
   ! ----------------------------------
   <is_remap>          F                               ! logical to indicate runnoff needs to be mapped to river network HRU
   ! **************************************************************************************************************************
-  ! Namelist file name 
+  ! Namelist file name
   ! ---------------------------
   <param_nml>         param.nml.default               ! spatially constant model parameters
   ! **************************************************************************************************************************
@@ -471,7 +471,7 @@ Option 3 - runoff input is given at grid
   ! *************************************************************************************************************************
   ! *************************************************************************************************************************
   ! Note: lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines.
-  !    lines starting with <xxx> are read till "!" 
+  !    lines starting with <xxx> are read till "!"
   !
   ! *************************************************************************************************************************
   ! DEFINE DIRECTORIES
@@ -526,7 +526,7 @@ Option 3 - runoff input is given at grid
   <dname_hru_remap>       polyid                            ! dimension name of RN_HRU (in the mapping file)
   <dname_data_remap>      data                              ! dimension name of ragged HM_HRU
   ! **************************************************************************************************************************
-  ! Namelist file name 
+  ! Namelist file name
   ! ---------------------------
   <param_nml>             param.nml.default                 ! spatially constant model parameters
   ! **************************************************************************************************************************

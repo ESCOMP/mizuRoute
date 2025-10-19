@@ -10,8 +10,9 @@ User's Guide
    Intro.rst
    Build_model.rst
    Control_file.rst
-   Input_data.rst
-   seg_hru_param.rst
+   Input_files.rst
+   Hill.rst
+   Riv.rst
    lake.rst
-   water_management.rst
+   Output_files.rst
    testCase.rst
