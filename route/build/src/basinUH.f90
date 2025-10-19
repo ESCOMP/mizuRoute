@@ -16,16 +16,14 @@ CONTAINS
  ! ---------------------------------------------------------------------------------------
  ! Public subroutine main driver for basin routing
  ! ---------------------------------------------------------------------------------------
- SUBROUTINE IRF_route_basin(iens,          & ! input: ensemble index
-                            NETOPO_in,     & ! input: reach topology
+ SUBROUTINE IRF_route_basin(NETOPO_in,     & ! input: reach topology
                             RCHFLX_out,    & ! inout: reach flux data structure
                             ierr, message, & ! output: error control
                             ixSubRch)        ! optional input: subset of reach indices to be processed
  implicit none
  ! Argument variables
- integer(i4b), intent(in)                 :: iens            ! ith ensemble
  type(RCHTOPO),intent(in),   allocatable  :: NETOPO_in(:)    ! River Network topology
- type(STRFLX), intent(inout)              :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ type(STRFLX), intent(inout)              :: RCHFLX_out(:)   ! Reach fluxes (space [reaches]) for decomposed domains
  integer(I4B), intent(out)                :: ierr            ! error code
  character(*), intent(out)                :: message         ! error message
  integer(i4b), intent(in),   optional     :: ixSubRch(:)     ! subset of reach indices to be processed
@@ -37,7 +35,7 @@ CONTAINS
 
  ierr=0; message='IRF_route_basin/'
 
- nSeg = size(RCHFLX_out(iens,:))
+ nSeg = size(RCHFLX_out)
 
  allocate(doRoute(nSeg), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'unable to allocate space for [doRoute]'; return; endif
@@ -56,11 +54,10 @@ CONTAINS
 !$OMP          shared(doRoute)          & ! data array shared
 !$OMP          shared(RCHFLX_out)       & ! data structure shared
 !$OMP          shared(NETOPO_in)        & ! data structure shared
-!$OMP          shared(iEns)             & ! indices shared
 !$OMP          firstprivate(nSeg)
  do iSeg=1,nSeg
    if (.not. doRoute(iSeg)) cycle
-   call hru_irf(iEns, iSeg, NETOPO_in, RCHFLX_out, ierr, cmessage)
+   call hru_irf(iSeg, NETOPO_in, RCHFLX_out, ierr, cmessage)
    if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
  end do
 !$OMP END PARALLEL DO
@@ -70,8 +67,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: perform one basin UH routing to a iSeg reach at one time
  ! *********************************************************************
- SUBROUTINE hru_irf(iens,         &    ! input: index of runoff ensemble to be processed
-                    iSeg,         &    ! input: index of runoff ensemble to be processed
+ SUBROUTINE hru_irf(iSeg,         &    ! input: index of segment to be processed
                     NETOPO_in,    &    ! input: reach topology
                     RCHFLX_out,   &    ! inout: reach flux data structure
                     ierr, message)     ! output: error control
@@ -82,33 +78,32 @@ CONTAINS
 
  implicit none
  ! Argument variables
- integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
- integer(i4b), intent(in)                 :: iSeg           ! segment where routing is performed
- type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)   ! River Network topology
- type(STRFLX), intent(inout)              :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ integer(i4b), intent(in)                 :: iSeg                  ! segment where routing is performed
+ type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)          ! River Network topology
+ type(STRFLX), intent(inout)              :: RCHFLX_out(:)         ! Reach fluxes (space [reaches]) for decomposed domains
  integer(i4b), intent(out)                :: ierr                  ! error code
  character(*), intent(out)                :: message               ! error message
  ! Local variables
- real(dp),     allocatable                :: FRAC_FUTURE_local (:) ! local FRAC_FUTURE so that it can be changed for lakes to impulse
+ real(dp),     allocatable                :: FRAC_FUTURE_local(:)  ! local FRAC_FUTURE so that it can be changed for lakes to impulse
  integer(i4b)                             :: ntdh                  ! number of time steps in IRF
  character(len=strLen)                    :: cmessage              ! error message from subroutine
 
  ierr=0; message='hru_irf/'
 
  ! initialize the first time step q future
-  if (.not.allocated(RCHFLX_out(iens,iSeg)%QFUTURE))then
+  if (.not.allocated(RCHFLX_out(iSeg)%QFUTURE))then
    ntdh = size(FRAC_FUTURE)
 
-   allocate(RCHFLX_out(iens,iSeg)%QFUTURE(ntdh), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'unable to allocate space for RCHFLX_out(iens,segIndex)%QFUTURE'; return; endif
+   allocate(RCHFLX_out(iSeg)%QFUTURE(ntdh), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'unable to allocate space for RCHFLX_out(segIndex)%QFUTURE'; return; endif
 
-   RCHFLX_out(iens,iSeg)%QFUTURE(:) = 0._dp
+   RCHFLX_out(iSeg)%QFUTURE(:) = 0._dp
   end if
 
-  if (.not.allocated(RCHFLX_out(iens,iSeg)%solute_future) .and. tracer)then
+  if (.not.allocated(RCHFLX_out(iSeg)%solute_future) .and. tracer)then
     ntdh = size(FRAC_FUTURE)
-    allocate(RCHFLX_out(iens,iSeg)%solute_future(ntdh), source=0._dp, stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'unable to allocate space for RCHFLX_out(iens,segIndex)%solute_future'; return; endif
+    allocate(RCHFLX_out(iSeg)%solute_future(ntdh), source=0._dp, stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'unable to allocate space for RCHFLX_out(segIndex)%solute_future'; return; endif
   end if
 
   allocate(FRAC_FUTURE_local, source=FRAC_FUTURE, stat=ierr)
@@ -121,20 +116,20 @@ CONTAINS
   endif
 
   ! perform river network UH routing
-  RCHFLX_out(iens,iSeg)%BASIN_QR(0) = RCHFLX_out(iens,iSeg)%BASIN_QR(1)
-  call irf_conv(FRAC_FUTURE_local,                 &    ! input: unit hydrograph
-                RCHFLX_out(iens,iSeg)%BASIN_QI,    &    ! input: upstream fluxes
-                RCHFLX_out(iens,iSeg)%QFUTURE,     &    ! inout: updated q future time series
-                RCHFLX_out(iens,iSeg)%BASIN_QR(1), &    ! inout: updated fluxes at reach
+  RCHFLX_out(iSeg)%BASIN_QR(0) = RCHFLX_out(iSeg)%BASIN_QR(1)
+  call irf_conv(FRAC_FUTURE_local,            &    ! input: unit hydrograph
+                RCHFLX_out(iSeg)%BASIN_QI,    &    ! input: upstream fluxes
+                RCHFLX_out(iSeg)%QFUTURE,     &    ! inout: updated q future time series
+                RCHFLX_out(iSeg)%BASIN_QR(1), &    ! inout: updated fluxes at reach
                ierr, message)                            ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if(tracer) then
     ! perform river network UH routing
     call irf_conv(FRAC_FUTURE_local,                       &  ! input: unit hydrograph
-                  RCHFLX_out(iens,iSeg)%BASIN_solute_inst, &  ! input: upstream fluxes
-                  RCHFLX_out(iens,iSeg)%solute_future,     &  ! inout: updated solute future time series
-                  RCHFLX_out(iens,iSeg)%BASIN_solute,      &  ! inout: updated fluxes at reach
+                  RCHFLX_out(iSeg)%BASIN_solute_inst, &  ! input: upstream fluxes
+                  RCHFLX_out(iSeg)%solute_future,     &  ! inout: updated solute future time series
+                  RCHFLX_out(iSeg)%BASIN_solute,      &  ! inout: updated fluxes at reach
                  ierr, message)                               ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
