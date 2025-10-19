@@ -20,13 +20,14 @@ User's guide provides the following instructions on setup mizuRoute:
 
 :doc:`1.3. Control file <Control_file>` provide information on how to setup a control file (configuration file), and various control variables.
 
-:doc:`1.4. Input data <Input_data>` provide input data requirement for river routing, not including advanced features: lake, and water management.
+:doc:`1.4. Input data <Input_files>` provide input data requirement for river or lake routing.
 
-:doc:`1.5. River model parameters <seg_hru_param>` provides information on river network topology and physical parameters.
+:doc:`1.5. Hillslope model parameters <Hill>` provides information on in-basin or hillslope routing (before river or in-channel routing).
 
-:doc:`1.6. Lake model setup <lake>` section provide instructions on how to modify river network into river-lake network, lake model parameter specification, control variable related to lake model.
-For scientific description is provided in :doc:`Lake water balance computation <../tech_note/lake_routing>`.
+:doc:`1.6. River model parameters <Riv>` provides information on in-basin or hillslope routing (before river or in-channel routing).
 
-:doc:`1.7. Water management option <water_management>` section provides additional data inputs related to water managments, control variables related to water management.
+:doc:`1.7. Lake model setup <lake>` section provide instructions on how to modify river network into river-lake network, lake model parameter specification, control variable related to lake model.
 
-:doc:`1.8. testCase data <testCase>` provide a link to testCase including model setup and data for river routing only.
+:doc:`1.8. Output files <Output_files>` provide information on the output files types and their variables.
+
+:doc:`1.9. testCase data <testCase>` provide a link to testCase including model setup and data for river routing only.
