@@ -194,7 +194,7 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if (trim(runMode)=='cesm-coupling') then
-    call io_rpfile('w', ierr, cmessage, curDatetime=simDatetime(1))
+    call io_rpfile('w', ierr, cmessage, curDatetime=simDatetime(2))
   else
     call io_rpfile('w', ierr, cmessage)
   end if

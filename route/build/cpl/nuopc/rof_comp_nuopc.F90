@@ -67,6 +67,8 @@ module rof_comp_nuopc
   integer                 :: flds_scalar_index_nextsw_cday = 0._r8
   integer                 :: nthrds
 
+  character(*), parameter :: F00   = "('(mizuRoute_comp_nuopc) ',8a)"
+  character(*), parameter :: F91   = "('(mizuRoute_comp_nuopc) ',73('-'))"
   logical :: write_restart_at_endofrun = .false.
 
   character(*), parameter :: modName =  "(rof_comp_nuopc)"
@@ -164,6 +166,12 @@ contains
     character(len=*), parameter :: format = "('("//trim(subname)//") :',A)"
     !-------------------------------------------------------------------------------
 
+    if(masterproc) then
+       write(iulog,F91)
+       write(iulog,F00) 'mizuRoute: start of initialization'
+       write(iulog,F91)
+       call shr_sys_flush(iulog)
+    endif
     rc = ESMF_SUCCESS
     call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
 
@@ -652,6 +660,12 @@ contains
     !----------------------------------------------------------------------------
     ! Reset shr logging
     !----------------------------------------------------------------------------
+    if(masterproc) then
+       write(iulog,F91)
+       write(iulog,F00) 'mizuRoute: end of initialization'
+       write(iulog,F91)
+       call shr_sys_flush(iulog)
+    endif
 
     call shr_file_setLogUnit (shrlogunit)
 
@@ -1003,8 +1017,6 @@ contains
     integer, intent(out) :: rc
 
     ! local variables
-    character(*), parameter :: F00   = "('(mizuRoute_comp_nuopc) ',8a)"
-    character(*), parameter :: F91   = "('(mizuRoute_comp_nuopc) ',73('-'))"
     character(len=*),parameter  :: subname=trim(modName)//':(ModelFinalize) '
     !-------------------------------------------------------------------------------
 

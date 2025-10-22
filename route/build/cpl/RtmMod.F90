@@ -821,6 +821,7 @@ CONTAINS
     integer :: sec_in_day           ! time in second
     character(len=17) :: timestamp  ! datetime string in yyyy-mm-dd-sssss
     integer :: status               ! substring check status
+    logical :: lexist               ! If local file exists
     character(len=256) :: locfn     ! Restart pointer file name
     !--------------------------------------------------------
 
@@ -835,7 +836,9 @@ CONTAINS
     locfn = './'// trim(rpntfil)//trim(inst_suffix)//timestamp
     inquire (file=locfn,exist=lexist)
     if (.not. lexist) then ! backward compatibility - rpointer file w/o datetime
+      write(iulog,*) 'Could not find the rpointer file: ', trim(locfn)
       locfn = './'// trim(rpntfil)//trim(inst_suffix)
+      write(iulog,*) 'Try file: ', trim(locfn)
     end if
     call opnfil (locfn, nio, 'f')
     read (nio,'(a256)') pnamer
