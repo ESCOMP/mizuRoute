@@ -3,10 +3,10 @@ Welcome to mizuRoute documentation!
 
 .. toctree::
    :maxdepth: 2
+   :numbered:
 
-   Intro
-   Input_data 
-   Control_file
-   seg_hru_param
-   testCase
-
+   history.rst
+   users_guide/index.rst
+   tech_note/index.rst
+   reference.rst
+   acknowledgement.rst

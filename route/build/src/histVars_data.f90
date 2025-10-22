@@ -14,6 +14,7 @@ MODULE histVars_data
   USE public_var,        ONLY: diffusiveWave              ! DW routing ID = 5
   USE public_var,        ONLY: outputInflow               ! logical for outputting upstream inflow in history file
   USE public_var,        ONLY: floodplain                 ! logical for outputting upstream inflow in history file
+  USE public_var,        ONLY: tracer                     ! logical for tracer
   USE globalData,        ONLY: nRoutes
   USE globalData,        ONLY: routeMethods
   USE globalData,        ONLY: meta_rflx, meta_hflx
@@ -30,7 +31,7 @@ MODULE histVars_data
   USE globalData,        ONLY: mpicom_route
   USE globalData,        ONLY: pioSystem
   USE globalData,        ONLY: ioDesc_hru_double
-  USE globalData,        ONLY: ioDesc_hist_rch_double
+  USE globalData,        ONLY: ioDesc_rch_double
   USE public_var,        ONLY: pio_typename
   USE ncio_utils,        ONLY: get_nc
   USE pio_utils,         ONLY: file_desc_t
@@ -60,6 +61,8 @@ MODULE histVars_data
     real(dp), allocatable    :: waterHeight(:,:)   ! river/lake surface water elevation [m] for each reach/lake and routing method [nRch,nMethod]
     real(dp), allocatable    :: floodVolume(:,:)   ! river/lake volume [m3] for each reach/lake and routing method [nRch,nMethod]
     real(dp), allocatable    :: volume(:,:)        ! river/lake volume [m3] for each reach/lake and routing method [nRch,nMethod]
+    real(dp), allocatable    :: solute_flux(:,:)   ! solute out flux [mg/s] for each reach/lake and routing method [nRch,nMethod]
+    real(dp), allocatable    :: solute_mass(:,:)   ! solute mass [mg] for each reach/lake and routing method [nRch,nMethod]
 
     CONTAINS
 
@@ -132,6 +135,15 @@ MODULE histVars_data
           allocate(instHistVar%inflow(nRch_local, nRoutes), source=0._dp, stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%inflow]'; return; endif
         end if
+
+        if (tracer) then
+          allocate(instHistVar%solute_flux(nRch_local, nRoutes), source=0._dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%solute_flux]'; return; endif
+
+          allocate(instHistVar%solute_mass(nRch_local, nRoutes), source=0._dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%solute_mass]'; return; endif
+        end if
+
       end if
 
     END FUNCTION constructor
@@ -150,7 +162,7 @@ MODULE histVars_data
       class(histVars),   intent(inout)   :: this
       real(dp),          intent(in)      :: timeVar_local(2)    ! time variables [time unit] at endpoints of current simulation step
       real(dp),          intent(in)      :: basRunoff_local(:)  ! HRU average runoff depth [m/s]
-      type(STRFLX),      intent(in)      :: RCHFLX_local(:,:)   ! Reach flux data structure
+      type(STRFLX),      intent(in)      :: RCHFLX_local(:)     ! Reach flux data structure
       integer(i4b),      intent(out)     :: ierr                ! error code
       character(*),      intent(out)     :: message             ! error message
       ! local variables
@@ -174,7 +186,7 @@ MODULE histVars_data
       ! -- array size checks - input data vs history output buffer
       ! hru and reach size in input data
       nHru_input = size(basRunoff_local)
-      nRch_input = size(RCHFLX_local(1,:))
+      nRch_input = size(RCHFLX_local)
       if (nHru_input/=this%nHru) then
         write(message,'(2A,G0,A,G0)') trim(message),'history buffer hru size:',this%nHru,'/= input data hru size:',nHru_input
         ierr=81; return
@@ -192,12 +204,12 @@ MODULE histVars_data
 
       ! 2. instantaneous runoff into reach
       if (meta_rflx(ixRFLX%instRunoff)%varFile) then
-        this%instRunoff(1:this%nRch) = this%instRunoff(1:this%nRch) + RCHFLX_local(1,1:this%nRch)%BASIN_QI
+        this%instRunoff(1:this%nRch) = this%instRunoff(1:this%nRch) + RCHFLX_local(1:this%nRch)%BASIN_QI
       end if
 
       ! 3. delayed runoff into reach
       if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
-        this%dlayRunoff(1:this%nRch) = this%dlayRunoff(1:this%nRch) + RCHFLX_local(1,1:this%nRch)%BASIN_QR(1)
+        this%dlayRunoff(1:this%nRch) = this%dlayRunoff(1:this%nRch) + RCHFLX_local(1:this%nRch)%BASIN_QR(1)
       end if
 
       ! 4. discharge and volume
@@ -215,14 +227,18 @@ MODULE histVars_data
         end select
 
         do ix=1,this%nRch
-          this%discharge(ix,iRoute) = this%discharge(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_Q
-          this%volume(ix,iRoute)    = this%volume(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_VOL(1)
+          this%discharge(ix,iRoute) = this%discharge(ix,iRoute) + RCHFLX_local(ix)%ROUTE(idxMethod)%REACH_Q
+          this%volume(ix,iRoute)    = RCHFLX_local(ix)%ROUTE(idxMethod)%REACH_VOL(1)
           if (floodplain) then
-            this%floodVolume(ix,iRoute)    = this%floodVolume(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%FLOOD_VOL(1)
-            this%waterHeight(ix,iRoute)    = this%waterHeight(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_ELE
+            this%floodVolume(ix,iRoute)    = this%floodVolume(ix,iRoute) + RCHFLX_local(ix)%ROUTE(idxMethod)%FLOOD_VOL(1)
+            this%waterHeight(ix,iRoute)    = this%waterHeight(ix,iRoute) + RCHFLX_local(ix)%ROUTE(idxMethod)%REACH_ELE
           end if
           if (outputInflow) then
-            this%inflow(ix,iRoute)  = this%inflow(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_INFLOW
+            this%inflow(ix,iRoute)  = this%inflow(ix,iRoute) + RCHFLX_local(ix)%ROUTE(idxMethod)%REACH_INFLOW
+          end if
+          if (tracer) then
+            this%solute_flux(ix,iRoute)  = this%solute_flux(ix,iRoute) + RCHFLX_local(ix)%ROUTE(idxMethod)%reach_solute_flux
+            this%solute_mass(ix,iRoute)  = RCHFLX_local(ix)%ROUTE(idxMethod)%reach_solute_mass(1)
           end if
         end do
       end do
@@ -261,7 +277,7 @@ MODULE histVars_data
 
       ! 5. volume
       if (allocated(this%volume)) then
-        this%volume = this%volume/real(this%nt, kind=dp)
+        this%volume = this%volume
       end if
 
       ! 6. volume
@@ -279,6 +295,13 @@ MODULE histVars_data
         this%inflow = this%inflow/real(this%nt, kind=dp)
       end if
 
+      if (allocated(this%solute_flux)) then
+        this%solute_flux = this%solute_flux/real(this%nt, kind=dp)
+      end if
+
+      if (allocated(this%solute_mass)) then
+        this%solute_mass = this%solute_mass
+      end if
     END SUBROUTINE finalize
 
     ! ---------------------------------------------------------------
@@ -300,6 +323,8 @@ MODULE histVars_data
       if (allocated(this%waterHeight)) this%waterHeight = 0._dp
       if (allocated(this%floodVolume)) this%floodVolume = 0._dp
       if (allocated(this%inflow))      this%inflow = 0._dp
+      if (allocated(this%solute_flux)) this%solute_flux = 0._dp
+      if (allocated(this%solute_mass)) this%solute_mass = 0._dp
 
     END SUBROUTINE refresh
 
@@ -320,6 +345,8 @@ MODULE histVars_data
       if (allocated(this%waterHeight)) deallocate(this%waterHeight)
       if (allocated(this%floodVolume)) deallocate(this%floodVolume)
       if (allocated(this%inflow))      deallocate(this%inflow)
+      if (allocated(this%solute_flux)) deallocate(this%solute_flux)
+      if (allocated(this%solute_mass)) deallocate(this%solute_mass)
 
     END SUBROUTINE clean
 
@@ -342,6 +369,8 @@ MODULE histVars_data
       integer(i4b)                       :: ixWaterH              ! temporal water height variable index
       integer(i4b)                       :: ixFloodV              ! temporal flood volume variable index
       integer(i4b)                       :: ixInflow              ! temporal inflow variable index
+      integer(i4b)                       :: ixSoluteMass          ! temporal solute mass variable index
+      integer(i4b)                       :: ixSoluteFlux          ! temporal solute flux variable index
       logical(lgt)                       :: FileStatus            ! file open or close
       type(file_desc_t)                  :: pioFileDesc           ! pio file handle
 
@@ -378,7 +407,7 @@ MODULE histVars_data
         allocate(this%instRunoff(this%nRch), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%instRunoff]'; return; endif
 
-        call read_dist_array(pioFileDesc, meta_rflx(ixRFLX%instRunoff)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+        call read_dist_array(pioFileDesc, meta_rflx(ixRFLX%instRunoff)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
@@ -395,7 +424,7 @@ MODULE histVars_data
         allocate(this%dlayRunoff(this%nRch), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%dlayRunoff]'; return; endif
 
-        call read_dist_array(pioFileDesc, meta_rflx(ixRFLX%dlayRunoff)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+        call read_dist_array(pioFileDesc, meta_rflx(ixRFLX%dlayRunoff)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
@@ -430,6 +459,14 @@ MODULE histVars_data
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%volume]'; return; endif
         end if
 
+        if (tracer) then
+          allocate(this%solute_mass(this%nRch, nRoutes), source=0.0_dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%solute_mass]'; return; endif
+
+          allocate(this%solute_flux(this%nRch, nRoutes), source=0.0_dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%solute_flux]'; return; endif
+        end if
+
         do ixRoute=1,nRoutes
           select case(routeMethods(ixRoute))
             case(accumRunoff)
@@ -437,10 +474,14 @@ MODULE histVars_data
             case(impulseResponseFunc)
               ixFlow=ixRFLX%IRFroutedRunoff
               ixVol=ixRFLX%IRFvolume
+              ixWaterH=ixRFLX%IRFheight
+              ixFloodV=ixRFLX%IRFfloodVolume
               ixInflow=ixRFLX%IRFinflow
             case(kinematicWaveTracking)
               ixFlow=ixRFLX%KWTroutedRunoff
               ixVol=ixRFLX%KWTvolume
+              ixWaterH=ixRFLX%KWTheight
+              ixFloodV=ixRFLX%KWTfloodVolume
               ixInflow=ixRFLX%KWTinflow
             case(kinematicWave)
               ixFlow=ixRFLX%KWroutedRunoff
@@ -460,13 +501,15 @@ MODULE histVars_data
               ixWaterH=ixRFLX%DWheight
               ixFloodV=ixRFLX%DWfloodVolume
               ixInflow=ixRFLX%DWinflow
+              ixSoluteFlux=ixRFLX%DWsoluteFlux
+              ixSoluteMass=ixRFLX%DWsoluteMass
             case default
               write(message,'(2A,1X,G0,1X,A)') trim(message), 'routing method index:',routeMethods(ixRoute), 'must be 0-5'
               ierr=81; return
           end select
 
           if (meta_rflx(ixFlow)%varFile) then
-            call read_dist_array(pioFileDesc, meta_rflx(ixFlow)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+            call read_dist_array(pioFileDesc, meta_rflx(ixFlow)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
             ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
             if (masterproc) then
@@ -480,7 +523,7 @@ MODULE histVars_data
           if (routeMethods(ixRoute)==accumRunoff) cycle  ! accumuRunoff has only discharge
 
           if (meta_rflx(ixVol)%varFile) then
-            call read_dist_array(pioFileDesc, meta_rflx(ixVol)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+            call read_dist_array(pioFileDesc, meta_rflx(ixVol)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
             ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
             if (masterproc) then
@@ -492,7 +535,7 @@ MODULE histVars_data
           end if
 
           if (meta_rflx(ixFloodV)%varFile) then
-            call read_dist_array(pioFileDesc, meta_rflx(ixFloodV)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+            call read_dist_array(pioFileDesc, meta_rflx(ixFloodV)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
             ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
             if (masterproc) then
@@ -504,7 +547,7 @@ MODULE histVars_data
           end if
 
           if (meta_rflx(ixWaterH)%varFile) then
-            call read_dist_array(pioFileDesc, meta_rflx(ixWaterH)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+            call read_dist_array(pioFileDesc, meta_rflx(ixWaterH)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
             ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
             if (masterproc) then
@@ -516,7 +559,7 @@ MODULE histVars_data
           end if
 
           if (meta_rflx(ixInflow)%varFile) then
-            call read_dist_array(pioFileDesc, meta_rflx(ixInflow)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+            call read_dist_array(pioFileDesc, meta_rflx(ixInflow)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
             ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
             if (masterproc) then
@@ -526,6 +569,32 @@ MODULE histVars_data
               this%inflow(:,ixRoute) = array_tmp
             end if
           end if
+
+          if (routeMethods(ixRoute)==diffusiveWave) then
+            if (meta_rflx(ixSoluteMass)%varFile) then
+              call read_dist_array(pioFileDesc, meta_rflx(ixSoluteMass)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
+              if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+              ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
+              if (masterproc) then
+                this%solute_mass(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
+                this%solute_mass(nRch_mainstem+nTribOutlet+1:this%nRch, ixRoute) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
+              else
+                this%solute_mass(:,ixRoute) = array_tmp
+              end if
+            end if
+
+            if (meta_rflx(ixSoluteFlux)%varFile) then
+              call read_dist_array(pioFileDesc, meta_rflx(ixSoluteFlux)%varName, array_tmp, ioDesc_rch_double, ierr, cmessage)
+              if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+              ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
+              if (masterproc) then
+                this%solute_flux(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
+                this%solute_flux(nRch_mainstem+nTribOutlet+1:this%nRch, ixRoute) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
+              else
+                this%solute_flux(:,ixRoute) = array_tmp
+              end if
+            end if
+          end if ! end of routeMethods==diffusiveWave if-statement
         end do ! end of ixRoute loop
       end if ! end of nRoute>0 if-statement
 

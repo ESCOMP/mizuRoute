@@ -69,6 +69,8 @@ module rof_comp_nuopc
 
   character(*), parameter :: F00   = "('(mizuRoute_comp_nuopc) ',8a)"
   character(*), parameter :: F91   = "('(mizuRoute_comp_nuopc) ',73('-'))"
+  logical :: write_restart_at_endofrun = .false.
+
   character(*), parameter :: modName =  "(rof_comp_nuopc)"
   character(*), parameter :: u_FILE_u = &
        __FILE__
@@ -353,7 +355,8 @@ contains
     integer                     :: localDeCount          ! ESMF dist-grid local processor element count
     logical                     :: regDecompFlag         ! ESMF dist-grid regular decomposition flag
     integer                     :: connectionCount       ! ESMF dist-grid connection count
-
+    logical                     :: isPresent             ! If attribute is present
+    logical                     :: isSet                 ! If attribute is present and also set
     character(len=*), parameter :: subname=trim(modName)//':(InitializeRealize) '
     !---------------------------------------------------------------------------
 
@@ -489,6 +492,14 @@ contains
     end if
 
     time_units = 'days since '//trim(simRef)
+
+    call NUOPC_CompAttributeGet(gcomp, name="write_restart_at_endofrun", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    if (isPresent .and. isSet) then
+       if (trim(cvalue) .eq. '.true.') write_restart_at_endofrun = .true.
+    else
+       call shr_sys_abort( subname//'ERROR:: write_restart_at_endofrun not isPresent or not isSet' )
+    end if
 
     !----------------------
     ! Read namelist, grid and surface data
@@ -761,22 +772,6 @@ contains
     call t_stopf ('lc_mizuRoute_import')
 
     !--------------------------------
-    ! Determine if time to write restart
-    !--------------------------------
-
-    call ESMF_ClockGetAlarm(clock, alarmname='alarm_restart', alarm=alarm, rc=rc)
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-    if (ESMF_AlarmIsRinging(alarm, rc=rc)) then
-       if (ChkErr(rc,__LINE__,u_FILE_u)) return
-       rstwr = .true.
-       call ESMF_AlarmRingerOff( alarm, rc=rc )
-       if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    else
-       rstwr = .false.
-    endif
-
-    !--------------------------------
     ! Determine if time to stop
     !--------------------------------
 
@@ -790,6 +785,25 @@ contains
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
        nlend = .false.
+    endif
+
+    !--------------------------------
+    ! Determine if time to write restart
+    !--------------------------------
+
+    rstwr = .false.
+    if (nlend .and. write_restart_at_endofrun) then
+      rstwr = .true.
+    else
+      call ESMF_ClockGetAlarm(clock, alarmname='alarm_restart', alarm=alarm, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+      if (ESMF_AlarmIsRinging(alarm, rc=rc)) then
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+         rstwr = .true.
+         call ESMF_AlarmRingerOff( alarm, rc=rc )
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      endif
     endif
 
     !--------------------------------

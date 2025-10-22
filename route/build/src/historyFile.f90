@@ -121,7 +121,6 @@ MODULE historyFile
       ! 2. Define dimension
       call def_dim(this%pioFileDesc, meta_qDims(ixQdims%time)%dimName,   recordDim, meta_qDims(ixQdims%time)%dimId)
       call def_dim(this%pioFileDesc, meta_qDims(ixQdims%tbound)%dimName, 2,         meta_qDims(ixQdims%tbound)%dimId)
-      call def_dim(this%pioFileDesc, meta_qDims(ixQdims%ens)%dimName,    1,         meta_qDims(ixQdims%ens)%dimId)
       if (nRch_local>0) then
         call def_dim(this%pioFileDesc, meta_qDims(ixQdims%seg)%dimName, nRch_in, meta_qDims(ixQdims%seg)%dimId)
       end if
@@ -483,6 +482,10 @@ MODULE historyFile
               array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxMC)
             case(ixRFLX%DWinflow)
               array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxDW)
+            case(ixRFLX%DWsoluteFlux)
+              array_temp(1:nRch_write) = hVars_local%solute_flux(index_write, idxDW)
+            case(ixRFLX%DWsoluteMass)
+              array_temp(1:nRch_write) = hVars_local%solute_mass(index_write, idxDW)
             case default
               write(message,'(2A,1X,G0,1X,1A)') trim(message), 'Invalid RFLX variable index:',iVar,'. Check ixRFLX in var_lookup.f90'
               ierr=81; return

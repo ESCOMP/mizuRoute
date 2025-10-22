@@ -21,10 +21,12 @@ public::end_def
 public::write_nc
 public::open_nc
 public::close_nc
+public::is_netcdf_file
 
 INTERFACE get_nc
   module procedure get_scalar
   module procedure get_vec
+  module procedure get_charvec
   module procedure get_2d_array
   module procedure get_3d_array
   module procedure get_4d_array
@@ -565,6 +567,51 @@ CONTAINS
  end subroutine get_4d_array
 
   ! *********************************************************************
+  ! subroutine: read a character vector
+  ! *********************************************************************
+  subroutine get_charvec(fname,           &  ! input: netcdf id
+                         vname,           &  ! input: variable name
+                         array,           &  ! output: variable data
+                         iStart,          &  ! input: start index
+                         iCount,          &  ! input: length of vector
+                         ierr, message)      ! output: error control
+    implicit none
+    ! input variables
+    character(*), intent(in)        :: fname        ! filename
+    character(*), intent(in)        :: vname       ! variable name
+    integer(i4b), intent(in)        :: iStart(1:2) ! start index
+    integer(i4b), intent(in)        :: iCount(1:2) ! length of vector to be read in
+    ! output variables
+    character(*), intent(out)       :: array(:)    ! output variable data
+    integer(i4b), intent(out)       :: ierr        ! error code
+    character(*), intent(out)       :: message     ! error message
+    ! local variables
+    integer(i4b)                    :: ncid        ! NetCDF file ID
+    integer(i4b)                    :: iVarID      ! NetCDF variable ID
+
+    ierr=0; message='get_charvec/'
+
+    ! open NetCDF file
+    ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
+    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+    ! get variable ID
+    ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
+    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+    ! get the data
+    ierr = nf90_get_var(ncid, iVarID, array, start=iStart, count=iCount)
+    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+    array = adjustl(array)
+
+    ! close output file
+    ierr = nf90_close(ncid)
+    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+  end subroutine
+
+  ! *********************************************************************
   ! subroutine: write global attribute
   ! *********************************************************************
   subroutine put_global_attr(ncid,          & ! input: netCDF ID
@@ -856,7 +903,7 @@ CONTAINS
 
 
  ! *********************************************************************
- ! Public subroutine: close netcdf
+ ! Public subroutine: open netcdf
  ! *********************************************************************
  SUBROUTINE open_nc(fname, mode, ncid, ierr, message)
 
@@ -906,5 +953,40 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); endif
 
  END SUBROUTINE close_nc
+
+
+ ! *********************************************************************
+ ! Public subroutine: check if the file is NetCDF
+ ! *********************************************************************
+ function is_netcdf_file(fname, ierr, message) result(is_nc)
+
+   implicit none
+   ! input
+   character(*), intent(in)  :: fname    ! Filename
+   ! output
+   integer(i4b), intent(out) :: ierr     ! Error code
+   character(*), intent(out) :: message  ! Error message
+   ! local
+   integer(i4b)              :: ncid     ! NetCDF file ID
+   logical(lgt)              :: is_nc    ! Flag: True if NetCDF file
+
+   ! initialize outputs
+   is_nc = .false.
+   ierr  = 0
+   message = 'is_netcdf_file: '
+
+   ! Try to open the file in read-only mode
+   ierr = nf90_open(trim(fname), NF90_NOWRITE, ncid)
+
+   if (ierr == NF90_NOERR) then
+     ! Successfully opened, so it's a NetCDF file
+     is_nc = .true.
+     ierr = nf90_close(ncid) ! close the NetCDF file
+   else
+     ! Not a valid NetCDF file
+     message = trim(message) // '[' // trim(nf90_strerror(ierr)) // '; file=' // trim(fname) // ']'
+   end if
+
+ end function is_netcdf_file
 
 END MODULE ncio_utils

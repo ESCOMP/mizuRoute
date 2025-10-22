@@ -51,6 +51,7 @@
 ! Define options for lake handling
 ! ----------------------------------------------------
 <is_lake_sim>              F                       ! Switch lake simulation on/off (T=on/F=off)
+<lakeRegulate>             F                       ! Switch reservoir on/off (T=on/F=off). F-> all the lakes are natural (use Doll model) 
 <varname_D03_MaxStorage>   S_max                   ! Maximum lake volume (for Doll 2003 parametrisation)
 <varname_D03_Coefficient>  Coeff                   ! name of varibale holding the coefficnet of stage-discharge relatioship for lake
 <varname_D03_Power>        power                   ! name of varibale holding the coefficnet of stage-discharge relatioship for lake

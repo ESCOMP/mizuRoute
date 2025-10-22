@@ -44,7 +44,7 @@ CONTAINS
     USE globalData, ONLY: basinID           !
     USE globalData, ONLY: nRch              !
     USE globalData, ONLY: nHRU              !
-    USE globalData, ONLY: gage_data         !
+    USE globalData, ONLY: gage_meta_data    !
 
     implicit none
     ! Argument variables
@@ -52,6 +52,8 @@ CONTAINS
     character(*),   intent(out)     :: message          ! error message
     ! local variables
     logical(lgt)                    :: createNewFile       ! logical to make alarm for restart writing
+    integer(i4b)                    :: nGage               ! number of gauge points
+    integer(i4b), allocatable       :: reach_id_local(:)   ! logical to make alarm for restart writing
     character(len=strLen)           :: cmessage            ! error message of downwind routine
 
     ierr=0; message='main_new_file/'
@@ -81,14 +83,17 @@ CONTAINS
       if (outputAtGage) then
 
         hist_gage = histFile(hfileout_gage, gageOutput=.true.)
+        nGage = gage_meta_data%gage_num()
+        allocate(reach_id_local(nGage))
+        reach_id_local = gage_meta_data%reach_id()
 
-        call hist_gage%createNC(ierr, cmessage, nRch_in=gage_data%nGage)
+        call hist_gage%createNC(ierr, cmessage, nRch_in= nGage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         call hist_gage%openNC(ierr, message)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-        call hist_gage%write_loc(gage_data%reachID, ierr, message)
+        call hist_gage%write_loc(reach_id_local, ierr, message)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
@@ -201,6 +206,11 @@ CONTAINS
        nRch_local = rch_per_proc(pid)
        allocate(index_write_all(nRch_local))
        index_write_all = arth(1,1,nRch_local)
+     end if
+
+     ! For cesm coupling mode, the timestamp of the average history output is the midpoint of time bounds
+     if (trim(runMode)=='cesm-coupling') then
+       histTimeStamp_offset = (hVars%timeVar(2) - hVars%timeVar(1))*sec2tunit/2
      end if
 
      ! write time variables (time and time bounds)

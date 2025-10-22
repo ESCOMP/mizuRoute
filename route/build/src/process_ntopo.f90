@@ -380,6 +380,7 @@ END SUBROUTINE augment_ntopo
   USE public_var,    ONLY: min_slope          ! minimum slope
   USE public_var,    ONLY: dt                 ! simulation time step [sec]
   USE public_var,    ONLY: is_lake_sim        ! lake simulation option
+  USE public_var,    ONLY: lakeRegulate       ! lake type option: T-> lake type defined at lake indiviually, F-> all natural (use Doll)
   ! external subroutines
   USE process_param, ONLY: basinUH            ! construct basin unit hydrograph
 
@@ -396,6 +397,7 @@ END SUBROUTINE augment_ntopo
   character(len=strLen)                          :: cmessage         ! error message of downwind routine
   integer(i4b)                                   :: nUps             ! number of upstream segments for a segment
   integer(i4b)                                   :: iSeg,iUps        ! loop indices
+  integer(i4b), parameter                        :: doll=1           ! lake model name and id for a natural lake
 
   ierr=0; message='put_data_struct/'
 
@@ -439,6 +441,7 @@ END SUBROUTINE augment_ntopo
      RPARAM_in(iSeg)%HYP_Qrate_phs   =     structSEG(iSeg)%var(ixSEG%HYP_Qrate_phs)%dat(1)
      RPARAM_in(iSeg)%HYP_prim_F      =     (structSEG(iSeg)%var(ixSEG%HYP_prim_F)%dat(1)==1)
      RPARAM_in(iSeg)%HYP_A_avg       =     structSEG(iSeg)%var(ixSEG%HYP_A_avg)%dat(1)
+     RPARAM_in(iSeg)%HYP_Qsim_mode   =     (structSEG(iSeg)%var(ixSEG%HYP_Qsim_mode)%dat(1)==1)
 
      RPARAM_in(iSeg)%H06_Smax        =     structSEG(iSeg)%var(ixSEG%H06_Smax)%dat(1)
      RPARAM_in(iSeg)%H06_alpha       =     structSEG(iSeg)%var(ixSEG%H06_alpha)%dat(1)
@@ -535,7 +538,11 @@ END SUBROUTINE augment_ntopo
    if (is_lake_sim) then
      NETOPO_in(iSeg)%isLake       = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
      NETOPO_in(iSeg)%LakeTargVol  = (structNTOPO(iSeg)%var(ixNTOPO%LakeTargVol)%dat(1)==true)
-     NETOPO_in(iSeg)%LakeModelType= structNTOPO(iSeg)%var(ixNTOPO%LakeModelType)%dat(1) ! type of the parameteric lake
+     if (.not. lakeRegulate) then ! if all lakes need to be natural
+       NETOPO_in(iSeg)%LakeModelType=doll  ! set a doll model for all the lakes
+     else
+       NETOPO_in(iSeg)%LakeModelType= structNTOPO(iSeg)%var(ixNTOPO%LakeModelType)%dat(1) ! type of the parameteric lake
+     endif
      NETOPO_in(iSeg)%LAKINLT      = (structNTOPO(iSeg)%var(ixNTOPO%isLakeInlet)%dat(1)==true)   ! .TRUE. if reach is lake inlet, .FALSE. otherwise
      ! NOT USED: lake parameters
 !     NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
@@ -550,6 +557,11 @@ END SUBROUTINE augment_ntopo
      allocate(NETOPO_in(iSeg)%UH(size(structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO_in(iSeg)%UH'; return; endif
      NETOPO_in(iSeg)%UH(:) =  structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
+     ! Ensure UH for lake is corrected
+     if (NETOPO_in(iSeg)%islake) then
+       NETOPO_in(iSeg)%UH    = 0._dp  ! Set all values to zero
+       NETOPO_in(iSeg)%UH(1) = 1._dp  ! Set the first value to 1
+     end if
    end if
 
    ! upstream reach list

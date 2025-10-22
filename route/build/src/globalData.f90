@@ -18,7 +18,10 @@ MODULE globalData
   USE objTypes,  ONLY: var_info_new  ! metadata type - variable
 
   USE dataTypes, ONLY: inFileInfo    ! data strture - information of input files
-  USE dataTypes, ONLY: gage          ! data structure - gauge metadata
+
+  ! gage data strucuture
+  USE gageMeta_data, ONLY: gageMeta
+  USE obs_data,      ONLY: gageObs
 
   USE dataTypes, ONLY: RCHPRP        ! data structure - Reach parameters (properties)
   USE dataTypes, ONLY: RCHTOPO       ! data structure - Network topology
@@ -59,11 +62,13 @@ MODULE globalData
   USE var_lookup, ONLY: nVarsHFLX    ! number of variables in data structure (HRU flux/state)
   USE var_lookup, ONLY: nVarsBasinQ  ! number of variables in data structure (restart vars for
   USE var_lookup, ONLY: nVarsIRFbas  ! number of variables in data structure (restart vars for overland unit-hydrograph routing)
+  USE var_lookup, ONLY: nVarsBasTracer ! number of variables in data structure (restart vars for overland tracer routing)
   USE var_lookup, ONLY: nVarsIRF     ! number of variables in data structure (restart vars for unit-hydrograph routing)
   USE var_lookup, ONLY: nVarsKWT     ! number of variables in data structure (restart vars for lagrangian kinematic wave)
   USE var_lookup, ONLY: nVarsKW      ! number of variables in data structure (restart vars for kinematic wave routing)
   USE var_lookup, ONLY: nVarsMC      ! number of variables in data structure (restart vars for muskingum-cunge routing)
   USE var_lookup, ONLY: nVarsDW      ! number of variables in data structure (restart vars for diffusive wave routing)
+  USE var_lookup, ONLY: nVarsTracer  ! number of variables in data structure (restart vars for tracer)
 
   implicit none
 
@@ -113,6 +118,10 @@ MODULE globalData
   type(datetime),                  public :: roBegDatetime        ! forcing data start date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: wmBegDatetime        ! water management data start date/time (yyyy:mm:dd:hh:mm:ss)
 
+  ! obs data - gage data, watertake etc.
+  type(gageMeta),                  public :: gage_meta_data             ! gauge metadata
+  type(gageObs),                   public :: gage_obs_data_trib         ! gauge observed data for tributary
+  type(gageObs),                   public :: gage_obs_data_main         ! gauge observed data for mainstem
   ! ---------- input file information -------------------------------------------------------------------
 
   type(infileinfo), allocatable,   public :: inFileInfo_ro(:)    ! input runoff/evapo/precipi file information
@@ -121,8 +130,6 @@ MODULE globalData
   ! ---------- Misc. data -------------------------------------------------------------------------
   character(len=strLen),           public :: runMode='standalone'        ! run options: standalone or cesm-coupling
   character(len=12),               public :: hfile_dayStamp='period-start' ! day stamp in history file for daily file. period-start or period-end
-  integer(i4b),                    public :: ixPrint(1:2)=integerMissing ! index of desired reach to be on-screen print
-  integer(i4b),                    public :: nEns=1                      ! number of ensemble
   integer(i4b),                    public :: maxtdh                      ! maximum unit-hydrograph future time steps
   type(cMolecule),                 public :: nMolecule                   ! number of computational molecule (used for KW, MC, DW)
   character(FileStrLen),           public :: hfileout=charMissing        ! history output file name
@@ -149,24 +156,25 @@ MODULE globalData
   type(io_desc_t),                 public :: ioDesc_rch_float                   ! [reach] (float)
   type(io_desc_t),                 public :: ioDesc_gauge_float                 ! [gauge points] (float)
   ! decomposition used for restart variables
-  type(io_desc_t),                 public :: ioDesc_rch_int                     ! [reach x ensemble] (integer)
-  type(io_desc_t),                 public :: ioDesc_rch_double                  ! [reach x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_hist_rch_double             ! [reach] (double precision)
+  type(io_desc_t),                 public :: ioDesc_rch_int                     ! [reach] (integer)
+  type(io_desc_t),                 public :: ioDesc_rch_double                  ! [reach] (double precision)
   type(io_desc_t),                 public :: ioDesc_hru_double                  ! [hru] (double precision)
-  type(io_desc_t),                 public :: ioDesc_wave_int                    ! [reach x max. number of waves x ensemble] (integer)
-  type(io_desc_t),                 public :: ioDesc_wave_double                 ! [reach x max. number of waves x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_mesh_kw_double              ! [reach x Euler kinematic wave computational meshes x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_mesh_mc_double              ! [reach x Muskingum-Cunge computational meshes x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_mesh_dw_double              ! [reach x Duffusive wave computational meshes x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_irf_double                  ! [reach x IRF future timer-steps x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_vol_double                  ! [reach x time-bounds x ensemble] (double precision)
-  type(io_desc_t),                 public :: ioDesc_irf_bas_double              ! [reach x basin UH future time-steps x ensemble] (double precision)
+  type(io_desc_t),                 public :: ioDesc_wave_int                    ! [reach x max. number of waves] (integer)
+  type(io_desc_t),                 public :: ioDesc_wave_double                 ! [reach x max. number of waves] (double precision)
+  type(io_desc_t),                 public :: ioDesc_mesh_kw_double              ! [reach x Euler kinematic wave computational meshes] (double precision)
+  type(io_desc_t),                 public :: ioDesc_mesh_mc_double              ! [reach x Muskingum-Cunge computational meshes] (double precision)
+  type(io_desc_t),                 public :: ioDesc_mesh_dw_double              ! [reach x Duffusive wave computational meshes] (double precision)
+  type(io_desc_t),                 public :: ioDesc_irf_double                  ! [reach x IRF future timer-steps] (double precision)
+  type(io_desc_t),                 public :: ioDesc_vol_double                  ! [reach x time-bounds] (double precision)
+  type(io_desc_t),                 public :: ioDesc_irf_bas_double              ! [reach x basin UH future time-steps] (double precision)
   integer(i4b),   allocatable,     public :: index_write_gage(:)                ! reach indices to gauge points w.r.t. distributed domains
 
   ! ---------- conversion factors -------------------------------------------------------------------
-
-  real(dp),                        public :: time_conv                  ! time conversion factor -- used to convert to mm/s
-  real(dp),                        public :: length_conv                ! length conversion factor -- used to convert to mm/s
+  ! runoff and solute mass flux unit conversion. Time conversion factor is also needed for solute because the time unit of solute flux MAY be different than runoff's
+  real(dp),                        public :: time_conv                  ! conversion factor for time units (days, hours, sec) for runoff, converted to sec
+  real(dp),                        public :: length_conv                ! conversion factor for depth or length units (mm, or m) for runoff, converted to m
+  real(dp),                        public :: time_conv_solute           ! conversion factor for time units (days, hours, sec) for solute mass flux, converted to sec
+  real(dp),                        public :: mass_conv_solute           ! conversion factor for mass units (mg, g, kg) for solute mass flux, converted to mg
 
   ! ---------- routing parameter names -------------------------------------------------------------------
   ! spatial constant ....
@@ -191,23 +199,24 @@ MODULE globalData
   ! ---------- metadata structures ------------------------------------------------------------------
 
   ! define vectors of metadata
-  type(var_info),                  public :: meta_HRU    (nVarsHRU    ) ! HRU properties
-  type(var_info),                  public :: meta_HRU2SEG(nVarsHRU2SEG) ! HRU-to-segment mapping
-  type(var_info),                  public :: meta_SEG    (nVarsSEG    ) ! stream segment properties
-  type(var_info),                  public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
-  type(var_info),                  public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
-  type(var_info_new),              public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
-  type(var_info_new),              public :: meta_hflx   (nVarsHFLX   ) ! hru flux variables
-  type(var_info_new),              public :: meta_basinQ (nVarsBasinQ ) ! reach inflow from basin
-  type(var_info_new),              public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
-  type(var_info_new),              public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
-  type(var_info_new),              public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
-  type(var_info_new),              public :: meta_kw     (nVarsKW     ) ! KW routing fluxes/states
-  type(var_info_new),              public :: meta_mc     (nVarsMC     ) ! MC routing restart fluxes/states
-  type(var_info_new),              public :: meta_dw     (nVarsDW     ) ! DW routing restart fluxes/states
+  type(var_info),                  public :: meta_HRU    (nVarsHRU    )      ! HRU properties
+  type(var_info),                  public :: meta_HRU2SEG(nVarsHRU2SEG)      ! HRU-to-segment mapping
+  type(var_info),                  public :: meta_SEG    (nVarsSEG    )      ! stream segment properties
+  type(var_info),                  public :: meta_NTOPO  (nVarsNTOPO  )      ! network topology
+  type(var_info),                  public :: meta_PFAF   (nVarsPFAF   )      ! pfafstetter code
+  type(var_info_new),              public :: meta_rflx   (nVarsRFLX   )      ! reach flux variables
+  type(var_info_new),              public :: meta_hflx   (nVarsHFLX   )      ! hru flux variables
+  type(var_info_new),              public :: meta_basinQ (nVarsBasinQ )      ! reach inflow from basin
+  type(var_info_new),              public :: meta_irf_bas(nVarsIRFbas )      ! basin IRF routing fluxes/states
+  type(var_info_new),              public :: meta_bas_solute(nVarsBasTracer) ! basin IRF routing for solute mass flux
+  type(var_info_new),              public :: meta_irf    (nVarsIRF    )      ! IRF routing fluxes/states
+  type(var_info_new),              public :: meta_kwt    (nVarsKWT    )      ! KWT routing fluxes/states
+  type(var_info_new),              public :: meta_kw     (nVarsKW     )      ! KW routing fluxes/states
+  type(var_info_new),              public :: meta_mc     (nVarsMC     )      ! MC routing restart fluxes/states
+  type(var_info_new),              public :: meta_dw     (nVarsDW     )      ! DW routing restart fluxes/states
+  type(var_info_new),              public :: meta_solute (nVarsTracer )      ! solute mass fluxes states
 
   ! ---------- shared data structures ----------------------------------------------------------------------
-  type(gage),                      public :: gage_data              ! gauge metadata
 
   ! river topology and parameter structures
   type(RCHPRP),       allocatable, public :: RPARAM(:)              ! Reach Parameters for whole domain
@@ -221,10 +230,10 @@ MODULE globalData
   real(dp),           allocatable, public :: FRAC_FUTURE(:)         ! fraction of runoff in future time steps
 
   ! routing data structures
-  type(STRSTA),       allocatable, public :: RCHSTA(:,:)            ! restart variables (ensembles, reaches) for the entire domain
-  type(STRFLX),       allocatable, public :: RCHFLX(:,:)            ! Reach fluxes (ensembles, reaches) for entire domain
-  type(STRSTA),       allocatable, public :: RCHSTA_trib(:,:)       ! restart variables (ensembles, reaches) for decomposed domains
-  type(STRFLX),       allocatable, public :: RCHFLX_trib(:,:)       ! Reach fluxes (ensembles, reaches) for decomposed domains
+  type(STRSTA),       allocatable, public :: RCHSTA(:)              ! restart variables (reaches) for the entire domain
+  type(STRFLX),       allocatable, public :: RCHFLX(:)              ! Reach fluxes (reaches) for entire domain
+  type(STRSTA),       allocatable, public :: RCHSTA_trib(:)         ! restart variables (reaches) for decomposed domains
+  type(STRFLX),       allocatable, public :: RCHFLX_trib(:)         ! Reach fluxes (reaches) for decomposed domains
 
   ! lakes data structures
   type(LAKPRP),       allocatable, public :: LPARAM(:)              ! Lake parameters
@@ -243,6 +252,8 @@ MODULE globalData
   real(dp),           allocatable, public :: basinEvapo_main(:)     ! HRU evaporation array (m/s) for mainstem
   real(dp),           allocatable, public :: basinPrecip_trib(:)    ! HRU precipitation array (m/s) for tributaries
   real(dp),           allocatable, public :: basinPrecip_main(:)    ! HRU precipitation array (m/s) for mainstem
+  real(dp),           allocatable, public :: basinSolute_trib(:)    ! HRU constituent array (mg/s) for tributaries
+  real(dp),           allocatable, public :: basinSolute_main(:)    ! HRU constituent array (mg/s) for mainstem
 
   ! seg water management fluxes and target volume
   type(wm),                        public :: wm_data                ! SEG flux and target vol data structure for one time step for river network

@@ -11,7 +11,6 @@ MODULE pio_decomp_data
   USE globalData, ONLY: ioDesc_gauge_float
   USE globalData, ONLY: ioDesc_rch_int
   USE globalData, ONLY: ioDesc_rch_double
-  USE globalData, ONLY: ioDesc_hist_rch_double
   USE globalData, ONLY: ioDesc_hru_double
   USE globalData, ONLY: ioDesc_wave_int
   USE globalData, ONLY: ioDesc_wave_double
@@ -42,9 +41,8 @@ CONTAINS
     USE globalData, ONLY: meta_hflx         !
     USE globalData, ONLY: nRch                   !
     USE globalData, ONLY: nHRU                   !
-    USE globalData, ONLY: nEns                   !
     USE globalData, ONLY: onRoute                !
-    USE globalData, ONLY: gage_data
+    USE globalData, ONLY: gage_meta_data
     USE globalData, ONLY: pioSystem              !
     USE pio_utils,  ONLY: pio_decomp
     USE pio_utils,  ONLY: ncd_int
@@ -62,6 +60,7 @@ CONTAINS
     integer(i4b),   intent(out)     :: ierr                ! error code
     character(*),   intent(out)     :: message             ! error message
     ! local variables
+    integer(i4b)                    :: nGage               ! total number of gauges
     integer(i4b), allocatable       :: compdof_rch(:)      !
     integer(i4b), allocatable       :: compdof_rch_gage(:) !
     integer(i4b), allocatable       :: compdof_hru(:)      !
@@ -71,7 +70,6 @@ CONTAINS
 
     associate(ndim_seg      => meta_stateDims(ixStateDims%seg)%dimLength,      & !
               ndim_hru      => meta_stateDims(ixStateDims%hru)%dimLength,      & !
-              ndim_ens      => meta_stateDims(ixStateDims%ens)%dimLength,      & !
               ndim_hist_fil => meta_stateDims(ixStateDims%hist_fil)%dimLength, & !
               ndim_tdh      => meta_stateDims(ixStateDims%tdh)%dimLength,      & ! maximum future q time steps among basins
               ndim_tdh_irf  => meta_stateDims(ixStateDims%tdh_irf)%dimLength,  & ! maximum future q time steps among reaches
@@ -84,7 +82,6 @@ CONTAINS
     ! set state file dimension length
     ndim_seg = nRch
     ndim_hru = nHru
-    ndim_ens = nEns
     ndim_tbound = 2
     if (doesBasinRoute==1)              ndim_tdh = size(FRAC_FUTURE)
     if (onRoute(impulseResponseFunc))   ndim_tdh_irf = maxtdh
@@ -105,9 +102,10 @@ CONTAINS
     if (outputAtGage) then
       call get_compdof_gage(compdof_rch_gage, ierr, cmessage)
 
+      nGage=gage_meta_data%gage_num()
       call pio_decomp(pioSystem,         & ! inout: pio system descriptor
                       ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                      [gage_data%nGage], & ! input: dimension length == global array size
+                      [nGage],           & ! input: dimension length == global array size
                       compdof_rch_gage,  & ! input: local->global mapping
                       ioDesc_gauge_float)
     end if
@@ -126,26 +124,19 @@ CONTAINS
                     ioDesc_hru_float)
 
     ! For restart file ----------
-    ! type: float  dim: [dim_seg, dim_ens]  -- channel runoff coming from hru
-    call pio_decomp(pioSystem,              & ! inout: pio system descriptor
-                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                    [ndim_seg,ndim_ens],    & ! input: dimension length == global array size
-                    compdof_rch,            & ! input:
-                    ioDesc_rch_double)
-
-    ! type: int  dim: [dim_seg, dim_ens]  -- number of wave or uh future time steps
-    call pio_decomp(pioSystem,              & ! inout: pio system descriptor
-                    ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                    [ndim_seg,ndim_ens],    & ! input: dimension length == global array size
-                    compdof_rch,            & ! input:
-                    ioDesc_rch_int)
-
-    ! type: float  dim: [dim_seg, dim_ens]  -- channel runoff coming from hru
+    ! type: float  dim: [dim_seg]  -- channel runoff coming from hru
     call pio_decomp(pioSystem,              & ! inout: pio system descriptor
                     ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                     [ndim_seg],             & ! input: dimension length == global array size
                     compdof_rch,            & ! input:
-                    ioDesc_hist_rch_double)
+                    ioDesc_rch_double)
+
+    ! type: int  dim: [dim_seg] -- number of wave or uh future time steps
+    call pio_decomp(pioSystem,              & ! inout: pio system descriptor
+                    ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                    [ndim_seg],             & ! input: dimension length == global array size
+                    compdof_rch,            & ! input:
+                    ioDesc_rch_int)
 
     if (meta_hflx(ixHFLX%basRunoff)%varFile) then
       ! type: single precision float  dim: [dim_hru,dim_ens]  --
@@ -160,66 +151,66 @@ CONTAINS
       ! type: float dim: [dim_seg, dim_tdh_irf]
       call pio_decomp(pioSystem,                     & ! inout: pio system descriptor
                       ncd_double,                    & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                      [ndim_seg,ndim_tdh,ndim_ens],  & ! input: dimension length == global array size
+                      [ndim_seg,ndim_tdh],           & ! input: dimension length == global array size
                       compdof_rch,                   & ! input:
                       ioDesc_irf_bas_double)
     end if
 
     if (onRoute(impulseResponseFunc))then
-      ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens]
+      ! type: float dim: [dim_seg, dim_tdh_irf]
       call pio_decomp(pioSystem,                         & ! inout: pio system descriptor
                       ncd_double,                        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                      [ndim_seg,ndim_tdh_irf,ndim_ens],  & ! input: dimension length == global array size
+                      [ndim_seg,ndim_tdh_irf],           & ! input: dimension length == global array size
                       compdof_rch,                       & ! input:
                       ioDesc_irf_double)
 
-      ! type: float dim: [dim_seg, dim_ens]
+      ! type: float dim: [dim_seg]
       call pio_decomp(pioSystem,                         & ! inout: pio system descriptor
                       ncd_double,                        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                      [ndim_seg,ndim_tbound,ndim_ens],   & ! input: dimension length == global array size
+                      [ndim_seg,ndim_tbound],            & ! input: dimension length == global array size
                       compdof_rch,                       & ! input:
                       ioDesc_vol_double)
     end if
 
     if (onRoute(kinematicWaveTracking)) then
-      ! type: int, dim: [dim_seg, dim_wave, dim_ens]
+      ! type: int, dim: [dim_seg, dim_wave]
       call pio_decomp(pioSystem,                         & ! inout: pio system descriptor
                       ncd_int,                           & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                      [ndim_seg,ndim_wave,ndim_ens],     & ! input: dimension length == global array size
+                      [ndim_seg,ndim_wave],              & ! input: dimension length == global array size
                       compdof_rch,                       & ! input:
                       ioDesc_wave_int)
 
-      ! type: float, dim: [dim_seg, dim_wave, dim_ens]
+      ! type: float, dim: [dim_seg, dim_wave]
       call pio_decomp(pioSystem,                         & ! inout: pio system descriptor
                       ncd_double,                        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                      [ndim_seg,ndim_wave,ndim_ens],     & ! input: dimension length == global array size
+                      [ndim_seg,ndim_wave],              & ! input: dimension length == global array size
                       compdof_rch,                       & ! input:
                       ioDesc_wave_double)
     end if
 
     if (onRoute(kinematicWave)) then
-      ! type: float, dim: [dim_seg, dim_mesh, dim_ens]
+      ! type: float, dim: [dim_seg, dim_mesh]
       call pio_decomp(pioSystem,                         & ! inout: pio system descriptor
                       ncd_double,                        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                      [ndim_seg,ndim_Mesh_kw,ndim_ens],  & ! input: dimension length == global array size
+                      [ndim_seg,ndim_Mesh_kw],           & ! input: dimension length == global array size
                       compdof_rch,                       & ! input:
                       ioDesc_mesh_kw_double)
     end if
 
     if (onRoute(muskingumCunge)) then
-      ! type: float, dim: [dim_seg, dim_mesh, dim_ens]
+      ! type: float, dim: [dim_seg, dim_mesh]
       call pio_decomp(pioSystem,                         & ! inout: pio system descriptor
                       ncd_double,                        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                      [ndim_seg,ndim_Mesh_mc,ndim_ens],  & ! input: dimension length == global array size
+                      [ndim_seg,ndim_Mesh_mc],           & ! input: dimension length == global array size
                       compdof_rch,                       & ! input:
                       ioDesc_mesh_mc_double)
     end if
 
     if (onRoute(diffusiveWave)) then
-      ! type: float, dim: [dim_seg, dim_mesh, dim_ens]
+      ! type: float, dim: [dim_seg, dim_mesh]
       call pio_decomp(pioSystem,                         & ! inout: pio system descriptor
                       ncd_double,                        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                      [ndim_seg,ndim_Mesh_dw,ndim_ens],  & ! input: dimension length == global array size
+                      [ndim_seg,ndim_Mesh_dw],           & ! input: dimension length == global array size
                       compdof_rch,                       & ! input:
                       ioDesc_mesh_dw_double)
     end if
@@ -282,7 +273,7 @@ CONTAINS
     USE globalData, ONLY: nTribOutlet         ! number of tributary outlets flowing to the mainstem
     USE globalData, ONLY: NETOPO_main         ! mainstem Reach neteork
     USE globalData, ONLY: NETOPO_trib         ! tributary Reach network
-    USE globalData, ONLY: gage_data
+    USE globalData, ONLY: gage_meta_data
     USE process_gage_meta, ONLY: reach_subset
 
     implicit none
@@ -313,7 +304,7 @@ CONTAINS
       reachID_local = NETOPO_trib(:)%REACHID
     endif
 
-    call reach_subset(reachID_local, gage_data, ierr, cmessage, compdof=compdof_rch, index2=index_write_gage)
+    call reach_subset(reachID_local, gage_meta_data, ierr, cmessage, compdof=compdof_rch, index2=index_write_gage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! Need to adjust tributary indices in root processor

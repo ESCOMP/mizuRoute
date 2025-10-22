@@ -20,11 +20,11 @@
 # -- Project information -----------------------------------------------------
 
 project = 'mizuRoute'
-copyright = '2019, Naoki Mizukami'
+copyright = '2025, University Corporation for Atmospheric Research'
 author = 'Naoki Mizukami'
 
 # The short X.Y version
-version = '1.1'
+version = 'cesm-coupling.n03_v2.2.0'
 # The full version, including alpha/beta/rc tags
 release = ''
 
@@ -41,6 +41,18 @@ release = ''
 extensions = [
     'sphinx.ext.autodoc',
 ]
+
+math_numfig = True
+numfig = True
+numfig_secnum_depth = 3 # makes numbering follow your section depth:
+numfig_format = {
+    'figure': 'Figure %s',
+    'table': 'Table %s',
+    'code-block': 'Listing %s',
+}
+
+def setup(app):
+    app.add_css_file('css/custom.css')
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -59,7 +71,7 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
