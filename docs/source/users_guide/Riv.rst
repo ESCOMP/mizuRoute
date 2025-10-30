@@ -12,10 +12,10 @@ MizuRoute has five channel routing schemes:
 5. Diffusive Wave (DW)
 
 Please see :ref:`River routing schemes <River_routing_schemes>` for more information on methods and numerical solutions of each method.
-Additionally, mizuRoute have an option to compute accumulated runoff [m3/s] without any channel routing, if a user wants to get total runoff volume of upstream areas.
+Additionally, mizuRoute has an option to compute accumulated runoff [m3/s] without any channel routing at any outlets of river reaches, if a user wants to get total runoff volume of upstream areas.
 
-Currently, a user must provide the control key ``<routOpt>`` to use which routing option(s). ``<routOpt>`` is integer that corresponds to routing schemes (IRF=1, LKW=2, KW=3, MC=4, DW=5). runoff accumulation uses 0
-A user can run multiple routing options at the same time by setting ``<routOpt>`` to multiple IDs. For example, a user wants to use runoff accumulation, KW, and DW, ``<routOpt>`` should be ``035``.
+Currently, a user must provide the control key ``<routOpt>`` to select which routing option(s) to be used. ``<routOpt>`` is an integer that corresponds to the routing schemes (IRF=1, LKW=2, KW=3, MC=4, DW=5). Runoff accumulation option uses ``0``.
+A user can run multiple routing schemes at the same time by setting ``<routOpt>`` to multiple IDs. For example, if a user wants to use runoff accumulation, KW, and DW, ``<routOpt>`` should be ``035``.
 
 
 .. _channel_physical_parameters:
@@ -28,12 +28,12 @@ Regardless of the routing schemes, **slope** and **length** are the minimum chan
 If users uses minimum set of channel physical parameters, mizuRoute will compute all the channel physical parameters using spatially constant parameter specified in the namelist.
 To setup spatially distributed river channel parameters, a user can provide channel physical parameters at each river reach in river input data.
 
-To use the channel parameters from the netCDF, make sure that the key ``<hydGeometryOption>`` in the control file **must be set to 0**.
+To use the channel parameters from the netCDF, make sure that the key ``<hydGeometryOption>`` in the control file **must be set to 0**. The default values is ``1`` (compute channel parameter internally).
 
 As a default, a river channel does not have floodplains, meaning river water is always contained in a channel.
-MizuRoute can add floodplain as a option by adding the control key ``<floodplain>`` with T. By adding floodplain, discharge tends to be attenuated due to greater water-riverbed contact area.
+A user can add floodplain by adding the control key ``<floodplain>`` with ``T``. By adding floodplain, discharge tends to be attenuated due to greater water-riverbed contact area.
 For active floodplain option, the channel bankfull depth needs to be computed as a default, or supplied in the river input netCDF.
-Also, by adding floodplain, water storage over floodplain is computed in addition to total water storage, which may be used for furter flood mapping (outside mizuRoute) or feedback to land model (for CESM coupled mode)
+Also, by adding floodplain, water storage over floodplain is computed in addition to total water storage, which may be used for furter flood mapping (outside mizuRoute) or feedback to the land model (for CESM coupled mode)
 Note that currently floodplain is activate only for KW, MC, and DW routing schemes.
 
 How the physical parameters control the shape of the channel cross-section of the channel without and with floodplain is depicted below:
