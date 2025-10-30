@@ -19,6 +19,7 @@
       <tfile disposition="move">casename.mizuroute.h.1976.nc</tfile>
       <tfile disposition="ignore">anothercasename.mizuroute.h.1976-01.nc</tfile>
       <tfile disposition="ignore">casename.mizuroute.h.1976-01-01.nc.base</tfile>
+      <tfile disposition="move">casename.mizuroute.e.1976-01-01.nc</tfile>
     </test_file_names>
   </comp_archive_spec>
 </components>
