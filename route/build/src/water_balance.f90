@@ -12,6 +12,7 @@ implicit none
 
 private
 public:: comp_reach_wb
+public:: comp_reach_mb
 public:: comp_global_wb
 
 CONTAINS
@@ -112,6 +113,80 @@ CONTAINS
   END SUBROUTINE comp_reach_wb
 
   ! *********************************************************************
+  ! public subroutine: compute reach water balance
+  ! *********************************************************************
+  SUBROUTINE comp_reach_mb(seg_id,     &     ! input: reach/lake id
+                           ixRoute,    &     ! input: index of routing method
+                           Cupstream,  &     ! input: mass flux from upstream
+                           Clat,       &     ! input: lateral flow into reach
+                           RCHFLX_in,  &     ! inout: reach flux data structure
+                           verbose,    &     !
+                           lakeFlag,   &     !
+                           tolerance)
+  ! Descriptions
+  ! Compute constituent mass balance per simulation time step and reach/lake
+  ! During a time step dt = t1 - t0 [sec]
+  ! dMass    [mg]   = mass(t1) - mass(t0)
+  ! flux_in  [mg/s] = inflow(dt) + lateral(dt)
+  ! flux_out [mg/s] = outflow(dt)
+  !
+  ! Compare dMass vs (flux_in - flux_out)*dt
+  implicit none
+  ! Argument variables:
+  integer(i4b), intent(in)                 :: seg_id         ! input: routing method index
+  integer(i4b), intent(in)                 :: ixRoute        ! input: routing method index
+  real(dp),     intent(in)                 :: Cupstream      ! input: total inflow from upstream reaches
+  real(dp),     intent(in)                 :: Clat           ! input: lateral flow into reach
+  type(STRFLX), intent(inout)              :: RCHFLX_in      ! inout: Reach fluxes data structure
+  logical(lgt), intent(in)                 :: lakeFlag       ! input: reach index to be examined
+  logical(lgt), intent(in)                 :: verbose        ! input: reach index to be examined
+  real(dp),     optional, intent(in)       :: tolerance      ! input: wb error tolerance trigering print out
+  ! Local variables:
+  real(dp)                                 :: MBerr          ! Mass balance error [mg]
+  real(dp)                                 :: mb_tol         ! mass balance error tolerance [mg]
+  real(dp)                                 :: dMass          ! mass change per time step [mg]
+  real(dp)                                 :: Cin            ! mass flux from upstream to a reach [mg]
+  real(dp)                                 :: Clateral       ! lateral mass flux [mg]
+  real(dp)                                 :: Cout           ! mass flux out of a reach [mg]
+
+  if (present(tolerance)) then
+    mb_tol=tolerance
+  else
+    mb_tol=2.e-5_dp ! in mg
+  end if
+
+  ! mass change
+  dMass     = RCHFLX_in%ROUTE(ixRoute)%reach_solute_mass(1)-RCHFLX_in%ROUTE(ixRoute)%reach_solute_mass(0)
+  ! in flux
+  Cin      = Cupstream *dt
+  Clateral = Clat *dt
+  ! out flux
+  Cout         = -1._dp *RCHFLX_in%ROUTE(ixRoute)%reach_solute_flux *dt
+
+  MBerr = dMass - (Cin+ Clateral+ Cout)
+
+  if (verbose) then
+    write(iulog,'(A)')         ' -------------------------------------'
+    write(iulog,'(A)')         ' -- reach solute mass balance check --'
+    write(iulog,'(A)')         ' -------------------------------------'
+    write(iulog,'(A,1PG15.7)') '  id                  = ', seg_id
+    write(iulog,'(A,1PG15.7)') '  lake                = ', lakeFlag
+    write(iulog,'(A)')         '  1 = 5-(6+7+8)'
+    write(iulog,'(A,1PG15.7)') '  1 WBerr [mg]        = ', MBerr
+    write(iulog,'(A,1PG15.7)') '  3 Mass at t0 [mg]   = ', RCHFLX_in%ROUTE(ixRoute)%reach_solute_mass(0)
+    write(iulog,'(A,1PG15.7)') '  4 Mass at t1 [mg]   = ', RCHFLX_in%ROUTE(ixRoute)%reach_solute_mass(1)
+    write(iulog,'(A,1PG15.7)') '  5 dMass [mg]        = ', dMass
+    write(iulog,'(A,1PG15.7)') '  6 influx [mg]       = ', Cin
+    write(iulog,'(A,1PG15.7)') '  7 lateral flux [mg] = ', Clateral
+    write(iulog,'(A,1PG15.7)') '  8 outflux [mg]      = ', Cout
+  endif
+  if (abs(MBerr) > mb_tol) then
+    write(iulog,'(A,1PG15.7,1X,A,1X,1PG15.7)') ' WARNING: abs. MB error [m3] = ', abs(MBerr), '>',mb_tol
+  end if
+
+  END SUBROUTINE comp_reach_mb
+
+  ! *********************************************************************
   ! public subroutine: compute global water balance
   ! *********************************************************************
   SUBROUTINE comp_global_wb(ixRoute, verbose, ierr, message)
@@ -153,27 +228,22 @@ CONTAINS
 
     ierr=0; message='comp_global_wb/'
 
-    if (multiProcs) then
-      if (masterproc) then
-        wb_trib     = 0._dp
-        wb_mainstem = 0._dp
-        if (nRch_mainstem > 0) then
-          call accum_water_balance(NETOPO_main(1:nRch_mainstem), RCHFLX_trib(1,1:nRch_mainstem), wb_mainstem, ierr, cmessage)
-          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-        end if
-        if (nRch_trib > 0) then
-          lwr = nRch_mainstem + nTribOutlet + 1
-          upr = nRch_mainstem + nTribOutlet + nRch_trib
-          call accum_water_balance(NETOPO_trib, RCHFLX_trib(1,lwr:upr), wb_trib, ierr, cmessage)
-          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-        end if
-        wb_local = wb_mainstem + wb_trib
-      else ! non-main processors
-        call accum_water_balance(NETOPO_trib, RCHFLX_trib(1,:), wb_local, ierr, cmessage)
+    if (masterproc) then
+      wb_trib     = 0._dp
+      wb_mainstem = 0._dp
+      if (nRch_mainstem > 0) then
+        call accum_water_balance(NETOPO_main(1:nRch_mainstem), RCHFLX_trib(1:nRch_mainstem), wb_mainstem, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
-    else ! single core use
-      call accum_water_balance(NETOPO_main, RCHFLX_trib(1,1:nRch_mainstem), wb_local, ierr, cmessage)
+      if (nRch_trib > 0) then
+        lwr = nRch_mainstem + nTribOutlet + 1
+        upr = nRch_mainstem + nTribOutlet + nRch_trib
+        call accum_water_balance(NETOPO_trib, RCHFLX_trib(lwr:upr), wb_trib, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
+      wb_local = wb_mainstem + wb_trib
+    else ! non-main processors
+      call accum_water_balance(NETOPO_trib, RCHFLX_trib, wb_local, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if
 

@@ -286,12 +286,12 @@ CONTAINS
         if (nRch_mainstem > 0) then
           lwr=1
           upr=nRch_mainstem
-          call get_river_export_data(NETOPO_main(lwr:upr), RCHFLX_trib(:,lwr:upr), discharge=.false.)
+          call get_river_export_data(NETOPO_main(lwr:upr), RCHFLX_trib(lwr:upr), discharge=.false.)
         end if
         if (nRch_trib > 0) then
           lwr = nRch_mainstem + nTribOutlet + 1
           upr = nRch_mainstem + nTribOutlet + nRch_trib
-          call get_river_export_data(NETOPO_trib, RCHFLX_trib(:,lwr:upr), offset=nHRU_mainstem, discharge=.false.)
+          call get_river_export_data(NETOPO_trib, RCHFLX_trib(lwr:upr), offset=nHRU_mainstem, discharge=.false.)
         end if
       else ! other processors
         call get_river_export_data(NETOPO_trib, RCHFLX_trib, discharge=.false.)
@@ -405,7 +405,6 @@ CONTAINS
     ! Arguments:
     logical ,         intent(in) :: rstwr                  ! true => write restart file this step)
     ! Local variables:
-    integer                      :: iens=1                 ! ensemble index (1 for now)
     integer                      :: ix, nr, ns, nt         ! loop indices
     integer                      :: lwr,upr                ! lower and upper bounds for array slicing
     real(r8)                     :: qgwl_depth             ! depth of qgwl runoff during time step [mm]
@@ -621,7 +620,7 @@ CONTAINS
     do ns = 1,nsub
       call t_startf('mizuRoute_subcycling')
 
-      call mpi_route(iam, npes, mpicom_rof, iens, ierr, cmessage, scatter_ro=.false.)
+      call mpi_route(iam, npes, mpicom_rof, ierr, cmessage, scatter_ro=.false.)
       if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
       call t_stopf('mizuRoute_subcycling')
@@ -663,12 +662,12 @@ CONTAINS
       if (nRch_mainstem > 0) then
         lwr=1
         upr=nRch_mainstem
-        call get_river_export_data(NETOPO_main(lwr:upr), RCHFLX_trib(:,lwr:upr))
+        call get_river_export_data(NETOPO_main(lwr:upr), RCHFLX_trib(lwr:upr))
       end if
       if (nRch_trib > 0) then
         lwr = nRch_mainstem + nTribOutlet + 1
         upr = nRch_mainstem + nTribOutlet + nRch_trib
-        call get_river_export_data(NETOPO_trib, RCHFLX_trib(:,lwr:upr), offset=nHRU_mainstem)
+        call get_river_export_data(NETOPO_trib, RCHFLX_trib(lwr:upr), offset=nHRU_mainstem)
       end if
     else ! other processors
       call get_river_export_data(NETOPO_trib, RCHFLX_trib)
@@ -704,14 +703,13 @@ CONTAINS
     implicit none
     ! Arguments:
     type(RCHTOPO), intent(in)     :: NETOPO_in(:)   ! mizuRoute network topology data structure
-    type(STRFLX),  intent(in)     :: RCHFLX_in(:,:) ! mizuRoute reach flux data structure
+    type(STRFLX),  intent(in)     :: RCHFLX_in(:)   ! mizuRoute reach flux data structure
     integer, optional, intent(in) :: offset         ! index offset to point correct location in rtmCTL
     logical, optional, intent(in) :: volume         !
     logical, optional, intent(in) :: discharge      !
     logical, optional, intent(in) :: flood          !
     ! Local variables:
     integer                   :: ix
-    integer                   :: iens=1
     integer                   :: iRch, iHru
     integer                   :: nRch, nCatch
     logical                   :: update_vol      !
@@ -739,10 +737,10 @@ CONTAINS
         if (present(offset)) ix=ix+offset
         ! stream volume is split into HRUs based on HRU's areal weight for contributory area
         if (update_vol) then
-          rtmCTL%volr(ix) = RCHFLX_in(iens,iRch)%ROUTE(iRoute)%REACH_VOL(1)*NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)
+          rtmCTL%volr(ix) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_VOL(1)*NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)
         end if
         if (update_q) then
-          rtmCTL%discharge(ix,1) = RCHFLX_in(iens,iRch)%ROUTE(iRoute)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)
+          rtmCTL%discharge(ix,1) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)
         end if
         if (update_fld) then
           rtmCTL%flood(ix)       = 0._r8  ! placeholder
@@ -823,6 +821,7 @@ CONTAINS
     integer :: sec_in_day           ! time in second
     character(len=17) :: timestamp  ! datetime string in yyyy-mm-dd-sssss
     integer :: status               ! substring check status
+    logical :: lexist               ! If local file exists
     character(len=256) :: locfn     ! Restart pointer file name
     !--------------------------------------------------------
 
@@ -837,7 +836,9 @@ CONTAINS
     locfn = './'// trim(rpntfil)//trim(inst_suffix)//timestamp
     inquire (file=locfn,exist=lexist)
     if (.not. lexist) then ! backward compatibility - rpointer file w/o datetime
+      write(iulog,*) 'Could not find the rpointer file: ', trim(locfn)
       locfn = './'// trim(rpntfil)//trim(inst_suffix)
+      write(iulog,*) 'Try file: ', trim(locfn)
     end if
     call opnfil (locfn, nio, 'f')
     read (nio,'(a256)') pnamer

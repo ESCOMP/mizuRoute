@@ -215,6 +215,7 @@ IO = \
 # CORE
 CORE = \
     advection_diffusion.f90 \
+    data_assimilation.f90 \
     accum_runoff.f90 \
     basinUH.f90 \
     water_balance.f90 \
@@ -224,6 +225,7 @@ CORE = \
     kwe_route.f90 \
     mc_route.f90 \
     dfw_route.f90 \
+    tracer.f90 \
     main_route.f90 \
     mpi_process.f90 \
     init_model_data.f90 \

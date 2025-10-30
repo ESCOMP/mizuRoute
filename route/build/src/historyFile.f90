@@ -1,6 +1,7 @@
 MODULE historyFile
 
-  USE nrtype
+  USE nrtype,            ONLY: i4b, sp, dp, lgt
+  USE nrtype,            ONLY: strLen, FileStrLen, gageStrLen
   USE var_lookup,        ONLY: ixRFLX, nVarsRFLX
   USE var_lookup,        ONLY: ixHFLX, nVarsHFLX
   USE globalData,        ONLY: idxSUM,idxIRF,idxKWT, &
@@ -38,7 +39,7 @@ MODULE historyFile
       procedure,  public :: createNC
       procedure,  public :: openNC
       procedure,  public :: fileOpen
-      generic,    public :: write_loc => write_loc_rch, write_loc_rch_hru
+      generic,    public :: write_loc => write_loc_rch, write_loc_rch_hru, write_gage_id
       procedure,  public :: write_time
       procedure,  public :: sync
       procedure,  public :: closeNC
@@ -46,6 +47,7 @@ MODULE historyFile
       procedure,  public :: write_flux_rch
       procedure, private :: write_loc_rch
       procedure, private :: write_loc_rch_hru
+      procedure, private :: write_gage_id
 
   end type histFile
 
@@ -96,6 +98,7 @@ MODULE historyFile
       integer(i4b)                             :: ixDim,iVar       ! dimension, and variable index
       integer(i4b)                             :: dim_array(20)    ! dimension id array (max. 20 dimensions
       integer(i4b)                             :: nDims            ! number of dimension
+      integer(i4b)                             :: dimId_gage_id_len
 
       ierr=0; message='createNC/'
 
@@ -121,9 +124,11 @@ MODULE historyFile
       ! 2. Define dimension
       call def_dim(this%pioFileDesc, meta_qDims(ixQdims%time)%dimName,   recordDim, meta_qDims(ixQdims%time)%dimId)
       call def_dim(this%pioFileDesc, meta_qDims(ixQdims%tbound)%dimName, 2,         meta_qDims(ixQdims%tbound)%dimId)
-      call def_dim(this%pioFileDesc, meta_qDims(ixQdims%ens)%dimName,    1,         meta_qDims(ixQdims%ens)%dimId)
       if (nRch_local>0) then
         call def_dim(this%pioFileDesc, meta_qDims(ixQdims%seg)%dimName, nRch_in, meta_qDims(ixQdims%seg)%dimId)
+        if (this%gageOutput) then
+          call def_dim(this%pioFileDesc, 'gage_id_len', gageStrLen, dimId_gage_id_len)
+        end if
       end if
       if (nHRU_local>0) then ! gauge only history file does not include hru fluxes
         call def_dim(this%pioFileDesc, meta_qDims(ixQdims%hru)%dimName, nHru_in, meta_qDims(ixQdims%hru)%dimId)
@@ -181,6 +186,12 @@ MODULE historyFile
         call def_var(this%pioFileDesc, 'reachID', ncd_int, ierr, cmessage, &
                      pioDimId=[meta_qDims(ixQdims%seg)%dimId], vdesc='reach ID', vunit='-')
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        if (this%gageOutput) then
+          call def_var(this%pioFileDesc, 'gaugeID', ncd_char, ierr, cmessage, &
+                       pioDimId=[dimId_gage_id_len, meta_qDims(ixQdims%seg)%dimId], vdesc='gauge ID', vunit='-')
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        end if
 
         do iVar=1,nVarsRFLX
           if (.not.meta_rflx(iVar)%varFile) cycle
@@ -309,6 +320,28 @@ MODULE historyFile
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     END SUBROUTINE
+
+    SUBROUTINE write_gage_id(this, gage_id, ierr, message)
+
+      implicit none
+      ! Argument variables
+      class(histFile),                    intent(inout) :: this
+      character(gageStrLen), allocatable, intent(in)    :: gage_id(:)    ! gauge string ID array
+      integer(i4b),                       intent(out)   :: ierr          ! error code
+      character(*),                       intent(out)   :: message       ! error message
+      ! local variables
+      integer(i4b)                                      :: ix            ! loop index
+      character(len=strLen)                             :: cmessage      ! error message of downwind routine
+
+      ierr=0; message='write_gage_id/'
+
+      do ix=1,size(gage_id)
+        call write_netcdf(this%pioFileDesc, 'gaugeID', gage_id(ix), iStart=ix, ierr=ierr, message=cmessage)
+      end do
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    END SUBROUTINE
+
 
     ! ---------------------------------
     ! writing time variables
@@ -483,6 +516,10 @@ MODULE historyFile
               array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxMC)
             case(ixRFLX%DWinflow)
               array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxDW)
+            case(ixRFLX%DWsoluteFlux)
+              array_temp(1:nRch_write) = hVars_local%solute_flux(index_write, idxDW)
+            case(ixRFLX%DWsoluteMass)
+              array_temp(1:nRch_write) = hVars_local%solute_mass(index_write, idxDW)
             case default
               write(message,'(2A,1X,G0,1X,1A)') trim(message), 'Invalid RFLX variable index:',iVar,'. Check ixRFLX in var_lookup.f90'
               ierr=81; return
