@@ -4,7 +4,7 @@
 Output Files
 =================
 
-.. River_Discharge
+.. _River_Discharge:
 
 River Discharge and Lake and Reservoir Volume
 ---------------------------------------------
@@ -53,7 +53,7 @@ The output file name convension:  <case_name>.h.yyyy-mm-dd-sssss.nc
 
 3. routed runoff corresponding to the scheme is not ouput if users deactivate a particular routing scheme with <route_opt>.
 
-.. Augmented_River_Network_Topology
+.. _Augmented_River_Network_Topology:
 
 Augmented River Network Topology
 --------------------------------
@@ -97,6 +97,8 @@ The restart file name convension:  <case_name>.r.yyyy-mm-dd-sssss.nc
 | <restart_day>       | periodic restart day (default 1). Effective if <restart_write>="yearly" or "monthly"                    |
 +---------------------+---------------------------------------------------------------------------------------------------------+
 | <restart_hour>      | periodic restart hour (default 0). Effective if <restart_write>="yearly", "monthly", or "daily"         |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <restart_dir>       | Directory where restart netCDFs are output. Default is the same as <output_dir>                         |
 +---------------------+---------------------------------------------------------------------------------------------------------+
 | <fname_state_in>    | input restart netCDF name. If not specified, simulation start with cold start                           |
 +---------------------+---------------------------------------------------------------------------------------------------------+

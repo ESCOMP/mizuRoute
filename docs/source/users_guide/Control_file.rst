@@ -38,78 +38,137 @@ For lake model option, See :doc:`Lake model option <lake>`.
 
 For water management option, See :doc:`Water management option <Input_files>`.
 
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| control variable       | Default value   | Description                                                                                             |
-+========================+=================+=========================================================================================================+
-| <case_name>            | None            | simulation case name. This used for output netCDF, and restart netCDF name                              |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <ancil_dir>            | None            | Directory that contains ancillary data (river netowrk, remapping, and parameter namelist)               |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <input_dir>            | None            | Directory that contains runoff data                                                                     |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <output_dir>           | None            | Directory where history netCDFs are output                                                              |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <restart_dir>          | <output_dir>    | Directory where restart netCDFs are output                                                              |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <param_nml>            | None            | Spatially constant parameter namelist. should be stored in <ancil_dir>                                  |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <sim_start>            | None            | time of simulation start. format: yyyy-mm-dd or yyyy-mm-dd hh:mm:ss                                     |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <sim_end>              | None            | time of simulation end. format:  yyyy-mm-dd or yyyy-mm-dd hh:mm:ss                                      |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <fname_ntopOld>        | None            | name of input netCDF for River Network. see Note 1                                                      |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <dname_sseg>           | None            | dimension name for reach in river network netCDF                                                        |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <dname_nhru>           | None            | dimension name for RN_HRU in river network netCDF                                                       |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <fname_qsim>           | None            | either a single runoff netCDF name, multiple netCDFs with wild card, or a text file listing netCDFs     |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <vname_qsim>           | None            | variable name for HM_HRU runoff in runoff netCDF                                                        |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <vname_hruid>          | None            | variable name for HM_HRU ID in runoff netCDF(s)                                                         |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <vname_time>           | None            | variable name for time in runoff netCDF(s)                                                              |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <dname_hruid>          | None            | dimension name for HM_HRU in runoff netCDF(s)                                                           |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <dname_time>           | None            | dimension name for time in runoff netCDF(s)                                                             |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <dname_xlon>           | None            | dimension name for x, lat, or j dimension in runoff netCDF(s). Only runoff is given in grid.            |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <dname_ylat>           | None            | dimension name for y, lon, or i dimension in runoff netCDF(s). Only runoff is given in grid.            |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <units_qsim>           | None            | units of input runoff. depth/time where depth: m or mm, time: second, sec or s ,hour, hr or h ,day or d |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <dt_ro>                | None            | time interval of runoff input in second. e.g., 86400 sec for daily step                                 |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <ro_calendar>          | None            | calenar used in runoff input netCDF. See Note 2                                                         |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <ro_time_units>        | None            | time units used in runoff input netCDF. See Note 3                                                      |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <ro_time_stamp>        | 'start'         | time stamp used in runoff input - start (default), middle, or end, otherwise error                      |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <fname_output>         | None            | output netCDF name for model simulation results. See Note 4                                             |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <outputFrequency>      | None            | time frequency used for temporal aggregation of output variables                                        |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <newFileFrequency>     | None            | frequency for new history files (daily, monthly, yearly, single)                                        |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <histTimeStamp_offset> | 0               | time stamp offset [second] from a start of time step                                                    |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <route_opt>            | 0               | routing schem options: 0->Sum, 1->IRF, 2->KWT, 3->KW, 4->MC, 5->DW, otherwise error. See Note 5         |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <floodplain>           | F               | logical to add floodplain to main channel. flood water is computed if floodplain is added.              |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <dt_qsim>              | None            | time interval of simulation in second. e.g., 86400 sec for daily step                                   |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <hw_drain_point>       | 2               | how to add catchment runoff to reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)  |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <min_length_route>     | 0               | min. reach length for routing to be performed. pass-through if reach length less than this threshold    |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <doesBasinRoute>       | 1               | hillslope routing options. 0-> no (already routed), 1->IRF                                              |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <hydGeometryOption>    | 1               | option for hydraulic geometry calculations (0=read from file, 1=compute)                                |
+
+.. list-table:: Control keys to setup basic routing
+   :header-rows: 1
+   :widths: 20 15 15 50
+   :name: basic routing configuration
+
+   * - Control key
+     - Type
+     - Default
+     - Description
+   * - ``<case_name>``
+     - char
+     - None
+     - simulation case name. This used for output netCDF, and restart netCDF name
+   * - ``<ancil_dir>``
+     - char
+     - None
+     - Directory that contains ancillary data (river netowrk, remapping, and parameter namelist)
+   * - ``<input_dir>``
+     - char
+     - None
+     - Directory that contains runoff data
+   * - ``<output_dir>``
+     - char
+     - None
+     - Directory where history netCDFs are output
+   * - ``<sim_start>``
+     - char
+     - None
+     - time of simulation start. format: yyyy-mm-dd or yyyy-mm-dd hh:mm:ss
+   * - ``<sim_end>``
+     - char
+     - None
+     - time of simulation end. format:  yyyy-mm-dd or yyyy-mm-dd hh:mm:ss
+   * - ``<fname_ntopOld>``
+     - char
+     - None
+     - name of input netCDF for River Network. see Note 1
+   * - ``<dname_sseg>``
+     - char
+     - None
+     - dimension name for reach in river network netCDF
+   * - ``<dname_nhru>``
+     - char
+     - None
+     - dimension name for RN_HRU in river network netCDF
+   * - ``<fname_qsim>``
+     - char
+     - None
+     - either a single runoff netCDF name, multiple netCDFs with wild card, or a text file listing netCDFs
+   * - ``<vname_qsim>``
+     - char
+     - None
+     -  variable name for runoff depth in runoff netCDF(s)
+   * - ``<vname_hruid>``
+     - char
+     - None
+     - variable name for HRU ID in runoff netCDF(s)
+   * - ``<vname_time>``
+     - char
+     - None
+     - variable name for time in runoff netCDF(s)
+   * - ``<dname_hruid>``
+     - char
+     - None
+     - dimension name for HRU in runoff netCDF(s)
+   * - ``<dname_time>``
+     - char
+     - None
+     - dimension name for time in runoff netCDF(s)
+   * - ``<dname_xlon>``
+     - char
+     - None
+     - dimension name for x, lat, or j dimension in runoff netCDF(s). Only runoff is given in grid.
+   * - ``<dname_ylat>``
+     - char
+     - None
+     - dimension name for y, lon, or i dimension in runoff netCDF(s). Only runoff is given in grid.
+   * - ``<units_qsim>``
+     - char
+     - None
+     - units of input runoff. depth/time where depth: m or mm, time: second, sec or s ,hour, hr or h ,day or d
+   * - ``<dt_ro>``
+     - real
+     - None
+     - time interval of runoff input in second. e.g., 86400 sec for daily step
+   * - ``<ro_calendar>``
+     - char
+     - None
+     - calenar used in runoff input netCDF. See Note 2
+   * - ``<ro_time_units>``
+     - char
+     - None
+     - time units used in runoff input netCDF. See Note 3
+   * - ``<ro_time_stamp>``
+     - char
+     - start
+     - time stamp used in runoff input - start (default), middle, or end, otherwise error
+   * - ``<param_nml>``
+     - char
+     - None
+     - Spatially constant parameter namelist. should be stored in <ancil_dir>. See Note x
+   * - ``<fname_output>``
+     - char
+     - None
+     - output netCDF name for model simulation results. See Note 4
+   * - ``<outputFrequency>``
+     - char
+     - None
+     - time frequency used for temporal aggregation of output variables. See Note 4
+   * - ``<newFileFrequency>``
+     - char
+     - None
+     - frequency for new history files (daily, monthly, yearly, single). See Note 4
+   * - ``<histTimeStamp_offset>``
+     - real
+     - 0
+     - time stamp offset [second] from a start of time step
+   * - ``<route_opt>``
+     - int
+     - 0
+     - routing schem options: 0->Sum, 1->IRF, 2->KWT, 3->KW, 4->MC, 5->DW, otherwise error. See :doc:`River routing configuration <Riv>`
+   * - ``<dt_qsim>``
+     - int
+     - None
+     - time interval of simulation in second. e.g., 86400 sec for daily step
+   * - ``<doesBasinRoute>``
+     - int
+     - 1
+     - hillslope routing options. 0-> no (already routed), 1->IRF
+
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
 | <topoNetworkOption>    | 1               | option for network topology calculations (0=read from file, 1=compute)                                  |
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
@@ -118,17 +177,13 @@ For water management option, See :doc:`Water management option <Input_files>`.
 
 Terminologies: RN_HRU=River Network HRU (Hydrologic Response Unit or simply catchment), HM_HRU=hydrologic model (or forcing) HRU. HRU can be grid box. "Forcing" for river model means runoff, evaporation and precipitation for lake routing, solutes for solute transport
 
-1. Often river network data has different variable names than defaults. In this case, variable names can be speficied in control file as well. See :doc:`River parameters <Riv>`.
+1. Often river network data has different variable names than defaults. In this case, variable names can be speficied in control file as well. See :ref:`River parameters <River_network_data>`.
 
 2. Calendar in runoff input time should be read from netCDF, but If runoff input netCDF does not have calendar attribute, it can be specified. Make sure time variable in runoff data use either ``noleap``, ``standard``, ``gregorian``, or ``proleptic_gregorian``. case insensitive
 
 3. Like Calendar, If runoff input netCDF does not have time unit attribute, it can be specified. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted. <unit> can be days, hours, minutes, seconds.
 
-4. routing physics option: route_opt
-
-  * it is possible to specify multiple options (e.g., 0125 -> run with SUM, IRF KWT and DW).
-
-5 Restrictions related to history output: dt_qsim, outputFrequency and newFileFrequency
+4 Restrictions related to history output: dt_qsim, outputFrequency and newFileFrequency
 
   * dt_qsim (simulation time step) must be less than 86400 sec (one day). Muskingum-Cunge method will run at much shorter time step. Other methods can run at this time step, but Diffusive wave routing produce the results with less errors at shorter time step.
 
