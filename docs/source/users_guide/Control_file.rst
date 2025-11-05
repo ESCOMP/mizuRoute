@@ -21,7 +21,7 @@ stored in fortran's public variables defined in ``./route/build/src/public_var.f
 * A exclamation mark (``!``) must appear after the value even if you don't put any comment text; otherwise getting error.
 * **DO NOT include empty lines**-this will cause runtime errors.
 
-Example control file: See ``./route/settings/SAMPLE.control`` or scroll to the bottom of this page.
+Example control file: See ``./route/settings/SAMPLE.control`` or :ref:`Control file basic examples <Control_file_basic_examples>`.
 
 .. _Basic_routing_setup:
 
@@ -83,7 +83,7 @@ For water management option, See :doc:`Water management option <Input_files>`.
    * - ``<dname_nhru>``
      - char
      - None
-     - dimension name for RN_HRU in river network netCDF
+     - dimension name for HRU (Hydrologi Respone Unit or catchment) in river network netCDF
    * - ``<fname_qsim>``
      - char
      - None
@@ -136,10 +136,6 @@ For water management option, See :doc:`Water management option <Input_files>`.
      - char
      - start
      - time stamp used in runoff input - start (default), middle, or end, otherwise error
-   * - ``<param_nml>``
-     - char
-     - None
-     - Spatially constant parameter namelist. should be stored in <ancil_dir>. See Note x
    * - ``<fname_output>``
      - char
      - None
@@ -168,14 +164,16 @@ For water management option, See :doc:`Water management option <Input_files>`.
      - int
      - 1
      - hillslope routing options. 0-> no (already routed), 1->IRF
+   * - ``<param_nml>``
+     - char
+     - None
+     - Spatially constant parameter namelist. should be stored in <ancil_dir>. See Note 5
 
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
 | <topoNetworkOption>    | 1               | option for network topology calculations (0=read from file, 1=compute)                                  |
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
 | <computeReachList>     | 1               | option to compute list of upstream reaches (0=do not compute, 1=compute)                                |
 +------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-
-Terminologies: RN_HRU=River Network HRU (Hydrologic Response Unit or simply catchment), HM_HRU=hydrologic model (or forcing) HRU. HRU can be grid box. "Forcing" for river model means runoff, evaporation and precipitation for lake routing, solutes for solute transport
 
 1. Often river network data has different variable names than defaults. In this case, variable names can be speficied in control file as well. See :ref:`River parameters <River_network_data>`.
 
@@ -185,18 +183,36 @@ Terminologies: RN_HRU=River Network HRU (Hydrologic Response Unit or simply catc
 
 4 Restrictions related to history output: dt_qsim, outputFrequency and newFileFrequency
 
-  * dt_qsim (simulation time step) must be less than 86400 sec (one day). Muskingum-Cunge method will run at much shorter time step. Other methods can run at this time step, but Diffusive wave routing produce the results with less errors at shorter time step.
+  * ``dt_qsim`` (simulation time step) must be less than 86400 sec (one day). Muskingum-Cunge method will run at much shorter time step. Other methods can run at this time step, but Diffusive wave routing produce the results with less errors at shorter time step.
 
-  * dt_qsim can be different time step than input time step.
+  * ``dt_qsim`` can be different time step than input time step.
 
-  * outputFrequency can be integer numeric (e.g, 1, 2 etc), which is interpreted as a number of simulation time steps for temporal aggregation of the history flux variables, or literal (daily, monthly yearly).
-    The numeric outputFrequency can be used for sub-daily dt_qsim, and remainder of 86400 divided by numeric x dt_qsim must be zero. For example, if dt_qsim is 10800 sec (=3hr), accepted outputFrequency are
+  * ``outputFrequency`` can be integer numeric (e.g, 1, 2 etc), which is interpreted as a number of simulation time steps for temporal aggregation of the history flux variables, or literal (daily, monthly yearly).
+    The numeric outputFrequency can be used for sub-daily dt_qsim, and remainder of 86400 divided by numeric x ``dt_qsim`` must be zero. For example, if ``dt_qsim`` is 10800 sec (=3hr), accepted ``outputFrequency`` are
     1, 2, 4, 8
 
-  * newFileFrequency must be the same as or shorter than outputFrequency. For example, with monthly outputFrequency, newFileFrequency must be monthly, yearly or single
+  * ``newFileFrequency`` must be the same (output netcdf contains only one time step) as or longer than ``outputFrequency``. For example, with monthly ``outputFrequency``, ``newFileFrequency`` must be monthly, yearly or single
 
   * The abovementioned restrictions are check in the code, so any violations are notified as error and the program is terminated.
 
+5 Spatially constant parameters are provided in a namelist as following example.
+::
+
+     &HSLOPE
+       ! gamma distribution parameters for hillslope routing
+       fshape = 2.5    !  shape parameter (>0) [-]
+       tscale = 86400  !  scale parameter [sec]
+     /
+     &IRF_UH
+       ! Unit hydrograph derived from diffusive wave equation
+       velo   = 1.5 ! wave celerity [m/s]
+       diff   = 5000.0 ! diffusivity [m2/s]
+     /
+     &KWT
+       ! channel physical parameter
+       mann_n = 0.01    ! manning coefficient [-]
+       wscale = 0.001   ! channel width parameter [-]: W=wclae*(Aups)**b where Aups=upstream area, b=0.5
+     /
 
 .. _Control_file_basic_examples:
 
