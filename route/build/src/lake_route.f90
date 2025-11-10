@@ -60,7 +60,6 @@ CONTAINS
     integer(i4b)                             :: nUps           ! number of upstream segment
     integer(i4b)                             :: iUps           ! upstream reach index
     integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
-    integer(i4b)                             :: ntdh           ! number of time steps in IRF
     character(len=strLen)                    :: cmessage       ! error message from subroutine
     ! local variables for H06 routine
     real(dp)                                 :: c                   ! storage to yearly activity ratio
