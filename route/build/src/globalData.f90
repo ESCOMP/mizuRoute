@@ -130,7 +130,7 @@ MODULE globalData
   ! ---------- Misc. data -------------------------------------------------------------------------
   character(len=strLen),           public :: runMode='standalone'        ! run options: standalone or cesm-coupling
   character(len=12),               public :: hfile_dayStamp='period-start' ! day stamp in history file for daily file. period-start or period-end
-  integer(i4b),                    public :: maxtdh                      ! maximum unit-hydrograph future time steps
+  integer(i4b),                    public :: maxtdh=0                    ! maximum unit-hydrograph future time steps
   type(cMolecule),                 public :: nMolecule                   ! number of computational molecule (used for KW, MC, DW)
   character(FileStrLen),           public :: hfileout=charMissing        ! history output file name
   character(FileStrLen),           public :: hfileout_gage=charMissing   ! gage-only history output file name
