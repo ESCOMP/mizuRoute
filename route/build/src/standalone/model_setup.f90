@@ -682,7 +682,6 @@ CONTAINS
  SUBROUTINE init_forc_data(ierr, message)   ! output: error control
 
    USE public_var,  ONLY: ancil_dir            ! name of the ancillary directory
-   USE public_var,  ONLY: input_dir            ! name of the runoff input directory
    USE public_var,  ONLY: vname_qsim           ! name of simulated runoff varibale
    USE public_var,  ONLY: vname_evapo          ! name of simulated evaporation varibale
    USE public_var,  ONLY: vname_precip         ! name of simulated precipitation varibale
