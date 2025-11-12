@@ -1,7 +1,7 @@
 MODULE process_gage_meta
 
   USE nrtype
-  USE public_var
+  USE public_var, only: integerMissing
 
   implicit none
 
@@ -26,7 +26,7 @@ MODULE process_gage_meta
 
       ierr=0; message='read_gage_meta'
 
-      gage_meta_data = gageMeta(trim(ancil_dir)//trim(gageMetaFile), ierr, cmessage)
+      gage_meta_data = gageMeta(gageCsvName, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     END SUBROUTINE read_gage_meta
