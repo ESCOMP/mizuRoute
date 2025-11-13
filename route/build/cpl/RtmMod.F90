@@ -691,7 +691,7 @@ CONTAINS
                                    offset)
 
     ! Descriptions: get exporting variables
-    !  - discharge [m/s],
+    !  - discharge [kg/m2/s],
     !  - water volume per HUC area [m]
     !  NOTE 1) offset (optional input): in main processor, index for rtmCTL variable is based on 1 through nHRU_mainstem+nHRU_trib
     !       (combining mainstem and tributary hru in the order). Therefore, hru index based NETOPO for tributary in main processor
@@ -740,7 +740,7 @@ CONTAINS
           rtmCTL%volr(ix) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_VOL(1)*NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)
         end if
         if (update_q) then
-          rtmCTL%discharge(ix,1) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)
+          rtmCTL%discharge(ix,1) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)/0.001_r8
         end if
         if (update_fld) then
           rtmCTL%flood(ix)       = 0._r8  ! placeholder
