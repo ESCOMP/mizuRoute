@@ -191,7 +191,7 @@ CONTAINS
   ! *********************************************************************
   SUBROUTINE comp_global_wb(ixRoute, verbose, ierr, message)
 
-    USE globalData, ONLY: multiProcs, masterproc
+    USE globalData, ONLY: masterproc
     USE globalData, ONLY: RCHFLX_trib
     USE globalData, ONLY: NETOPO_main
     USE globalData, ONLY: NETOPO_trib

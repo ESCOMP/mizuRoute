@@ -13,42 +13,6 @@ public::lower
 CONTAINS
 
  ! **********************************************************************************************
- ! private subroutine: get unused file unit (modified from DMSL)
- ! **********************************************************************************************
- SUBROUTINE getSpareUnit(unt,err,message)
- ! Purpose: returns un-used file unit
- ! Unit will be in the range 7->2.2billion (see comment below).
- ! Comment:
- ! * Can not be pure as it contains the inquire function,tough life...
- ! * In Fortran-95,available units range from 0 to 2,147,483,640.
- !   Preconnected units 5 (keyboard) and 6 (screen) can be re-connected
- !   to a different logical device but to avoid silly errors this is avoided
- !   in this procedure.
- implicit none
- ! dummies
- integer(i4b),intent(out)::unt
- integer(i4b),intent(out)::err
- character(*),intent(out)::message
- ! locals
- integer(i4b)::i
- logical(lgt)::opened,xist
- integer(i4b),parameter::minUnits=7,maxUnits=2147483639
- ! Start procedure here
- do i=minUnits,maxUnits
-  inquire(unit=i,opened=opened,exist=xist) ! check unit status
-  if(.not.opened.and.xist)then ! un-opened existing unit found
-   unt=i; err=0; message="getSpareUnit/ok"
-   exit
-  endif
-  if(i==maxUnits)then  ! all units in use
-   unt=-1; err=-10; message="getSpareUnit/allUnitsInUse&"//&
-       "&(all 2.2billion-u've goda b jokin')"
-  endif
- enddo
- END SUBROUTINE getSpareUnit
-
-
- ! **********************************************************************************************
  ! public subroutine: open file
  ! **********************************************************************************************
  SUBROUTINE file_open(infile,unt,err,message)

@@ -159,8 +159,6 @@ CONTAINS
  !nTsub=floor(dt/dTUH)
  nSeg = size(length)
 
- maxtdh = 0
-
  ! Memory allocation
  allocate(seg_uh(nSeg), stat=ierr, errmsg=cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_uh'; return; endif
