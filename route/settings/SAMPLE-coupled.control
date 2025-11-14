@@ -18,7 +18,7 @@
 <route_opt>             5                          ! option for routing schemes (only one-option allowed) 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW 
 <doesBasinRoute>        1                          ! basin routing options   0-> no, 1->IRF, otherwise error
 <is_flux_wm>            T                          ! switch for water abstraction/injection
-<hw_drain_point>        2                          ! how lateral flow is put into a headwater reach 1-> top of headwater, 2-> bottom of headwater
+<hw_drain_point>        1                          ! how lateral flow is put into a headwater reach 1-> top of headwater, 2-> bottom of headwater
 <fname_state_in>        STATE_IN_NC                ! input restart netCDF name. remove for run without any particular initial channel states
 <newFileFrequency>      monthly                    ! frequency for new output files (daily, monthly, yearly, single)
 <outputFrequency>       monthly                    ! time frequency used for temporal aggregation of output variables - numeric or daily, monthyly, or yearly
@@ -58,6 +58,7 @@
 <varname_D03_S0>           S_0                     ! Maximum lake volume (for Doll 2003 parametrisation)
 <varname_islake>           lake                    ! name of variable holding the islake flage (1=lake, 0=reach)
 <varname_lakeModelType>    lake_type               ! name of varibale holding lake type (0=endo, 1=Doll, 2=Hanasaki, 3=HYPE)
+<LakeInputOption>          2                       ! fluxes for lake simulation; 0->evaporation+precipitation (default), 1->runoff, 2->evaporation+precipitation+runoff
 ! ****************************************************************************************************************************
 ! Namelist file name 
 ! ---------------------------
