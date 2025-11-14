@@ -740,7 +740,9 @@ CONTAINS
           rtmCTL%volr(ix) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_VOL(1)*NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)
         end if
         if (update_q) then
-          rtmCTL%discharge(ix,1) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)/0.001_r8
+          if (NETOPO_in(ix)%DREACHI==-1 .and. NETOPO_in(ix)%DREACHK<=0) then ! if reach is the outlet
+            rtmCTL%discharge(ix,1) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)/0.001_r8
+          end if
         end if
         if (update_fld) then
           rtmCTL%flood(ix)       = 0._r8  ! placeholder
