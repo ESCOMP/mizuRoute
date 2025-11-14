@@ -17,12 +17,13 @@ USE public_var,    ONLY: is_flux_wm      ! logical water management components f
 USE public_var,    ONLY: qmodOption      ! qmod option (use 1==direct insertion)
 USE public_var,    ONLY: hw_drain_point  ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
 USE public_var,    ONLY: min_length_route! minimum reach length for routing to be performed.
-USE globalData,    ONLY: idxKW           ! routing method index for kinematic wwave
+USE globalData,    ONLY: idxKW           ! routing method index for kinematic wave
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
 USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
 USE hydraulic,     ONLY: flow_depth
 USE hydraulic,     ONLY: water_height
-USE hydraulic,     ONLY: Pwet
+USE hydraulic,     ONLY: celerity
+USE hydraulic,     ONLY: diffusivity
 USE data_assimilation, ONLY: direct_insertion ! qmod option (use 1==direct insertion)
 
 implicit none
@@ -30,7 +31,6 @@ implicit none
 private
 public::kwe_route_rch
 
-real(dp), parameter  :: critFactor=0.01
 integer(i4b), parameter :: top_reach=1
 integer(i4b), parameter :: bottom_reach=2
 
@@ -42,10 +42,10 @@ end type kwe_route_rch
 CONTAINS
 
  ! *********************************************************************
- ! subroutine: perform one segment route KW routing
+ ! subroutine: perform kinematic wave routing for one segment
  ! *********************************************************************
  SUBROUTINE kw_rch(this,           & ! kwe_route_rch object to bound this procedure
-                   segIndex,       & ! input: index of runoff reach to be processed
+                   segIndex,       & ! input: index of segment to be processed
                    T0,T1,          & ! input: start and end of the time step
                    NETOPO_in,      & ! input: reach topology data structure
                    RPARAM_in,      & ! input: reach parameter data structure
@@ -71,8 +71,8 @@ CONTAINS
  integer(i4b)                              :: iRch_ups          ! index of upstream reach in NETOPO
  real(dp)                                  :: Qlat              ! lateral flow into channel [m3/s]
  real(dp)                                  :: Qabs              ! maximum allowable water abstraction rate [m3/s]
- real(dp)                                  :: q_upstream        ! total discharge at top of the reach [m3/s]
- real(dp)                                  :: q_upstream_mod    ! total discharge at top of the reach after water abstraction [m3/s]
+ real(dp)                                  :: Qupstream        ! total discharge at top of the reach [m3/s]
+ real(dp)                                  :: Qupstream_mod    ! total discharge at top of the reach after water abstraction [m3/s]
  character(len=strLen)                     :: cmessage          ! error message from subroutine
 
  ierr=0; message='kw_rch/'
@@ -83,7 +83,7 @@ CONTAINS
  ! get discharge coming from upstream
  nUps = count(NETOPO_in(segIndex)%goodBas) ! reminder: goodBas is reach with >0 total contributory area
  isHW = .true.
- q_upstream = 0.0_dp
+ Qupstream = 0.0_dp
 
  Qabs = RCHFLX_out(segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
  RCHFLX_out(segIndex)%ROUTE(idxKW)%REACH_WM_FLUX_actual = RCHFLX_out(segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
@@ -91,30 +91,30 @@ CONTAINS
  ! update volume at previous time step
  RCHFLX_out(segIndex)%ROUTE(idxKW)%REACH_VOL(0) = RCHFLX_out(segIndex)%ROUTE(idxKW)%REACH_VOL(1)
 
- if (nUps>0) then
+ if (nUps>0) then ! this hru is not headwater
    isHW = .false.
    do iUps = 1,nUps
      if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach which does not any flow due to zero total contributory areas
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     q_upstream = q_upstream + RCHFLX_out(iRch_ups)%ROUTE(idxKW)%REACH_Q
+     Qupstream = Qupstream + RCHFLX_out(iRch_ups)%ROUTE(idxKW)%REACH_Q
    end do
-   q_upstream_mod  = q_upstream
+   Qupstream_mod  = Qupstream
    Qlat = RCHFLX_out(segIndex)%BASIN_QR(1)
  else ! headwater
    if (verbose) then
      write(iulog,'(A)')            ' This is headwater '
    endif
    if (hw_drain_point==top_reach) then ! lateral flow is poured in a reach at the top
-     q_upstream = q_upstream + RCHFLX_out(segIndex)%BASIN_QR(1)
-     q_upstream_mod = q_upstream
+     Qupstream = Qupstream + RCHFLX_out(segIndex)%BASIN_QR(1)
+     Qupstream_mod = Qupstream
      Qlat = 0._dp
    else if (hw_drain_point==bottom_reach) then ! lateral flow is poured in a reach at the top
-     q_upstream_mod = q_upstream
+     Qupstream_mod = Qupstream
      Qlat = RCHFLX_out(segIndex)%BASIN_QR(1)
    end if
- endif
+ end if
 
- RCHFLX_out(segIndex)%ROUTE(idxKW)%REACH_INFLOW = q_upstream ! total inflow from the upstream reaches
+ RCHFLX_out(segIndex)%ROUTE(idxKW)%REACH_INFLOW = Qupstream ! total inflow from the upstream reaches
 
  ! Water management - water injection or abstraction (irrigation or industrial/domestic water usage)
  ! For water abstraction, water is extracted from the following priorities:
@@ -126,11 +126,11 @@ CONTAINS
      else ! if inital abstraction is greater than volume
        Qabs = Qabs - RCHFLX_out(segIndex)%ROUTE(idxKW)%REACH_VOL(1)/dt ! get residual Qabs after extracting from strorage
        RCHFLX_out(segIndex)%ROUTE(idxKW)%REACH_VOL(1) = 0._dp ! voluem gets 0
-       if (q_upstream > Qabs) then ! then take out all residual abstraction from upstream inflow
-         q_upstream_mod = q_upstream - Qabs
+       if (Qupstream > Qabs) then ! then take out all residual abstraction from upstream inflow
+         Qupstream_mod = Qupstream - Qabs
        else ! if residual abstraction is still greater than lateral flow
-         Qabs = Qabs - q_upstream ! get residual abstraction after extracting upstream inflow and storage.
-         q_upstream_mod = 0._dp ! upstream inflow gets 0 (all is gone to abstracted flow).
+         Qabs = Qabs - Qupstream ! get residual abstraction after extracting upstream inflow and storage.
+         Qupstream_mod = 0._dp ! upstream inflow gets 0 (all is gone to abstracted flow).
          if (Qlat > Qabs) then ! then take residual abstraction out from lateral flow
            Qlat = Qlat - Qabs
          else ! if residual abstraction is greater than upstream inflow
@@ -146,21 +146,21 @@ CONTAINS
  endif
 
  if(verbose)then
-   write(iulog,'(2A)') new_line('a'), '** CHECK Kinematic wave routing **'
+   write(iulog,'(2A)') new_line('a'), '** CHECK kinematic wave routing **'
    if (nUps>0) then
      do iUps = 1,nUps
        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-       write(iulog,'(A,1X,I12,1X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps), &
+       write(iulog,'(A,1X,I12,1X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps), &
              RCHFLX_out(iRch_ups)%ROUTE(idxKW)%REACH_Q
      enddo
    end if
    write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(segIndex)%BASIN_QR(1)=',RCHFLX_out(segIndex)%BASIN_QR(1)
  endif
 
- ! perform river network KW routing
+ ! solve kinematic wave equation
  call kinematic_wave(RPARAM_in(segIndex),                     & ! input: parameter at segIndex reach
                      T0,T1,                                   & ! input: start and end of the time step
-                     q_upstream_mod,                          & ! input: total discharge at top of the reach being processed
+                     Qupstream_mod,                           & ! input: total discharge at top of the reach being processed
                      Qlat,                                    & ! input: lateral flow [m3/s]
                      isHW,                                    & ! input: is this headwater basin?
                      RCHSTA_out(segIndex)%KW_ROUTE,           & ! inout:
@@ -168,7 +168,8 @@ CONTAINS
                      verbose,                                 & ! input: reach index to be examined
                      ierr, cmessage)                            ! output: error control
  if(ierr/=0)then
-   write(message, '(A,1X,I12,1X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
+    write(message, '(A,1X,I12,1X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
+    return
  endif
 
  if(verbose)then
@@ -182,7 +183,7 @@ CONTAINS
 
  if (qmodOption==1) then
    call direct_insertion(segIndex,       & ! input: reach index
-                         idxKW,          & ! input: routing method id for diffusive wave routing
+                         idxKW,          & ! input: routing method id for kinematic wave routing
                          NETOPO_in,      & ! input: reach topology data structure
                          RCHSTA_out,     & ! inout: reach state data structure
                          RCHFLX_out,     & ! inout: reach fluxes datq structure
@@ -193,18 +194,18 @@ CONTAINS
  end if
 
  if (qmodOption==0) then ! check reach water balance only if data assimilation is off
-   call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxKW, q_upstream, Qlat, RCHFLX_out(segIndex), verbose, lakeFlag=.false.)
+   call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxKW, Qupstream, Qlat, RCHFLX_out(segIndex), verbose, lakeFlag=.false.)
  end if
 
  END SUBROUTINE kw_rch
 
 
  ! *********************************************************************
- ! subroutine: route kinematic waves at one segment
+ ! subroutine: solve diffuisve wave equation
  ! *********************************************************************
  SUBROUTINE kinematic_wave(rch_param,     & ! input: river parameter data structure
                            T0,T1,         & ! input: start and end of the time step
-                           q_upstream,    & ! input: discharge from upstream
+                           Qupstream,     & ! input: discharge from upstream
                            Qlat,          & ! input: lateral discharge into chaneel [m3/s]
                            isHW,          & ! input: is this headwater basin?
                            rstate,        & ! inout: reach state at a reach
@@ -212,54 +213,42 @@ CONTAINS
                            verbose,       & ! input: reach index to be examined
                            ierr,message)
  ! ----------------------------------------------------------------------------------------
- ! Kinematic wave equation is solved based on conservative form the equation
+ ! Solve linearlized kinematic wave equation per reach and time step.
+ !  dQ/dt + ck*dQ/dx = 0  - a)
  !
- ! Method: Li, R.‐M., Simons, D. B., and Stevens, M. A. (1975), Nonlinear kinematic wave approximation for water routing,
- !         Water Resour. Res., 11( 2), 245– 252, doi:10.1029/WR011i002p00245
+ !  ck (celerity) are computed with previous inflow and outflow and current inflow
  !
- ! * Use analytical solution (eq 29 in paper) for Q using the 2nd order Talor series of nonlinear kinematic equation: theta*Q + alpha*Q^beta = omega
- ! * Use initial guess using explicit Euler solution of kinematic approximation equation to start iterative computation of Q
- ! * iterative Q computation till LHS ~= RHS
- !
- ! state array:
- ! (time:0:1, loc:0:1) 0-previous time step/inlet, 1-current time step/outlet.
- ! Q or A(1,2,3,4): 1: (t=0,x=0), 2: (t=0,x=1), 3: (t=1,x=0), 4: (t=1,x=1)
-
+ ! ----------------------------------------------------------------------------------------
+ USE globalData, ONLY : nMolecule   ! number of internal nodes for finite difference (including upstream and downstream boundaries)
+ USE advection_diffusion, ONLY: solve_ade
  implicit none
- ! argument variables
- type(RCHPRP), intent(in)                 :: rch_param    ! River reach parameter
- real(dp),     intent(in)                 :: T0,T1        ! start and end of the time step (seconds)
- real(dp),     intent(in)                 :: q_upstream   ! total discharge at top of the reach being processed
- real(dp),     intent(in)                 :: Qlat         ! lateral discharge into chaneel [m3/s]
- logical(lgt), intent(in)                 :: isHW         ! is this headwater basin?
- type(kwRCH),  intent(inout)              :: rstate       ! curent reach states
- type(STRFLX), intent(inout)              :: rflux        ! current Reach fluxes
- logical(lgt), intent(in)                 :: verbose      ! reach index to be examined
- integer(i4b), intent(out)                :: ierr         ! error code
- character(*), intent(out)                :: message      ! error message
+ ! Argument variables
+ type(RCHPRP), intent(in)        :: rch_param      ! River reach parameter
+ real(dp),     intent(in)        :: T0,T1          ! start and end of the time step (seconds)
+ real(dp),     intent(in)        :: Qupstream      ! total discharge at top of the reach being processed
+ real(dp),     intent(in)        :: Qlat           ! lateral discharge into chaneel [m3/s]
+ logical(lgt), intent(in)        :: isHW           ! is this headwater basin?
+ type(kwRCH),  intent(inout)     :: rstate         ! curent reach states
+ type(STRFLX), intent(inout)     :: rflux          ! current Reach fluxes
+ logical(lgt), intent(in)        :: verbose        ! reach index to be examined
+ integer(i4b), intent(out)       :: ierr           ! error code
+ character(*), intent(out)       :: message        ! error message
  ! Local variables
- real(dp)                                 :: depth        ! flow depth [m]
- real(dp)                                 :: p            ! wetness perimeter [m]
- real(dp)                                 :: alpha        ! sqrt(slope)(/mannings N* width)
- real(dp)                                 :: beta         ! constant, 5/3
- real(dp)                                 :: alpha1       ! sqrt(slope)(/mannings N* width)
- real(dp)                                 :: beta1        ! constant, 5/3
- real(dp)                                 :: theta        ! dT/dX
- real(dp)                                 :: omega        ! right-hand side of kw finite difference
- real(dp)                                 :: f0,f1,f2     ! values of function f, 1st and 2nd derivatives at solution
- real(dp)                                 :: X            !
- real(dp)                                 :: dX           ! length of segment [m]
- real(dp)                                 :: Q(0:1,0:1)   !
- real(dp)                                 :: Qtrial(2)    ! trial solution of kw equation
- real(dp)                                 :: Qbar         !
- real(dp)                                 :: absErr(2)    ! absolute error of nonliear equation solution
- real(dp)                                 :: f0eval(2)    !
- integer(i4b)                             :: imin         ! index at minimum value
+ real(dp)                        :: Qbar           ! 3-point average discharge [m3/s]
+ real(dp)                        :: depth          ! flow depth [m]
+ real(dp)                        :: ck             ! kinematic wave celerity [m/s]
+ real(dp)                        :: dk             ! diffusivity [m2/s]
+ real(dp), allocatable           :: Qlocal(:,:)    ! sub-reach & sub-time step discharge at previous and current time step [m3/s]
+ real(dp), allocatable           :: Qprev(:)       ! sub-reach discharge at previous time step [m3/s]
+ real(dp)                        :: dTsub          ! time inteval for sub time-step [sec]
+ real(dp)                        :: pcntReduc      ! flow profile adjustment based on storage [-]
+ integer(i4b)                    :: it             ! loop index
+ integer(i4b)                    :: ntSub          ! number of sub time-step
+ character(len=strLen)           :: cmessage       ! error message from subroutine
 
  ierr=0; message='kinematic_wave/'
 
- Q(0,0) = rstate%molecule%Q(1) ! previous time and inlet  1 (0,0)
- Q(0,1) = rstate%molecule%Q(2) ! previous time and outlet 2 (0,1)
+ ntSub = 1  ! number of sub-time step
 
  associate(S         => rch_param%R_SLOPE,    & ! channel slope
            n         => rch_param%R_MAN_N,    & ! manning n
@@ -272,107 +261,101 @@ CONTAINS
 
  if (.not. isHW .or. hw_drain_point==top_reach) then
 
-   if (rch_param%RLENGTH > min_length_route) then
-   ! compute total flow rate and flow area at upstream end at current time step
-   Q(1,0) = q_upstream
-   Q(1,1) = realMissing ! current time and outlet 4 (1,1)
+   if (L > min_length_route) then
 
-   ! Get the reach parameters
-   ! A = (Q/alpha)**(1/beta)
-   ! Q = alpha*A**beta
-   Qbar   = (Q(0,1) + Q(1,0))/2._dp
-   depth = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
-   p = Pwet(depth, bt, zc, zf, bankDepth=bankDepth)
-   alpha = sqrt(S)/(n*p**(2._dp/3._dp))
-   beta  = 5._dp/3._dp
-   beta1  = 1._dp/beta
-   alpha1 = (1.0/alpha)**beta1
-   theta = dt/L
+   allocate(Qprev(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! initialize previous time step flow
+   Qprev(1:nMolecule%KW_ROUTE) = rstate%molecule%Q     ! flow state at previous time step
 
    if (verbose) then
-     write(iulog,'(A,1X,G12.5)') ' length [m]        =',rch_param%RLENGTH
-     write(iulog,'(A,1X,G12.5)') ' slope [-]         =',rch_param%R_SLOPE
-     write(iulog,'(A,1X,G12.5)') ' channel width [m] =',rch_param%R_WIDTH
-     write(iulog,'(A,1X,G12.5)') ' manning coef. [-] =',rch_param%R_MAN_N
-     write(iulog,'(A)')          ' Initial 3 point discharge [m3/s]: '
-     write(iulog,'(3(A,1X,G12.5))') ' Q(0,0)=',Q(0,0),' Q(0,1)=',Q(0,1),' Q(1,0)=',Q(1,0)
+     write(iulog,'(A,1X,G12.5)') ' length [m]        =',L
+     write(iulog,'(A,1X,G12.5)') ' slope [-]         =',S
+     write(iulog,'(A,1X,G12.5)') ' channel width [m] =',bt
+     write(iulog,'(A,1X,G12.5)') ' manning coef [-]  =',n
    end if
 
-   ! ----------
-   ! solve flow rate and flow area at downstream end at current time step
-   ! ----------
-   ! initial guess
-   Q(1,1) = (theta*Q(1,0) + alpha1*beta1*Qbar**(beta1-1)*Q(0,1))/(theta + alpha1*beta1*Qbar**(beta1-1))
+   ! time-step adjustment so Courant number is less than 1
+   dTsub = dt/ntSub
 
-   omega = theta*Q(1,0)+alpha1*Q(0,1)**(beta1)
+   if (verbose) then
+     write(iulog,'(A,1X,I3,A,1X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
+   end if
 
-   f0eval(1) = theta*Q(1,1) + alpha1*Q(1,1)**beta1
-   absErr(1) = abs(f0eval(1)-omega)
+   allocate(Qlocal(1:nMolecule%KW_ROUTE, 0:1), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   if ( abs(Q(1,1)-0.0_dp) < epsilon(Q(1,1))) then
-     Q(1,1) = omega/(theta+alpha1)
-   else if (absErr(1) > critFactor*omega) then
-     ! iterative solution
-     do
-       f0 = theta*Q(1,1) + alpha1*Q(1,1)**beta1
-       f1 = theta + alpha1*beta1*Q(1,1)**(beta1-1)     ! 1st derivative of f w.r.t. Q
-       f2 = alpha1*beta1*(beta1-1)*Q(1,1)**(beta1-2)   ! 2nd derivative of f w.r.t. Q
+   do it = 1, nTsub
+     Qbar = (Qupstream+Qprev(1)+Qprev(nMolecule%KW_ROUTE-1))/3.0 ! 3 point average discharge [m3/s]
+     depth = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
+     ck    = celerity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
+     dk    = 0._dp
 
-       X = (f1/f2)**2._dp - 2._dp*(f0-omega)/f2
-       if (X<0) X=0._dp
+     call solve_ade(L,                  & ! input: river parameter data structure
+                    nMolecule%KW_ROUTE, & ! input: number of sub-segments
+                    dTsub,              & ! input: time_step [sec]
+                    Qupstream,          & ! input: quantity from upstream [unit of quantity]
+                    ck,                 & ! input: velocity [m/s]
+                    dk,                 & ! input: diffusivity [m2/s]
+                    Qlat,               & ! input: lateral quantity into chaneel [unit of quantity]
+                    Qprev,              & ! input: quantity at previous time step [unit of quantity]
+                    Qlocal,             & ! inout: quantity soloved at current time step [unit of quantity]
+                    verbose,            & ! input: reach index to be examined
+                    ierr,message)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end do
 
-       ! two solutions
-       Qtrial(1) = abs(Q(1,1) - f1/f2 + sqrt(X))
-       Qtrial(2) = abs(Q(1,1) - f1/f2 - sqrt(X))
+   ! For very low flow condition, outflow - inflow may exceed current storage, so limit outflow and adjust flow profile
+   if (abs(Qlocal(nMolecule%KW_ROUTE-1,1))>0._dp) then
+     pcntReduc = min((rflux%ROUTE(idxKW)%REACH_VOL(1)/dt + Qlocal(1,1) *0.999)/Qlocal(nMolecule%KW_ROUTE-1,1), 1._dp)
+     Qlocal(2:nMolecule%KW_ROUTE,1) = Qlocal(2:nMolecule%KW_ROUTE,1)*pcntReduc
+   end if
 
-       f0eval = theta*Qtrial + alpha1*Qtrial**beta1
-       absErr = abs(f0eval-omega)
-       imin   = minloc(absErr,DIM=1)
-       Q(1,1) = Qtrial(imin)
+   rflux%ROUTE(idxKW)%REACH_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(1) + (Qupstream - Qlocal(nMolecule%KW_ROUTE-1,1))*dt
 
-       if (absErr(imin) < critFactor*omega) exit
-     end do
-   endif
+   ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
+   if (rflux%ROUTE(idxKW)%REACH_VOL(1) > bankVol) then
+     rflux%ROUTE(idxKW)%FLOOD_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(1) - bankVol  ! floodplain volume == overflow volume
+   else
+     rflux%ROUTE(idxKW)%FLOOD_VOL(1) = 0._dp
+   end if
+   ! compute surface water height [m]
+   rflux%ROUTE(idxKW)%REACH_ELE = water_height(rflux%ROUTE(idxKW)%REACH_VOL(1)/L, bt, zc, zf=zf, bankDepth=bankDepth)
+
+   ! store final outflow in data structure
+   rflux%ROUTE(idxKW)%REACH_Q = Qlocal(nMolecule%KW_ROUTE-1,1) + Qlat
+
+   ! update state
+   rstate%molecule%Q = Qlocal(:,1)
+
    else ! length < min_length_route: length is short enough to just pass upstream to downstream
-     Q(1,0) = q_upstream
-     Q(1,1) = q_upstream
+     rflux%ROUTE(idxKW)%REACH_Q = Qupstream + Qlat
+     rstate%molecule%Q(1:nMolecule%KW_ROUTE) = 0._dp
+     rstate%molecule%Q(nMolecule%KW_ROUTE)   = rflux%ROUTE(idxKW)%REACH_Q
+
+     rflux%ROUTE(idxKW)%REACH_VOL(0) = 0._dp
+     rflux%ROUTE(idxKW)%REACH_VOL(1) = 0._dp
+     rflux%ROUTE(idxKW)%FLOOD_VOL(1) = 0._dp
+     rflux%ROUTE(idxKW)%REACH_ELE    = 0._dp
    end if
  else ! if head-water and pour runnof to the bottom of reach
 
-   Q(1,0) = 0._dp
-   Q(1,1) = 0._dp
+   rflux%ROUTE(idxKW)%REACH_Q = Qlat
+
+   rflux%ROUTE(idxKW)%REACH_VOL(0) = 0._dp
+   rflux%ROUTE(idxKW)%REACH_VOL(1) = 0._dp
+   rflux%ROUTE(idxKW)%FLOOD_VOL(1) = 0._dp
+   rflux%ROUTE(idxKW)%REACH_ELE    = 0._dp
+
+   rstate%molecule%Q(1:nMolecule%KW_ROUTE) = 0._dp
+   rstate%molecule%Q(nMolecule%KW_ROUTE)   = rflux%ROUTE(idxKW)%REACH_Q
 
    if (verbose) then
      write(iulog,'(A)')            ' This is headwater '
    endif
 
  endif
-
- if (rch_param%RLENGTH > min_length_route) then
- ! For very low flow condition, outflow - inflow > current storage, so limit outflow and adjust Q(1,1)
- Q(1,1) = min(rflux%ROUTE(idxKW)%REACH_VOL(1)/dt + Q(1,0)*0.999, Q(1,1))
- rflux%ROUTE(idxKW)%REACH_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(1) + (Q(1,0)-Q(1,1))*dt
- end if
-
- ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
- if (rflux%ROUTE(idxKW)%REACH_VOL(1) > bankVol) then
-   rflux%ROUTE(idxKW)%FLOOD_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(1) - bankVol  ! floodplain volume == overflow volume
- else
-   rflux%ROUTE(idxKW)%FLOOD_VOL(1) = 0._dp
- end if
- ! compute surface water height [m]
- rflux%ROUTE(idxKW)%REACH_ELE = water_height(rflux%ROUTE(idxKW)%REACH_VOL(1)/L, bt, zc, zf=zf, bankDepth=bankDepth)
-
- ! add catchment flow
- rflux%ROUTE(idxKW)%REACH_Q = Q(1,1)+Qlat
-
- if (verbose) then
-   write(iulog,'(1(A,1X,G15.4))') ' Q(1,1)=',Q(1,1)
- end if
-
- ! update state
- rstate%molecule%Q(1) = Q(1,0)
- rstate%molecule%Q(2) = Q(1,1)
 
  end associate
 

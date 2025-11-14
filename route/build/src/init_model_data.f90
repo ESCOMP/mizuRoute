@@ -394,7 +394,7 @@ CONTAINS
 
   do iRoute = 1, nRoutes
     if (routeMethods(iRoute)==kinematicWave) then
-      nMolecule%KW_ROUTE = 2
+      nMolecule%KW_ROUTE = 20
     else if (routeMethods(iRoute)==muskingumCunge) then
       nMolecule%MC_ROUTE = 2
     else if (routeMethods(iRoute)==diffusiveWave) then
