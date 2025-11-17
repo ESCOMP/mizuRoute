@@ -37,6 +37,7 @@ real(dp),     parameter :: const53=5._dp/3._dp          ! constant
 real(dp),     parameter :: const103=10._dp/3._dp        ! constant
 real(dp),     parameter :: err_thresh=0.005_dp          ! newton method convergence threshold
 real(dp),     parameter :: zf0=1000._dp                 ! default floodplain slope: horizontal:vertcal=zf:1 [-]
+real(dp),     parameter :: Qmin=1.e-50_dp                 ! default floodplain slope: horizontal:vertcal=zf:1 [-]
 
 CONTAINS
 
@@ -353,7 +354,7 @@ CONTAINS
    end if
 
    flow_depth=0._dp
-   if (Qin>0._dp) then
+   if (Qin>Qmin) then
      if (floodplain) then ! if floodplain exists
 
        ! compute flow area, wetted perimeter, top width, and uniform flow at bankful depth

@@ -40,8 +40,6 @@ MODULE public_var
   integer(i4b),parameter,public   :: maxLevel=20            ! maximum mainstem levels used for OMP domain decomposition
 
   ! constants for general use
-  real(dp),    parameter,public   :: MaxPosVal=1.e36_dp     ! maximum value for positive value
-  real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: integerMissing=-9999   ! missing value for integers
   real(sp),    parameter,public   :: floatMissing=-9999._sp ! missing value for real32 numbers
   real(dp),    parameter,public   :: realMissing=-9999._dp  ! missing value for real64 numbers
