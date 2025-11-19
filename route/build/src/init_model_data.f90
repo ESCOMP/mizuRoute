@@ -12,7 +12,6 @@ USE var_lookup, ONLY: ixPFAF             ! index of variables for the pfafstette
 
 ! Shared data
 USE public_var, ONLY: iulog
-USE public_var, ONLY: verySmall
 USE public_var, ONLY: integerMissing
 USE public_var, ONLY: realMissing
 USE public_var, ONLY: charMissing
