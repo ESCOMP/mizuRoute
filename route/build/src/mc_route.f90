@@ -279,116 +279,125 @@ CONTAINS
 
    if (rch_param%RLENGTH > min_length_route) then
 
-   theta = dt/L    ! [s/m]
+     theta = dt/L    ! [s/m]
 
-   ! compute total flow rate and flow area at upstream end at current time step
-   Q(1,0) = q_upstream
+     ! compute total flow rate and flow area at upstream end at current time step
+     Q(1,0) = q_upstream
 
-   if (verbose) then
-     write(iulog,'(A,1X,G12.5)') ' length [m]        =',rch_param%RLENGTH
-     write(iulog,'(A,1X,G12.5)') ' slope [-]         =',rch_param%R_SLOPE
-     write(iulog,'(A,1X,G12.5)') ' channel width [m] =',rch_param%R_WIDTH
-     write(iulog,'(A,1X,G12.5)') ' manning coef [-]  =',rch_param%R_MAN_N
-     write(iulog,'(A)')          ' Initial 3 point discharge [m3/s]: '
-     write(iulog,'(3(A,1X,G12.5))') ' Qin(t-1) Q(0,0)=',Q(0,0),' Qin(t) Q(1,0)=',Q(1,0),' Qout(t-1) Q(0,1)=',Q(0,1)
-   end if
-
-   ! first, using 3-point average in computational molecule, check Cournat number is less than 1, otherwise subcycle within one time step
-   Qbar = (Q(0,0)+Q(1,0)+Q(0,1))/3.0  ! average discharge [m3/s]
-
-   if (Qbar>0._dp) then
-     depth = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
-     ck   = celerity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
-     Cn   = ck*theta                    ! Courant number [-]
-
-     ! time-step adjustment so Courant number is less than 1
-     ntSub = 1
-     dTsub = dt
-     if (Cn>1.0_dp) then
-       ntSub = ceiling(dt/L*ck)
-       dTsub = dt/ntSub
-     end if
      if (verbose) then
-       write(iulog,'(A,1X,I3,A,1X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
+       write(iulog,'(A,1X,G12.5)') ' length [m]        =',rch_param%RLENGTH
+       write(iulog,'(A,1X,G12.5)') ' slope [-]         =',rch_param%R_SLOPE
+       write(iulog,'(A,1X,G12.5)') ' channel width [m] =',rch_param%R_WIDTH
+       write(iulog,'(A,1X,G12.5)') ' manning coef [-]  =',rch_param%R_MAN_N
+       write(iulog,'(A)')          ' Initial 3 point discharge [m3/s]: '
+       write(iulog,'(3(A,1X,G12.5))') ' Qin(t-1) Q(0,0)=',Q(0,0),' Qin(t) Q(1,0)=',Q(1,0),' Qout(t-1) Q(0,1)=',Q(0,1)
      end if
 
-     allocate(QoutLocal(0:ntSub), QinLocal(0:ntSub), stat=ierr, errmsg=cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     QoutLocal(:) = realMissing
-     QoutLocal(0) = Q(0,1)        ! outfloe last time step
-     QinLocal(0)  = Q(0,0)        ! inflow at last time step
-     QinLocal(1:ntSub)  = Q(1,0)  ! infllow at sub-time step in current time step
+     ! first, using 3-point average in computational molecule, check Cournat number is less than 1, otherwise subcycle within one time step
+     Qbar = (Q(0,0)+Q(1,0)+Q(0,1))/3.0  ! average discharge [m3/s]
 
-     ! solve outflow at each sub time step
-     do ix = 1, nTsub
-       Qbar = (QinLocal(ix)+QinLocal(ix-1)+QoutLocal(ix-1))/3.0 ! 3 point average discharge [m3/s]
-       if (Qbar>0._dp) then
-         depth    = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
-         topWidth = Btop(depth, bt, zc, zf=zf, bankDepth=bankDepth) ! top width at water level [m] (rectangular channel)
-         ck       = celerity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
+     if (Qbar>0._dp) then
+       depth = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
+       ck   = celerity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
+       Cn   = ck*theta                    ! Courant number [-]
 
-         X = 0.5*(1.0 - Qbar/(topWidth*S*ck*L))         ! X factor for descreterized kinematic wave equation
-         Cn = ck*dTsub/L                                         ! Courant number [-]
-
-         C0 = (-X+Cn*(1-Y))/(1-X+Cn*(1-Y))
-         C1 = (X+Cn*Y)/(1-X+Cn*(1-Y))
-         C2 = (1-X-Cn*Y)/(1-X+Cn*(1-Y))
-
-         QoutLocal(ix) = C0* QinLocal(ix)+ C1* QinLocal(ix-1)+ C2* QoutLocal(ix-1)
-         QoutLocal(ix) = max(0.0_dp, QoutLocal(ix))
-       else
-         QoutLocal(ix) = 0._dp
+       ! time-step adjustment so Courant number is less than 1
+       ntSub = 1
+       dTsub = dt
+       if (Cn>1.0_dp) then
+         ntSub = ceiling(dt/L*ck)
+         dTsub = dt/ntSub
        end if
-
-       ! -- EBK 06/26/2023 -- comment out isnan check, doesn't seem to be needed.
-       !if (isnan(QoutLocal(ix))) then
-       !  ierr=10; message=trim(message)//'QoutLocal is Nan; activate vodose for this segment for diagnosis';return
-       !end if
-
        if (verbose) then
-         write(iulog,'(A,I3,1X,A,G12.5,1X,A,G12.5)') '   sub time-step= ',ix,'Courant number= ',Cn, 'Q= ',QoutLocal(ix)
+         write(iulog,'(A,1X,I3,A,1X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
        end if
-     end do
 
-     Q(1,1) = sum(QoutLocal(1:nTsub))/real(nTsub,kind=dp)
-   else
-     Q(1,1) = 0._dp
-   end if
+       allocate(QoutLocal(0:ntSub), QinLocal(0:ntSub), stat=ierr, errmsg=cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       QoutLocal(:) = realMissing
+       QoutLocal(0) = Q(0,1)        ! outfloe last time step
+       QinLocal(0)  = Q(0,0)        ! inflow at last time step
+       QinLocal(1:ntSub)  = Q(1,0)  ! infllow at sub-time step in current time step
+
+       ! solve outflow at each sub time step
+       do ix = 1, nTsub
+         Qbar = (QinLocal(ix)+QinLocal(ix-1)+QoutLocal(ix-1))/3.0 ! 3 point average discharge [m3/s]
+         if (Qbar>0._dp) then
+           depth    = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
+           topWidth = Btop(depth, bt, zc, zf=zf, bankDepth=bankDepth) ! top width at water level [m] (rectangular channel)
+           ck       = celerity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
+
+           X = 0.5*(1.0 - Qbar/(topWidth*S*ck*L))         ! X factor for descreterized kinematic wave equation
+           Cn = ck*dTsub/L                                         ! Courant number [-]
+
+           C0 = (-X+Cn*(1-Y))/(1-X+Cn*(1-Y))
+           C1 = (X+Cn*Y)/(1-X+Cn*(1-Y))
+           C2 = (1-X-Cn*Y)/(1-X+Cn*(1-Y))
+
+           QoutLocal(ix) = C0* QinLocal(ix)+ C1* QinLocal(ix-1)+ C2* QoutLocal(ix-1)
+           QoutLocal(ix) = max(0.0_dp, QoutLocal(ix))
+         else
+           QoutLocal(ix) = 0._dp
+         end if
+
+         ! -- EBK 06/26/2023 -- comment out isnan check, doesn't seem to be needed.
+         !if (isnan(QoutLocal(ix))) then
+         !  ierr=10; message=trim(message)//'QoutLocal is Nan; activate vodose for this segment for diagnosis';return
+         !end if
+
+         if (verbose) then
+           write(iulog,'(A,I3,1X,A,G12.5,1X,A,G12.5)') '   sub time-step= ',ix,'Courant number= ',Cn, 'Q= ',QoutLocal(ix)
+         end if
+       end do
+
+       Q(1,1) = sum(QoutLocal(1:nTsub))/real(nTsub,kind=dp)
+
+       ! For very low flow condition, outflow - inflow > current storage, so limit outflow and adjust Q(1,1)
+       if (abs(Q(1,1))>0._dp) then
+         pcntReduc = min((rflux%ROUTE(idxMC)%REACH_VOL(1)/dt+Q(1,0))*0.999/Q(1,1), 1._dp)
+         Q(1,1) = Q(1,1) *pcntReduc
+       end if
+       rflux%ROUTE(idxMC)%REACH_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) + (Q(1,0)-Q(1,1))*dt
+
+       ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
+       if (rflux%ROUTE(idxMC)%REACH_VOL(1) > bankVol) then
+         rflux%ROUTE(idxMC)%FLOOD_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) - bankVol  ! floodplain volume == overflow volume
+       else
+         rflux%ROUTE(idxMC)%FLOOD_VOL(1) = 0._dp
+       end if
+
+       ! compute surface water height [m]
+       rflux%ROUTE(idxMC)%REACH_ELE = water_height(rflux%ROUTE(idxMC)%REACH_VOL(1)/L, bt, zc, zf=zf, bankDepth=bankDepth)
+
+       ! add catchment flow
+       rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+ Qlat
+     else ! if Qbar == 0
+       Q(1,1) = 0._dp
+     end if
    else ! length < min_length_route: length is short enough to just pass upstream to downstream
      Q(1,0) = q_upstream
      Q(1,1) = q_upstream
+     rflux%ROUTE(idxMC)%REACH_Q = q_upstream + Qlat
+     rflux%ROUTE(idxMC)%REACH_VOL(0) = 0._dp
+     rflux%ROUTE(idxMC)%REACH_VOL(1) = 0._dp
+     rflux%ROUTE(idxMC)%FLOOD_VOL(1) = 0._dp
+     rflux%ROUTE(idxMC)%REACH_ELE    = 0._dp
    end if
  else ! if head-water and pour runnof to the bottom of reach
 
    Q(1,0) = 0._dp
    Q(1,1) = 0._dp
+   rflux%ROUTE(idxMC)%REACH_Q = Qlat
+   rflux%ROUTE(idxMC)%REACH_VOL(0) = 0._dp
+   rflux%ROUTE(idxMC)%REACH_VOL(1) = 0._dp
+   rflux%ROUTE(idxMC)%FLOOD_VOL(1) = 0._dp
+   rflux%ROUTE(idxMC)%REACH_ELE    = 0._dp
 
    if (verbose) then
      write(iulog,'(A)')            ' This is headwater '
    endif
 
  endif
-
- if (rch_param%RLENGTH > min_length_route) then
- ! For very low flow condition, outflow - inflow > current storage, so limit outflow and adjust Q(1,1)
- if (abs(Q(1,1))>0._dp) then
-   pcntReduc = min((rflux%ROUTE(idxMC)%REACH_VOL(1)/dt+Q(1,0))*0.999/Q(1,1), 1._dp)
-   Q(1,1) = Q(1,1) *pcntReduc
- end if
- rflux%ROUTE(idxMC)%REACH_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) + (Q(1,0)-Q(1,1))*dt
- end if
-
- ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
- if (rflux%ROUTE(idxMC)%REACH_VOL(1) > bankVol) then
-   rflux%ROUTE(idxMC)%FLOOD_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) - bankVol  ! floodplain volume == overflow volume
- else
-   rflux%ROUTE(idxMC)%FLOOD_VOL(1) = 0._dp
- end if
- ! compute surface water height [m]
- rflux%ROUTE(idxMC)%REACH_ELE = water_height(rflux%ROUTE(idxMC)%REACH_VOL(1)/L, bt, zc, zf=zf, bankDepth=bankDepth)
-
- ! add catchment flow
- rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+ Qlat
 
  if (verbose) then
    write(iulog,'(A,1X,G12.5)') ' Qout(t)=',Q(1,1)
