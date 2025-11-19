@@ -340,11 +340,6 @@ CONTAINS
            QoutLocal(ix) = 0._dp
          end if
 
-         ! -- EBK 06/26/2023 -- comment out isnan check, doesn't seem to be needed.
-         !if (isnan(QoutLocal(ix))) then
-         !  ierr=10; message=trim(message)//'QoutLocal is Nan; activate vodose for this segment for diagnosis';return
-         !end if
-
          if (verbose) then
            write(iulog,'(A,I3,1X,A,G12.5,1X,A,G12.5)') '   sub time-step= ',ix,'Courant number= ',Cn, 'Q= ',QoutLocal(ix)
          end if
