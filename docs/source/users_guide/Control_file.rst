@@ -76,14 +76,6 @@ For water management option, See :doc:`Water management option <Input_files>`.
      - char
      - None
      - name of input netCDF for River Network. see Note 1
-   * - ``<dname_sseg>``
-     - char
-     - None
-     - dimension name for reach in river network netCDF
-   * - ``<dname_nhru>``
-     - char
-     - None
-     - dimension name for HRU (Hydrologi Respone Unit or catchment) in river network netCDF
    * - ``<fname_qsim>``
      - char
      - None
@@ -136,10 +128,6 @@ For water management option, See :doc:`Water management option <Input_files>`.
      - char
      - start
      - time stamp used in runoff input - start (default), middle, or end, otherwise error
-   * - ``<fname_output>``
-     - char
-     - None
-     - output netCDF name for model simulation results. See Note 4
    * - ``<outputFrequency>``
      - char
      - None
@@ -169,19 +157,14 @@ For water management option, See :doc:`Water management option <Input_files>`.
      - None
      - Spatially constant parameter namelist. should be stored in <ancil_dir>. See Note 5
 
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <topoNetworkOption>    | 1               | option for network topology calculations (0=read from file, 1=compute)                                  |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
-| <computeReachList>     | 1               | option to compute list of upstream reaches (0=do not compute, 1=compute)                                |
-+------------------------+-----------------+---------------------------------------------------------------------------------------------------------+
 
-1. Often river network data has different variable names than defaults. In this case, variable names can be speficied in control file as well. See :ref:`River parameters <River_network_data>`.
+1. NetCDF variable and dimension names in river data has their default names, but a user can use different names than defaults. In this case, variable or dimension names can be speficied in control file as well. See :ref:`River parameters <River_network_data>`.
 
 2. Calendar in runoff input time should be read from netCDF, but If runoff input netCDF does not have calendar attribute, it can be specified. Make sure time variable in runoff data use either ``noleap``, ``standard``, ``gregorian``, or ``proleptic_gregorian``. case insensitive
 
 3. Like Calendar, If runoff input netCDF does not have time unit attribute, it can be specified. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted. <unit> can be days, hours, minutes, seconds.
 
-4 Restrictions related to history output: dt_qsim, outputFrequency and newFileFrequency
+4. Restrictions related to history output: dt_qsim, outputFrequency and newFileFrequency
 
   * ``dt_qsim`` (simulation time step) must be less than 86400 sec (one day). Muskingum-Cunge method will run at much shorter time step. Other methods can run at this time step, but Diffusive wave routing produce the results with less errors at shorter time step.
 
@@ -195,24 +178,8 @@ For water management option, See :doc:`Water management option <Input_files>`.
 
   * The abovementioned restrictions are check in the code, so any violations are notified as error and the program is terminated.
 
-5 Spatially constant parameters are provided in a namelist as following example.
-::
+5. Spatially constant parameters are provided in a namelist. See :ref:`Spatially-constant parameter namelist <namelist_file>`. Use the namelist provided in github as a template.
 
-     &HSLOPE
-       ! gamma distribution parameters for hillslope routing
-       fshape = 2.5    !  shape parameter (>0) [-]
-       tscale = 86400  !  scale parameter [sec]
-     /
-     &IRF_UH
-       ! Unit hydrograph derived from diffusive wave equation
-       velo   = 1.5 ! wave celerity [m/s]
-       diff   = 5000.0 ! diffusivity [m2/s]
-     /
-     &KWT
-       ! channel physical parameter
-       mann_n = 0.01    ! manning coefficient [-]
-       wscale = 0.001   ! channel width parameter [-]: W=wclae*(Aups)**b where Aups=upstream area, b=0.5
-     /
 
 .. _Control_file_basic_examples:
 
