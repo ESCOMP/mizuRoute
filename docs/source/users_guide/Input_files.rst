@@ -644,8 +644,8 @@ The observed discharge data is stored in netCDF and specifications are given in 
 
    * - ``<vname_gageFlow>``
      - NetCDF variable name
-     - default name
-     - float
+     - flow
+     - real
      - time,site
      - Observed flow [m3/s] at gauge
    * - ``<vname_gageTime>``
@@ -656,7 +656,7 @@ The observed discharge data is stored in netCDF and specifications are given in 
      - time variable in a unit of <time_unit> since yyyy-mm-dd hh:mm:ss
    * - ``<vname_gageSite>``
      - NetCDF variable name
-     - default name
+     - site
      - char
      - site
      - guage site name (character array)
