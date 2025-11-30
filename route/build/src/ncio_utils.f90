@@ -14,6 +14,7 @@ public::get_var_attr
 public::check_attr
 public::check_variable
 public::put_global_attr
+public::get_variable_rank
 public::def_nc
 public::def_dim
 public::def_var
@@ -200,6 +201,31 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine
+
+ ! *********************************************************************
+ ! subroutine: check if variable exists
+ ! *********************************************************************
+ function get_variable_rank(fname, vname)
+   implicit none
+   ! input
+   character(*), intent(in)        :: fname        ! filename
+   character(*), intent(in)        :: vname        ! variable name
+   integer(i4b)                    :: get_variable_rank
+   ! local
+   integer(i4b)                    :: ierr         ! error code
+   integer(i4b)                    :: ncid         ! NetCDF file ID
+   integer(i4b)                    :: iVarID       ! variable ID
+
+   ! open file
+   ierr = nf90_open(trim(fname), nf90_nowrite, ncid)
+   ! get the ID of the variable
+   ierr = nf90_inq_varid(ncid, trim(vname), iVarID)
+   ! get the ID of the variable
+   ierr = nf90_inquire_variable(ncid, iVarID, ndims=get_variable_rank)
+   ! close output file
+   ierr = nf90_close(ncid)
+
+ end function get_variable_rank
 
  ! *********************************************************************
  ! subroutine: check if variable exists
