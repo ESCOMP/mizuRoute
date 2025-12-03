@@ -190,7 +190,7 @@ Requirement of control keys for runoff netCDF information depends on the options
      - [time-unit] since yyy-mm-dd 00:00:00
      - name of time variable
 
-   * - ``<vname_vname_hruid>``
+   * - ``<vname_hruid>``
      - NetCDF variable name
      - hru
      - int
