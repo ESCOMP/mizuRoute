@@ -79,35 +79,7 @@ For water management option, See :doc:`Water management option <Input_files>`.
    * - ``<fname_qsim>``
      - char
      - None
-     - either a single runoff netCDF name, multiple netCDFs with wild card, or a text file listing netCDFs
-   * - ``<vname_qsim>``
-     - char
-     - None
-     -  variable name for runoff depth in runoff netCDF(s)
-   * - ``<vname_hruid>``
-     - char
-     - None
-     - variable name for HRU ID in runoff netCDF(s)
-   * - ``<vname_time>``
-     - char
-     - None
-     - variable name for time in runoff netCDF(s)
-   * - ``<dname_hruid>``
-     - char
-     - None
-     - dimension name for HRU in runoff netCDF(s)
-   * - ``<dname_time>``
-     - char
-     - None
-     - dimension name for time in runoff netCDF(s)
-   * - ``<dname_xlon>``
-     - char
-     - None
-     - dimension name for x, lat, or j dimension in runoff netCDF(s). Only runoff is given in grid.
-   * - ``<dname_ylat>``
-     - char
-     - None
-     - dimension name for y, lon, or i dimension in runoff netCDF(s). Only runoff is given in grid.
+     - either a single runoff netCDF name, multiple netCDFs with wild card, or a text file listing netCDFs. See Note 2
    * - ``<units_qsim>``
      - char
      - None
@@ -119,11 +91,11 @@ For water management option, See :doc:`Water management option <Input_files>`.
    * - ``<ro_calendar>``
      - char
      - None
-     - calenar used in runoff input netCDF. See Note 2
+     - calenar used in runoff input netCDF. See Note 3
    * - ``<ro_time_units>``
      - char
      - None
-     - time units used in runoff input netCDF. See Note 3
+     - time units used in runoff input netCDF. See Note 4
    * - ``<ro_time_stamp>``
      - char
      - start
@@ -131,18 +103,18 @@ For water management option, See :doc:`Water management option <Input_files>`.
    * - ``<outputFrequency>``
      - char
      - None
-     - time frequency used for temporal aggregation of output variables. See Note 4
+     - time frequency used for temporal aggregation of output variables. See Note 5
    * - ``<newFileFrequency>``
      - char
      - None
-     - frequency for new history files (daily, monthly, yearly, single). See Note 4
+     - frequency for new history files (daily, monthly, yearly, single). See Note 5
    * - ``<histTimeStamp_offset>``
      - real
      - 0
      - time stamp offset [second] from a start of time step
    * - ``<route_opt>``
      - int
-     - 0
+     - 1
      - routing schem options: 0->Sum, 1->IRF, 2->KWT, 3->KW, 4->MC, 5->DW, otherwise error. See :doc:`River routing configuration <Riv>`
    * - ``<dt_qsim>``
      - int
@@ -155,16 +127,18 @@ For water management option, See :doc:`Water management option <Input_files>`.
    * - ``<param_nml>``
      - char
      - None
-     - Spatially constant parameter namelist. should be stored in <ancil_dir>. See Note 5
+     - Spatially constant parameter namelist. should be stored in <ancil_dir>. See Note 6
 
 
 1. NetCDF variable and dimension names in river data has their default names, but a user can use different names than defaults. In this case, variable or dimension names can be speficied in control file as well. See :ref:`River parameters <River_network_data>`.
 
-2. Calendar in runoff input time should be read from netCDF, but If runoff input netCDF does not have calendar attribute, it can be specified. Make sure time variable in runoff data use either ``noleap``, ``standard``, ``gregorian``, or ``proleptic_gregorian``. case insensitive
+2. The same as Note 1 except for runoff input netCDF. See :ref:`Runoff input files <Runoff_data>`.
 
-3. Like Calendar, If runoff input netCDF does not have time unit attribute, it can be specified. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted. <unit> can be days, hours, minutes, seconds.
+3. Calendar in runoff input time should be read from netCDF, but If runoff input netCDF does not have calendar attribute, it can be specified. Make sure time variable in runoff data use either ``noleap``, ``standard``, ``gregorian``, or ``proleptic_gregorian``. case insensitive
 
-4. Restrictions related to history output: dt_qsim, outputFrequency and newFileFrequency
+4. Like Calendar, If runoff input netCDF does not have time unit attribute, it can be specified. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted. <unit> can be days, hours, minutes, seconds.
+
+5. Restrictions related to history output: dt_qsim, outputFrequency and newFileFrequency
 
   * ``dt_qsim`` (simulation time step) must be less than 86400 sec (one day). Muskingum-Cunge method will run at much shorter time step. Other methods can run at this time step, but Diffusive wave routing produce the results with less errors at shorter time step.
 
@@ -178,7 +152,7 @@ For water management option, See :doc:`Water management option <Input_files>`.
 
   * The abovementioned restrictions are check in the code, so any violations are notified as error and the program is terminated.
 
-5. Spatially constant parameters are provided in a namelist. See :ref:`Spatially-constant parameter namelist <namelist_file>`. Use the namelist provided in github as a template.
+6. Spatially constant parameters are provided in a namelist. See :ref:`Spatially-constant parameter namelist <namelist_file>`. Use the namelist provided in github as a template.
 
 
 .. _Control_file_basic_examples:
