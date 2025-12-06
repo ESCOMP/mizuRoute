@@ -14,7 +14,7 @@ public::get_var_attr
 public::check_attr
 public::check_variable
 public::put_global_attr
-public::get_variable_rank
+public::get_variable_ndims
 public::def_nc
 public::def_dim
 public::def_var
@@ -203,14 +203,14 @@ CONTAINS
  end subroutine
 
  ! *********************************************************************
- ! subroutine: check if variable exists
+ ! subroutine: check number of dimension (rank) of a variable
  ! *********************************************************************
- function get_variable_rank(fname, vname)
+ function get_variable_ndims(fname, vname)
    implicit none
    ! input
    character(*), intent(in)        :: fname        ! filename
    character(*), intent(in)        :: vname        ! variable name
-   integer(i4b)                    :: get_variable_rank
+   integer(i4b)                    :: get_variable_ndims
    ! local
    integer(i4b)                    :: ierr         ! error code
    integer(i4b)                    :: ncid         ! NetCDF file ID
@@ -221,11 +221,11 @@ CONTAINS
    ! get the ID of the variable
    ierr = nf90_inq_varid(ncid, trim(vname), iVarID)
    ! get the ID of the variable
-   ierr = nf90_inquire_variable(ncid, iVarID, ndims=get_variable_rank)
+   ierr = nf90_inquire_variable(ncid, iVarID, ndims=get_variable_ndims)
    ! close output file
    ierr = nf90_close(ncid)
 
- end function get_variable_rank
+ end function get_variable_ndims
 
  ! *********************************************************************
  ! subroutine: check if variable exists

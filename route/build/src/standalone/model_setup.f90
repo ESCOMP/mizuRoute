@@ -710,14 +710,14 @@ CONTAINS
    USE globalData,  ONLY: wm_data              ! abstraction injection data structure
    USE read_runoff, ONLY: read_forcing_metadata ! read meta data from runoff data
    USE read_remap,  ONLY: get_remap_data       ! read remap data
-   USE ncio_utils,  ONLY: get_variable_rank    ! get netcdf variable rank
+   USE ncio_utils,  ONLY: get_variable_ndims   ! get netcdf variable ndims
 
    implicit none
    ! Argument variables
    integer(i4b), intent(out)          :: ierr             ! error code
    character(*), intent(out)          :: message          ! error message
    ! local variables
-   integer(i4b)                       :: rank             ! rank of runoff (evap, precip, solute) data
+   integer(i4b)                       :: ndims            ! numbers of dimension (array ranks) of runoff (evap, precip, solute) data
    character(len=strLen)              :: fname            ! input file name
    integer(i8b), allocatable          :: unq_qhru_id(:)
    integer(i4b), allocatable          :: unq_idx(:)
@@ -728,11 +728,11 @@ CONTAINS
    ! passing the first nc file to get variable metadata
    fname = trim(inFileInfo_ro(1)%infilename)
 
-   ! rank of runoff data (assume evapo, precip, and solute are the same rank, but should check)
-   rank = get_variable_rank(trim(inFileInfo_ro(1)%infilename), trim(vname_qsim))
+   ! num of dimmension of runoff array (assume evapo, precip, and solute are the same array rank, but should check)
+   ndims = get_variable_ndims(trim(inFileInfo_ro(1)%infilename), trim(vname_qsim))
 
    ! get runoff metadata for simulated runoff, evaporation and precipitation
-   if (rank==3) then  ! (time, lat, lon)
+   if (ndims==3) then  ! (time, lat, lon)
      call read_forcing_metadata(fname,                           & ! input: filename
                                 vname_qsim,                      & ! input: varibale name for simulated runoff
                                 vname_hruid,                     & ! input: varibale hruid
@@ -745,7 +745,7 @@ CONTAINS
                                 runoff_data%fillvalue,           & ! fillvalue for data
                                 ierr, cmessage)                    ! output: error control
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   else if (rank==2) then ! (time, hru)
+   else if (ndims==2) then ! (time, hru)
      call read_forcing_metadata(fname,                           & ! input: filename
                                 vname_qsim,                      & ! input: varibale name for simulated runoff
                                 vname_hruid,                     & ! input: varibale hruid
@@ -759,7 +759,7 @@ CONTAINS
                                 ierr, cmessage)                    ! output: error control
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    else
-     message=trim(message)//'rank of input data invalid'
+     message=trim(message)//'ndims of input data invalid'
      ierr=20; return
    end if
 
