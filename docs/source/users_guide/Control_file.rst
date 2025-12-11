@@ -124,10 +124,6 @@ For water management option, See :doc:`Water management option <Input_files>`.
      - int
      - None
      - time interval of simulation in second. e.g., 86400 sec for daily step
-   * - ``<doesBasinRoute>``
-     - int
-     - 1
-     - hillslope routing options. 0-> no (already routed), 1->IRF
    * - ``<param_nml>``
      - char
      - None
