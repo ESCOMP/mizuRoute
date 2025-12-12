@@ -17,7 +17,7 @@ To enable the unit-hydrograph based hillslope routing, a user is required to inc
 .. list-table:: Control key to enable hillslope routing
    :header-rows: 1
    :widths: 20 15 15 50
-   :name: channel-parameter-specification
+   :name: hillslope routing options
 
    * - Control key
      - Type
