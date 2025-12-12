@@ -4,6 +4,8 @@
 Overall workflow
 ======================
 
+Overall computation workflow is shown in :numref:`Figure_overall_comp_workflow`.
+
 #. Compute HRU (Hydrologic Response Unit, or simply catchment) mean runoff [m/s]
 
 #. Perform overland routing with HRU mean runoff as an input to compute lateral runoff (:math:`R_{lat}`) [m/s]
@@ -13,6 +15,13 @@ Overall workflow
 #. Route lateral discharge at each river reach through river network.
 
 The overland routing is optional, and currently simple unit hydrograph based on gamma distribution is used to delay instantaneous runoff.
+
+.. _Figure_overall_comp_workflow:
+
+.. figure:: images/overall_comp_workflow.png
+ :width: 600
+
+ Overall routing procedures from runoff input into model to streamflow computation.
 
 .. _Hillslope_routing_scheme:
 
