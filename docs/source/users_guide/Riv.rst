@@ -145,6 +145,11 @@ There are few miscleneous control keys available for a channel routing. Note tha
        * ``1`` → top of reach
        * ``2`` → bottom of reach (default)
 
+For ``hw_drain_point``, see the image below for the concept of runoff draining to the headwater reach: Note that non-headwater reaches recieve runoff at the downstream end.
+
+.. image:: images/hw_drain_point.png
+  :width: 600
+
 
 .. Full list of river parameters, both physical and topological ones, can be output in netCDF as river network augmentation mode.
 .. Those augmented variables can be read in from augmented network netCDF and variable names need to be specified in :doc:`control file <control_file>`
