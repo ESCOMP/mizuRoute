@@ -6,20 +6,21 @@ Overall workflow
 
 Overall computation workflow is shown in :numref:`Figure_overall_comp_workflow`.
 
-#. Compute HRU (Hydrologic Response Unit, or simply catchment) mean runoff [m/s]
+#. Compute HRU (Hydrologic Response Unit, or simply catchment) mean runoff [m/s], :math:`R_{lat}`, if runoff is given at hydrologic model HRU.
 
-#. Perform overland routing with HRU mean runoff as an input to compute lateral runoff (:math:`R_{lat}`) [m/s]
+#. Convert :math:`R_{lat}` from depth unit to volume (:math:`R_{lat}` times HRU area) to get lateral runoff volume (:math:`q_{lat}`) [m3/s]
 
-#. Convert :math:`R_{lat}` from depth unit to volume (lateral runoff times HRU area) to get lateral discharge (:math:`q_{lat}`) [m3/s]
+#. Perform overland routing to delay lateral runoff volume.
 
-#. Route lateral discharge at each river reach through river network.
+#. Route delayed lateral discharge at each river reach through river network.
 
 The overland routing is optional, and currently simple unit hydrograph based on gamma distribution is used to delay instantaneous runoff.
 
 .. _Figure_overall_comp_workflow:
 
 .. figure:: images/overall_comp_workflow.png
- :width: 600
+ :width: 700
+ :height: 400
 
  Overall routing procedures from runoff input into model to streamflow computation.
 
