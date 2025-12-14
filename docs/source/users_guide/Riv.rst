@@ -31,7 +31,7 @@ To setup spatially distributed river channel parameters, a user can provide chan
 To use the channel parameters from the netCDF, make sure that the key ``<hydGeometryOption>`` in the control file **must be set to 0**. The default values is ``1`` (compute channel parameter internally).
 
 As a default, a river channel does not have floodplains, meaning river water is always contained in a channel.
-A user can add floodplain by adding the control key ``<floodplain>`` with ``T``. By adding floodplain, discharge tends to be attenuated due to greater water-riverbed contact area.
+A user can add a simple, hypothetical floodplain by adding the control key ``<floodplain>`` with ``T``. By adding floodplain, discharge tends to be attenuated due to greater water-riverbed contact area.
 For active floodplain option, the channel bankfull depth needs to be computed as a default, or supplied in the river input netCDF.
 Also, by adding floodplain, water storage over floodplain is computed in addition to total water storage, which may be used for furter flood mapping (outside mizuRoute) or feedback to the land model (for CESM coupled mode)
 Note that currently floodplain is activate only for KW, MC, and DW routing schemes.
@@ -39,10 +39,10 @@ Note that currently floodplain is activate only for KW, MC, and DW routing schem
 How the physical parameters control the shape of the channel cross-section of the channel without and with floodplain is depicted below:
 
 .. image:: images/channel_xsection_no_fp.png
-  :width: 600
+  :width: 700
 
 .. image:: images/channel_xsection_fp.png
-  :width: 600
+  :width: 700
 
 Below is the control keys related to the option of channel geometry specification.
 
@@ -145,109 +145,14 @@ There are few miscleneous control keys available for a channel routing. Note tha
        * ``1`` → top of reach
        * ``2`` → bottom of reach (default)
 
-
-.. Full list of river parameters, both physical and topological ones, can be output in netCDF as river network augmentation mode.
-.. Those augmented variables can be read in from augmented network netCDF and variable names need to be specified in :doc:`control file <control_file>`
-
-.. To read additional augmented network parameters, <hydGeometryOption> and <topoNetworkOption> needs to be turned on (specified as 0) in :doc:`control file <control_file>`
-
-.. Names of the river network variables (both network topology and physical parameters) can be also speficied in :doc:`control file <control_file>`,
-.. if they are different than their default names. The format is
-
-.. <varname_PARAMETER_DEFAULT_NAME>   NEW_NAME    !
+For ``hw_drain_point``, see the image below for the concept of how runoff is drained into a headwater reach: Note that non-headwater reaches recieve runoff at the downstream end.
 
 
-.. Dimensions
+.. _Figure_hw_drain_method:
 
-.. +------------+-----------------------------------------------------------+
-.. | Dimension  | Description                                               |
-.. +============+===========================================================+
-.. | seg        | river reach                                               |
-.. +------------+-----------------------------------------------------------+
-.. | hru        | river network catchment or hru (hydrologic response unit) |
-.. +------------+-----------------------------------------------------------+
-.. | upSeg      | immediate upstream reaches                                |
-.. +------------+-----------------------------------------------------------+
-.. | upHRU      | HRUs contributing to a reach                              |
-.. +------------+-----------------------------------------------------------+
-.. | upAll      | all the upstream reaches                                  |
-.. +------------+-----------------------------------------------------------+
+.. figure:: images/hw_drain_point.png
+ :width: 600
 
-.. .. _physical_parameters:
-
-.. physical parameters
-.. *******************
-
-.. +---------------+------------+-----------+-------+-------------------------------------------------------+
-.. | Variable      | Dimension  | Unit      | Type  | Description                                           |
-.. +===============+============+===========+=======+=======================================================+
-.. | width         | seg        | ``-``     | real  | channel width                                         |
-.. +---------------+------------+-----------+-------+-------------------------------------------------------+
-.. | man_n         | seg        | ``-``     | real  | mannings n                                            |
-.. +---------------+------------+-----------+-------+-------------------------------------------------------+
-.. | hruArea       | upHRU      | m2        | real  | area of each contributing HRU                         |
-.. +---------------+------------+-----------+-------+-------------------------------------------------------+
-.. | weight        | upHRU      | ``-``     | real  | weight assigned to each HRU                           |
-.. +---------------+------------+-----------+-------+-------------------------------------------------------+
-.. | basArea       | seg        | m2        | real  | total area of contributing HRUs                       |
-.. +---------------+------------+-----------+-------+-------------------------------------------------------+
-.. | upsArea       | seg        | m2        | real  | area above the top of the reach. 0 if headwater       |
-.. +---------------+------------+-----------+-------+-------------------------------------------------------+
-.. | totalArea     | seg        | m2        | real  | area above the bottom of the reach (bas + ups)        |
-.. +---------------+------------+-----------+-------+-------------------------------------------------------+
-.. | timeDelayHist | uh         | sec       | real  | time delay histogram for each reach (only UH routing) |
-.. +---------------+------------+-----------+-------+-------------------------------------------------------+
-
-.. .. _Topology_parameters:
-
-.. Topology parameters
-.. *******************
-
-.. Extra or augmented river reach and hru topology are typically computed internally. It is recommended to compute instead of generating outside mizuRoute
-
-.. Variables
-
-.. +-----------------+------------+-----------+-------+----------------------------------------------------------------+
-.. | Variable        | Dimension  | Unit      | Type  | Description                                                    |
-.. +=================+============+===========+=======+================================================================+
-.. | segIndex        | seg        | ``-``     | int   | reach Index                                                    |
-.. +-----------------+------------+-----------+-------+----------------------------------------------------------------+
-.. | downSegId       | seg        | ``-``     | int   | downstream reach ID                                            |
-.. +-----------------+------------+-----------+-------+----------------------------------------------------------------+
-.. | downSegIndex    | seg        | ``-``     | int   | downstream reach index                                         |
-.. +-----------------+------------+-----------+-------+----------------------------------------------------------------+
-.. | upSegIds        | upSeg      | ``-``     | int   | Immediate upstream reach IDs for each reach                    |
-.. +-----------------+------------+-----------+-------+----------------------------------------------------------------+
-.. | upSegIndices    | upSeg      | ``-``     | int   | immediate upstream reach indices for each reach                |
-.. +-----------------+------------+-----------+-------+----------------------------------------------------------------+
-.. | allUpSegIndices | upAll      | ``-``     | int   | all the upstream reach indices for each reach                  |
-.. +-----------------+------------+-----------+-------+----------------------------------------------------------------+
-.. | rchOrder        | seg        | ``-``     | int   | routing processing order                                       |
-.. +-----------------+------------+-----------+-------+----------------------------------------------------------------+
-.. | goodBasin       | upSeg      | ``-``     | int   | flag to indicate immediate upstream HRUs are good HRU (area>0) |
-.. +-----------------+------------+-----------+-------+----------------------------------------------------------------+
-.. | HRUindex        | hur        | ``-``     | int   | RN_HRU index                                                   |
-.. +-----------------+------------+-----------+-------+----------------------------------------------------------------+
-.. | hruSegIndex     | hur        | ``-``     | int   | index of the reach below each HRU                              |
-.. +-----------------+------------+-----------+-------+----------------------------------------------------------------+
-.. | hruContribIx    | upHRU      | ``-``     | int   | indices of HRUs contributing flow to each reach                |
-.. +-----------------+------------+-----------+-------+----------------------------------------------------------------+
-.. | hruContribId    | upHRU      | ``-``     | int   | IDs of HRUs contributing flow to each reach                    |
-.. +-----------------+------------+-----------+-------+----------------------------------------------------------------+
+ Schematics of how runoff is input into a headwater reach.
 
 
-
-.. Impulse response function
-.. --------------------------
-..
-.. Lagrangian kinematic wave
-.. -------------------------
-..
-.. Euler kinematic wave
-.. ---------------------
-..
-.. Muskingum–Cunge
-.. ----------------
-..
-.. Diffusive wave
-.. ---------------
