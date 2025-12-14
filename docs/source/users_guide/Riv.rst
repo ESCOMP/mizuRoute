@@ -31,7 +31,7 @@ To setup spatially distributed river channel parameters, a user can provide chan
 To use the channel parameters from the netCDF, make sure that the key ``<hydGeometryOption>`` in the control file **must be set to 0**. The default values is ``1`` (compute channel parameter internally).
 
 As a default, a river channel does not have floodplains, meaning river water is always contained in a channel.
-A user can add floodplain by adding the control key ``<floodplain>`` with ``T``. By adding floodplain, discharge tends to be attenuated due to greater water-riverbed contact area.
+A user can add a simple, hypothetical floodplain by adding the control key ``<floodplain>`` with ``T``. By adding floodplain, discharge tends to be attenuated due to greater water-riverbed contact area.
 For active floodplain option, the channel bankfull depth needs to be computed as a default, or supplied in the river input netCDF.
 Also, by adding floodplain, water storage over floodplain is computed in addition to total water storage, which may be used for furter flood mapping (outside mizuRoute) or feedback to the land model (for CESM coupled mode)
 Note that currently floodplain is activate only for KW, MC, and DW routing schemes.
@@ -39,10 +39,10 @@ Note that currently floodplain is activate only for KW, MC, and DW routing schem
 How the physical parameters control the shape of the channel cross-section of the channel without and with floodplain is depicted below:
 
 .. image:: images/channel_xsection_no_fp.png
-  :width: 600
+  :width: 700
 
 .. image:: images/channel_xsection_fp.png
-  :width: 600
+  :width: 700
 
 Below is the control keys related to the option of channel geometry specification.
 

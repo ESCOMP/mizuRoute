@@ -4,7 +4,7 @@
 Control file
 ============
 
-**Control file** is a plain-text configuration file that defins all model settings, including simulation periods, file paths, routing option and more.
+**Control file** is a plain-text file that defins all model settings, including simulation periods, file paths, routing option and more.
 Each setting is called **contriol keys** or **control variables** and is specified using a variable name enclosed in angle brackets (``<control_key_name>``).
 These control keys are read at the start of the simulation (see ``./route/build/src/read_control.f90``) and
 stored in fortran's public variables defined in ``./route/build/src/public_var.f90``.
@@ -13,13 +13,12 @@ stored in fortran's public variables defined in ``./route/build/src/public_var.f
 
 * Control keys can be defined in any order in the control file, but grouping variables thematically improve readibility.
 * Control keys with default values can be also included to override those defaults.
+* All the control key names match the corresponding Fortran variable names in ``./route/build/src/public_var.f90``.
 
 📌Syntax Rules:
 
 * Lines starting or after exclamation mark (``!``) are treated as comments and ignored.
-* Each line must follow the Format: ``<control_key_name>    value    ! comments``
-* Control key name must match the corresponding Fortran variable name **exactly**.
-* A exclamation mark (``!``) must appear after the value even if you don't put any comment text; otherwise getting error.
+* Each line must follow the Format: ``<control_key_name>    value    ! comments``. A exclamation mark (``!``) must appear after the value even if you don't put any comment text; otherwise getting error.
 * **DO NOT include empty lines**-this will cause runtime errors.
 
 
@@ -28,10 +27,10 @@ stored in fortran's public variables defined in ``./route/build/src/public_var.f
 Basic routing setup
 ------------------------------------------
 
-It is difficult to instruct exactly which control keys every user needs to include, becase configurations can vary widely depending on user's goal of simulation, e.g., turn on/off lakes, water management, floodplain etc.
+It is difficult to tell exactly which control keys every user needs to include, becase configurations can vary widely depending on user's goal of simulation, e.g., turn on/off lakes, water management, floodplain etc.
 
-For a simple river routing without lake or water management with cold start and runoff input provided at the same catchment as the river network, a user can get started with following control keys.
-See :ref:`Control file basic examples <Control_file_basic_examples>`. Also, example control file are included under ``./route/settings/SAMPLE.control``.
+For a river routing without lake or water management with cold start and runoff input provided at the same catchment as the river network, a user can get started with following control keys.
+See :ref:`Control file basic examples <Control_file_basic_examples>`. Also, an example control file including additional control keys (for advanced features) are provided under ``./route/settings/SAMPLE.control``.
 In the table below, control keys with None in default value must be defined with the appropriate value.
 The netCDF variables (e.g.,  runoff and river data netCDFs) have their default names; if their netCDF variables do not match the default names, a user needs to define in the control file.
 Please see :doc:`Input files <Input_files>`.
@@ -130,11 +129,11 @@ For water management option, See :doc:`Water management option <Input_files>`.
      - Spatially constant parameter namelist. should be stored in <ancil_dir>. See Note 6
 
 
-1. NetCDF variable and dimension names in river data has their default names, but a user can use different names than defaults. In this case, variable or dimension names can be speficied in control file as well. See :ref:`River parameters <River_network_data>`.
+1. NetCDF variable and dimension names in river data has their default names, but a user can use different names than defaults. In this case, variable or/and dimension names can be speficied in control file as well. See :ref:`River parameters <River_network_data>`.
 
 2. The same as Note 1 except for runoff input netCDF. See :ref:`Runoff input files <Runoff_data>`.
 
-3. Calendar in runoff input time should be read from netCDF, but If runoff input netCDF does not have calendar attribute, it can be specified. Make sure time variable in runoff data use either ``noleap``, ``standard``, ``gregorian``, or ``proleptic_gregorian``. case insensitive
+3. Calendar in runoff input time should be read from netCDF, but If runoff input netCDF does not have calendar attribute for some reason, it can be specified. Make sure time variable in runoff data use either ``noleap``, ``standard``, ``gregorian``, or ``proleptic_gregorian``. case insensitive
 
 4. Like Calendar, If runoff input netCDF does not have time unit attribute, it can be specified. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted. <unit> can be days, hours, minutes, seconds.
 

@@ -21,7 +21,7 @@ River data file (required)
 River netCDF data holds river reach-reach topology, reach-hru topology, and river reach and HRU physical parameters.
 
 With minimum topological parameters (``downSegId`` and ``hruSegId``), mizuRoute computes additional river network topological parameters necessary to efficiently navigate the computations through river network from upstream to downstream.
-mizuRoute also requires minimum physical parameters of reach and HRU (``length`` and ``slope`` for reach and ``area`` for HRU).
+MizuRoute also requires minimum physical parameters of reach and HRU (``length`` and ``slope`` for reach and ``area`` for HRU).
 With minimum physical parameters, mizuRoute compute bottom width and bankful depth for each reach with simple functions and uses default values for the other parameters.
 For additional reach physical parameters, please see :ref:`full list of river physical parameters <channel_physical_parameters>`
 
@@ -326,7 +326,7 @@ Time unit format is shown in the table. Runoff variable needs *units*, as shown 
 Runoff remapping file (required for runoff input option 2 and 3)
 -----------------------------------------------------------------
 
-mizuRoute has a capability to remap runoff at different HRU (i.e., hydrologic model HRU - option 2 runoff data) or grid (option 3 runoff data) to HRU defined in river network using areal weighted average.
+MizuRoute has a capability to remap runoff at different HRU (i.e., hydrologic model HRU - option 2 runoff data) or grid (option 3 runoff data) to HRU defined in river network using areal weighted average.
 The user is required to provide a mapping file in netCDF.
 If runoff is provided at each river network HRU (option 1 runoff data) no mapping data is required.
 
@@ -507,9 +507,21 @@ However, currently, assignment to IRF routing parameters and hillslope routing p
 Restart file (optional)
 -----------------------
 
-By default, mizuRoute does not output any restart netCDF files. In order to write restart netCDF(s), the user is required to include several control keys listed in the table beflow.
-The restart netCDF name is written with the name convention of ``<case_name>.r.<restart_datetime>.nc`` where <restart_datetime> is the datetime of restart simulation start (NOT the datetime when restart is written) in ``yyyy-mm-dd-sssss`` format (sssss is a time within a day in second, e.g., 43200 second = 12:00:00).
-The restart netCDF can be used for any simulation starts, e.g., used as *warmed-up river states*, though it is mostly used for continuous simulation.
+By default, mizuRoute initializes channel states as *empty* when no restart file is provided. To perform a continuous simulation—where a run is stopped and later resumed from its previous endpoint—a restart must be provided (see the table below).
+A restart file contains channel states from the time step immediately preceding the start of the resumed simulation.
+
+Restart netCDF files are not written by default. To enable restart output, the user must spefiy several control keys listed in the table beflow.
+Restart files are named using the convention ``<case_name>.r.<restart_datetime>.nc``, where ``<restart_datetime>`` represents the start datetime of the next simulation
+(NOT the datetime at which the restart file is written), formatted as ``yyyy-mm-dd-sssss``. The ``sssss`` field denotes seconds since midnight, e.g., 43200 second = 12:00:00.
+
+If a user examines the restart netCDf, it should be noticed that state variables in the restart netCDF correspond to the time step immediately preceding ``<restart_datetime>``
+For example, in hourly simulation, the file ``<case_name>.r.1981-01-01-00000.nc`` should contain the states at ``1980-12-31 23:00:00``.
+Restart netCDF may be used to initialize simulations at arbitary datetime, e.g., *warmed-up river states*, but are primarily intended for continuous simulations.
+
+The timing of restart file output is controlled by the control key ``<restart_write>`` (see the table below).
+For periodic restart output (``yearly``, ``monthly``, or ``daily``), the user may specify the month, day, and hour at which restart files are written.
+For example, with yearly output,  2 for ``<restart_mon>``, 4 for ``<restart_day>``, and 11 for ``<restart_hour>``, a restart file are written each year on February 4th at 11:00:00.
+For ``<restart_hour>`` to take effec, the simulation time step (``<dt_qsim>``) must evenly divided the specified ``<restart_hour>`` in second within a day.
 
 .. list-table:: Control keys on restart I/O
    :header-rows: 1
@@ -531,26 +543,30 @@ The restart netCDF can be used for any simulation starts, e.g., used as *warmed-
        * ``yearly`` → restart written every year
        * ``monthly`` → restart written every month
        * ``daily`` → restart written every day
+   * - ``<restart_dir>``
+     - char
+     - The same as <output_dir>
+     - Directory where restart netCDFs are output and also restar file to be read is located.
    * - ``<restart_date>``
      - char
      - None
-     - specified restart date, yyyy-mm-dd (hh:mm:ss) for ``Specified`` option
+     - restart datetime in yyyy-mm-dd (hh:mm:ss) format. Effective with ``Specified`` option
    * - ``<restart_month>``
      - int
      - 1
-     - month for periodic restart writing for ``yearly`` option
+     - month used for periodic restart output. Effective with ``yearly`` option
    * - ``<restart_day>``
      - int
      - 1
-     - day for periodic restart writing for ``yearly`` and ``monthly`` options
+     - day used for periodic restart output. Effective with ``yearly`` and ``monthly`` options
    * - ``<restart_hour>``
      - int
      - 0
-     - hour for periodic restart writing for for ``yearly``, ``monthly`` ``daily`` options
+     - hour used for periodic restart output. Effective with ``yearly``, ``monthly`` and ``daily`` options
    * - ``<fname_state_in>``
      - char
      - None
-     - restart netCDF name to be read
+     - Name of restart netCDF to be used for initialization. If not specified, simulation start with cold start.
 
 
 .. _WaterManagement_file:
