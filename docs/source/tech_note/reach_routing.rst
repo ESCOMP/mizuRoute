@@ -42,7 +42,7 @@ To get actual delayed lateral flow series to the river reach, unit-hydrograph co
 
 .. figure:: images/uh_convolution.png
  :width: 700
- :height: 400
+ :height: 500
 
  Illustration of discrete Unit hydrograph convolution.
 
@@ -142,14 +142,36 @@ The numerical implementations of Euler kinematic wave and Diffusive wave are ess
 Impulse response function
 --------------------------
 
+The impulse response function (IRF) is derived from 1-D diffusive wave equation (Eq. :eq:`0.5`). Eq. :eq:`0.5` can be solved using convolution integrals:
 
+.. math::
+   :label: 0.8
+
+   Q(x,t) = \int_{0}^t Q_{in}(t-s)h(x,s)ds
+
+where :math: `Q_in` is a pulse or here input runoff volume in the river, and :math:`h(x,s)` is the green function or *impulse response function*, and *x* is the distance from the source of pulse (here, lateral flow point) to the reach location of interest (here, HRU outlet).
+
+.. math::
+   :label: 0.9
+
+   h(x,t) = \frac{x}{2t \sqrt{\pi t D}} \exp(-\frac{(Ct-x)^2}{4Dt})
+
+where *C* (Eq. :eq:`0.6`) is a wave celerity [m/s] and *D* (Eq. :eq:`0.7`) is a diffusivity [m\ :sup:`2`\/s].
+
+This is the same concept as river routing described in Lohmann et al., (1996). Also, please see section 3.2.2 in Mizukami et al. 2016.
+
+Lohmann et al., (1996) and original mizuRoute (version 1) use the *source-to-sink* approach where unique IRFs are developed for a target outlet (sink) to its all upstream HRUs (sources), the IRFs are applied with lateral flows from the corresponding HRUs,
+then routed flow from all the source HRUs are summed up to the river discharge at the target HRU outlet. This process is repeated for all the HRUs.
+
+One modification made from Lohmann et al., 1996 and mizuRoute version 1 was to develop reach-specific IRF based on reach length, *C* and *D*, then apply it with inflow from the upstream reach to move water through indiviual river reaches from the upstream to downstream.
+This way is consistent with the other routing methods used in mizuRoute, and also reduces memory usage (source-to-sink approach requires storing IRFs of all the upstream HRUs for all the HRUs).
 
 .. _Lagrangian_kinematic_wave:
 
 Lagrangian kinmatic wave
 --------------------------
 
-
+Also, please see section 3.2.1 in Mizukami et al. 2016
 
 .. _Euler_kinematic_wave:
 
