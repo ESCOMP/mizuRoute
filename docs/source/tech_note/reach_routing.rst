@@ -149,7 +149,7 @@ The impulse response function (IRF) is derived from 1-D diffusive wave equation 
 
    Q(x,t) = \int_{0}^t Q_{in}(t-s)h(x,s)ds
 
-where :math: `Q_in` is a pulse or here input runoff volume in the river, and :math:`h(x,s)` is the green function or *impulse response function*, and *x* is the distance from the source of pulse (here, lateral flow point) to the reach location of interest (here, HRU outlet).
+where :math:`Q_{in}` is a pulse or here input runoff volume in the river reach (e.g., inflow from HRU, or/and upstream reach), and :math:`h(x,s)` is the green function or *impulse response function*, and *x* is the distance from the inflow point in the reach to the reach location where discharge desires to be computed (i.e., HRU outlet).
 
 .. math::
    :label: 0.9
@@ -158,13 +158,14 @@ where :math: `Q_in` is a pulse or here input runoff volume in the river, and :ma
 
 where *C* (Eq. :eq:`0.6`) is a wave celerity [m/s] and *D* (Eq. :eq:`0.7`) is a diffusivity [m\ :sup:`2`\/s].
 
-This is the same concept as river routing described in Lohmann et al., (1996). Also, please see section 3.2.2 in Mizukami et al. 2016.
+This is the same concept as river routing described in Lohmann et al., (1996). Also, please see section 3.2.2 in :ref:`Mizukami et al. 2016 <Mizukami2016>`.
 
-Lohmann et al., (1996) and original mizuRoute (version 1) use the *source-to-sink* approach where unique IRFs are developed for a target outlet (sink) to its all upstream HRUs (sources), the IRFs are applied with lateral flows from the corresponding HRUs,
-then routed flow from all the source HRUs are summed up to the river discharge at the target HRU outlet. This process is repeated for all the HRUs.
+Lohmann et al., (1996) and original mizuRoute (version 1) use the *source-to-sink* approach where unique IRFs are developed for each HRU outlet (sink) to its all upstream HRUs (sources), the IRFs are applied with lateral flows from the corresponding HRUs,
+then routed flow from all the source HRUs are summed up to the river discharge at the target HRU outlet. This process is repeated for all the HRUs and each time step.
 
-One modification made from Lohmann et al., 1996 and mizuRoute version 1 was to develop reach-specific IRF based on reach length, *C* and *D*, then apply it with inflow from the upstream reach to move water through indiviual river reaches from the upstream to downstream.
-This way is consistent with the other routing methods used in mizuRoute, and also reduces memory usage (source-to-sink approach requires storing IRFs of all the upstream HRUs for all the HRUs).
+One modification made from Lohmann et al., 1996 and mizuRoute version 1 was to develop reach-specific IRF based on reach length, *C* and *D*, then apply it with inflow from the immediate upstream reach(es) to move water from upstream end to the outlet.
+The computed river discharge at each river reach is used as inflow of the next downstream reach. Therefore, the IRF computation is performed from upstream HRUs to downstream in the order.
+This approach is consistent with the other routing methods used in mizuRoute, and also requires less memory usage of IRF ordinates than source-to-sink approach, which requires storing IRFs of all the upstream HRUs for all the HRUs.
 
 .. _Lagrangian_kinematic_wave:
 
