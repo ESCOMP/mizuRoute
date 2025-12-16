@@ -128,7 +128,7 @@ MODULE public_var
   character(len=strLen),public    :: vname_qsim           = 'runoff'        ! variable name for runoff
   character(len=strLen),public    :: vname_evapo          = 'evap'          ! variable name for actual evapoartion
   character(len=strLen),public    :: vname_precip         = 'precip'        ! variable name for precipitation
-  character(len=strLen),public    :: vname_solute         = charMissing     ! variable name for solute mass flux
+  character(len=strLen),public    :: vname_solute(10)     = charMissing     ! variable name(s) for solute mass flux(es) (maximum 10 tracers)
   character(len=strLen),public    :: vname_time           = 'time'          ! variable name for time
   character(len=strLen),public    :: vname_hruid          = 'hru'           ! variable name for runoff hru id
   character(len=strLen),public    :: dname_time           = 'time'          ! dimension name for time

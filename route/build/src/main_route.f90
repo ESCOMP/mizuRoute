@@ -30,7 +30,7 @@ CONTAINS
  SUBROUTINE main_route(basinRunoff_in, &  ! input: basin (i.e.,HRU) runoff (m/s)
                        basinEvapo_in,  &  ! input: basin (i.e.,HRU) evaporation (m/s)
                        basinPrecip_in, &  ! input: basin (i.e.,HRU) precipitation (m/s)
-                       basinSolute_in, &  ! input: basin (i.e.,HRU) constituent mass fluw (mg/s/m2)
+                       basinSolute_in, &  ! input: basin (i.e.,HRU) mass flux of constituent(s) (mg/s/m2)
                        reachflux_in,   &  ! input: reach (i.e.,reach) flux (m3/s)
                        reachvol_in,    &  ! input: reach (i.e.,reach) target volume for lakes (m3)
                        ixRchProcessed, &  ! input: indices of reach to be routed
@@ -52,7 +52,8 @@ CONTAINS
    USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
    USE globalData, ONLY: simDatetime             ! current model datetime
    USE globalData, ONLY: rch_routes              !
-   USE public_var, ONLY: doesBasinRoute
+   USE globalData, ONLY: nTracer                 ! number of active tracers
+   USE public_var, ONLY: doesBasinRoute          ! hillslope routing option
    USE public_var, ONLY: is_flux_wm              ! logical whether or not fluxes should be passed
    USE public_var, ONLY: is_vol_wm               ! logical whether or not target volume should be passed
    USE public_var, ONLY: qmodOption              ! options for streamflow modification (DA)
@@ -62,7 +63,7 @@ CONTAINS
    real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    real(dp),           allocatable, intent(in)    :: basinEvapo_in(:)     ! basin (i.e.,HRU) evaporation (m/s)
    real(dp),           allocatable, intent(in)    :: basinPrecip_in(:)    ! basin (i.e.,HRU) precipitation (m/s)
-   real(dp),           allocatable, intent(in)    :: basinSolute_in(:)    ! basin (i.e.,HRU) constituent (mg/s/m2)
+   real(dp),           allocatable, intent(in)    :: basinSolute_in(:,:)  ! basin (i.e.,HRU) constituent(s) (mg/s/m2)
    real(dp),           allocatable, intent(in)    :: reachflux_in(:)      ! reach (i.e.,reach) flux (m3/s)
    real(dp),           allocatable, intent(in)    :: reachvol_in(:)       ! reach (i.e.,reach) target volume for lakes (m3)
    integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
@@ -78,11 +79,12 @@ CONTAINS
    character(len=strLen)                          :: cmessage             ! error message of downwind routine
    real(dp)                                       :: qobs                 ! observed discharge at a time step and site
    real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m3/s)
-   real(dp),           allocatable                :: reachSolute_local(:) ! reach constituent (mg/s)
+   real(dp),           allocatable                :: reachSolute_local(:,:) ! reach constituent(s) (mg/s)
    real(dp),           allocatable                :: reachEvapo_local(:)  ! reach evaporation (m3/s)
    real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m3/s)
    integer(i4b)                                   :: nSeg                 ! number of reach to be processed
    integer(i4b)                                   :: iSeg                 ! index of reach
+   integer(i4b)                                   :: iTracer              ! index of tracers
    integer(i4b)                                   :: ix,jx                ! loop index
    integer(i4b), allocatable                      :: reach_ix(:)
    integer(i4b), parameter                        :: no_mod=0
@@ -149,16 +151,17 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    if(tracer) then
-     allocate(reachSolute_local(nSeg), source=0._dp, stat=ierr)
+     allocate(reachSolute_local(nSeg,nTracer), source=0._dp, stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachSolute_local]'; return; endif
-
-     call basin2reach_mass(basinSolute_in,     & ! input: basin total constitunet (mg/s/m2)
-                           NETOPO_in,          & ! input: reach topology
-                           RPARAM_in,          & ! input: reach parameter
-                           reachSolute_local,  & ! output:total constituent going to reach (mg/s)
-                           ierr, cmessage,     & ! output: error control
-                           ixRchProcessed)       ! optional input: indices of reach to be routed
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     do iTracer=1,nTracer
+       call basin2reach_mass(basinSolute_in(:,iTracer),     & ! input: basin total constitunet (mg/s/m2)
+                             NETOPO_in,          & ! input: reach topology
+                             RPARAM_in,          & ! input: reach parameter
+                             reachSolute_local(:,iTracer),  & ! output:total constituent going to reach (mg/s)
+                             ierr, cmessage,     & ! output: error control
+                             ixRchProcessed)       ! optional input: indices of reach to be routed
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     end do
    end if
 
   if (is_lake_sim) then
@@ -196,7 +199,9 @@ CONTAINS
        RCHFLX_out(ixRchProcessed(iSeg))%BASIN_QI = reachRunoff_local(iSeg)
        if (tracer) then
          if (RCHFLX_out(ixRchProcessed(iSeg))%BASIN_QI>0) then ! this may cause mass inbalance between input and output. so may need to feed flag to land surface model
-           RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute_inst = reachSolute_local(iSeg)
+           do iTracer=1,nTracer
+             RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute_inst(iTracer) = reachSolute_local(iSeg,iTracer)
+           end do
          else
            RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute_inst = 0._dp
          endif
@@ -218,7 +223,9 @@ CONTAINS
      if (tracer) then
        do iSeg = 1,nSeg
          if (RCHFLX_out(ixRchProcessed(iSeg))%BASIN_QR(1)>0) then
-           RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute = reachSolute_local(iSeg)     ! total constituent going to reach (mg/s)
+           do iTracer=1,nTracer
+             RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute(iTracer) = reachSolute_local(iSeg,iTracer)     ! total constituent going to reach (mg/s)
+           end do
          else
            RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute = 0._dp
          endif
