@@ -4,17 +4,21 @@
 Overall workflow
 ======================
 
-Overall computation workflow is shown in :numref:`Figure_overall_comp_workflow`.
+Overall computation workflow is shown in :numref:`Figure_overall_comp_workflow`. Starting with runoff depth from netCDF or coupler (e.g. CTSM coupling),
 
-#. Compute HRU (Hydrologic Response Unit, or simply catchment) mean runoff [m/s], :math:`R_{lat}`, if runoff is given at hydrologic model HRU.
+#. Remap runoff depth [m/s] to river network HRU (Hydrologic Response Unit or simply catchment), :math:`R_{lat}`, if runoff is given at hydrologic model HRU
 
 #. Convert :math:`R_{lat}` from depth unit to volume (:math:`R_{lat}` times HRU area) to get lateral runoff volume (:math:`q_{lat}`) [m3/s]
 
-#. Perform overland routing to delay lateral runoff volume.
+#. Perform hillslope routing to delay lateral runoff volume, if travel time of runoff is not counted outside mizuRoute.
 
-#. Route delayed lateral discharge at each river reach through river network.
+#. Route inflow from upstream and add delayed lateral discharge to routed inflow at each river reach outlet.
 
-The overland routing is optional, and currently simple unit hydrograph based on gamma distribution is used to delay instantaneous runoff.
+The hillslope routing method currently uses a simple unit hydrograph based on gamma distribution (only one method available) to delay instantaneous runoff.
+See :ref:`Hillslope routing scheme <Hillslope_routing_scheme>`).
+
+The river reach routing needs to be performed in the order of upstream-to-downstream to complete the routing in the entire network.
+This routing order is internally computed in mizuRoute based on network topology information, ``downSegId`` (immediate downstream reach ID)
 
 .. _Figure_overall_comp_workflow:
 
