@@ -12,7 +12,7 @@ MODULE RtmMod
                           ice_runoff, do_rof, do_flood, &
                           river_depth_minimum, &
                           nsrContinue, nsrBranch, nsrStartup, nsrest, &
-                          cfile_name, coupling_period, delt_coupling, nsub, &
+                          cfile_name, coupling_period, nsub, &
                           caseid, brnch_retain_casename, inst_name, &
                           barrier_timers
   USE RunoffMod,    ONLY: rtmCTL, RunoffInit         ! rof related data objects
@@ -121,18 +121,16 @@ CONTAINS
     !-------------------------------------------------------
     ! 1. Get ROF subcycling
     !-------------------------------------------------------
-    delt_coupling = coupling_period*secprday   ! day -> sec
-
-    if (abs(mod(delt_coupling, dt)-0._r8)>0._r8) then
+    if (abs(mod(coupling_period, dt)-0._r8)>0._r8) then
       if (masterproc) then
-        write(iulog,'(2a,g20.12,a)') trim(subname),' mizuRoute coupling period ', delt_coupling, '[sec]'
+        write(iulog,'(2a,g20.12,a)') trim(subname),' mizuRoute coupling period ', coupling_period, '[sec]'
         write(iulog,'(2a,g20.12,a)') trim(subname),' mizuRoute simulation step <dt_qstim> ', dt, '[sec]'
-        write(iulog, '(2A)') trim(subname),'WARNING: multiple of <dt_qsim> [sec] better to be delt_coupling [sec]'
+        write(iulog, '(2A)') trim(subname),'WARNING: multiple of <dt_qsim> [sec] better to be coupling_period [sec]'
       end if
     end if
 
-    nsub = delt_coupling/dt
-    if (nsub*dt < delt_coupling) then
+    nsub = coupling_period/dt
+    if (nsub*dt < coupling_period) then
       nsub = nsub + 1
     end if
 
@@ -442,19 +440,19 @@ CONTAINS
     rtmCTL%qirrig_actual = -1._r8* rtmCTL%qirrig  ! actual water take [mm/s] - positive (take) or negative (inject)
     do nr = rtmCTL%begr,rtmCTL%endr
       ! calculate depth of irrigation [mm] during timestep
-      irrig_depth = rtmCTL%qirrig_actual(nr)* delt_coupling
+      irrig_depth = rtmCTL%qirrig_actual(nr)* coupling_period
       river_depth = rtmCTL%volr(nr)* 1000._r8 ! m to mm
 
       ! compare irrig_depth [mm] to previous channel storage [mm];
       ! add overage to subsurface runoff
       ! later check negative qsub is handle the same as qgwl
       if(irrig_depth > river_depth) then
-        rtmCTL%qsub(nr,1) = rtmCTL%qsub(nr,1) + (river_depth-irrig_depth)/delt_coupling
+        rtmCTL%qsub(nr,1) = rtmCTL%qsub(nr,1) + (river_depth-irrig_depth)/coupling_period
         irrig_depth = river_depth
 
         ! actual irrigation rate [mm/s]
         ! i.e. the rate actually removed from the river channel
-        rtmCTL%qirrig_actual(nr) = irrig_depth/delt_coupling
+        rtmCTL%qirrig_actual(nr) = irrig_depth/coupling_period
       endif
     end do
 
@@ -485,7 +483,7 @@ CONTAINS
             ! send qgwl directly to ocean
 
             ! --- calculate depth of qgwl flux [mm] during timestep
-            qgwl_depth = rtmCTL%qgwl(nr,1)* delt_coupling
+            qgwl_depth = rtmCTL%qgwl(nr,1)* coupling_period
             river_depth = rtmCTL%volr(nr)* 1000._r8 ! convert m to mm
 
             if ((qgwl_depth + river_depth < river_depth_minimum) &
@@ -740,7 +738,7 @@ CONTAINS
           rtmCTL%volr(ix) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_VOL(1)*NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)
         end if
         if (update_q) then
-          if (NETOPO_in(ix)%DREACHI==-1 .and. NETOPO_in(ix)%DREACHK<=0) then ! if reach is the outlet
+          if (NETOPO_in(iRch)%DREACHI==-1 .and. NETOPO_in(iRch)%DREACHK<=0) then ! if reach is the outlet
             rtmCTL%discharge(ix,1) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)/0.001_r8
           end if
         end if
