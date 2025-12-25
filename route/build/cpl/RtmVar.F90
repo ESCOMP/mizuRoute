@@ -51,9 +51,8 @@ MODULE RtmVar
   logical,           public            :: do_flood       = .false.                  !
   character(len=CL), public            :: nrevsn_rtm     = ' '                      ! restart data file name for branch run
   real(r8),          public            :: river_depth_minimum = 1.e-1               ! minimum river depth for water take [mm]
-  real(r8),          public            :: delt_coupling                             ! coupling period [sec]
   integer,           public            :: nsub                                      ! number of subcyling for rof simulation per coupling
-  integer,           public            :: coupling_period                           ! coupling period [day]
+  real(r8),          public            :: coupling_period                           ! coupling period [sec]
   integer,           public            :: rtmhist_ndens  = 1                        ! namelist: output density of netcdf history files
   integer,           public            :: rtmhist_mfilt  = 30                       ! namelist: number of time samples per tape
   integer,           public            :: rtmhist_nhtfrq = 0                        ! namelist: history write freq(0=monthly)
