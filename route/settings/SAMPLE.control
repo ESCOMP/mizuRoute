@@ -19,19 +19,18 @@
 <sim_end>                 yyyy-mm-dd hh:mm:ss        ! time of simulation end. hh:mm:ss can be omitted
 !-- routing control
 <route_opt>               5                          ! options for routing schemes (multiple options allowed - e.g, 12345-no spaces/commas between routing ids): 1->IRF 2->KWT 3->KW 4->MC 5->DW
-<doesBasinRoute>          1                          ! basin routing options: 0-> no, 1->IRF, otherwise error
+<doesBasinRoute>          1                          ! basin routing options (default: 1) : 0-> no, 1->IRF, otherwise error
 <dt_qsim>                 86400                      ! simulation time interval [sec] e.g., 86400 sec for daily step
-<hw_drain_point>          2                          ! how to add lateral runoff to headwater reaches. 1->top of reach, 2->bottom of reach 
-
+<hw_drain_point>          2                          ! how to add lateral runoff to headwater reaches (default 2) . 1->top of reach, 2->bottom of reach 
 !-- restart controls
-<restart_write>           last                       ! restart write options: never, daily, monthly, yearly, last, specified
+<restart_write>           last                       ! restart write options (default: never) : never, daily, monthly, yearly, last, specified
 <restart_date>            yyyy-mm-dd hh:mm:ss        ! restart date.  activated only if <restart_write> is "specified"
 <fname_state_in>          INPUT_RESTART_NC           ! input restart netCDF name. remove or 'coldstart' for run without any particular restart file
 !-- lake and water management (wm) mode
-<is_lake_sim>             T                          ! switch on (T) or off (F) lake simulation
-<is_flux_wm>              T                          ! switch on (T) or off (F) abstraction from or injection to seg/lakes
-<is_vol_wm>               T                          ! switch on (T) or off (F) target volume (threshold lake volume where water release is trigerred)
-<is_vol_wm_jumpstart>     T                          ! switch on (T) or off (F) for start for lakes with target volume
+<is_lake_sim>             F                          ! switch on (T) or off (F) lake simulation
+<is_flux_wm>              F                          ! switch on (T) or off (F) abstraction from or injection to seg/lakes
+<is_vol_wm>               F                          ! switch on (T) or off (F) target volume (threshold lake volume where water release is trigerred)
+<is_vol_wm_jumpstart>     F                          ! switch on (T) or off (F) for start for lakes with target volume
 ! ****************************************************************************************************************************
 ! DEFINE DIRECTORIES 
 ! --------------------------
@@ -42,8 +41,8 @@
 ! DEFINE FINE NAME AND DIMENSIONS
 ! ---------------------------------------
 <fname_ntopOld>           NTOPO_NC                   ! netCDF name for River Network
-<dname_sseg>              DIMNAME_SEG                ! dimension name of the stream segments
-<dname_nhru>              DIMNAME_HRU                ! dimension name of the HRUs
+<dname_sseg>              DIMNAME_SEG                ! dimension name of the stream segments. default name: seg
+<dname_nhru>              DIMNAME_HRU                ! dimension name of the HRUs. default name: hru
 ! ****************************************************************************************************************************
 ! DEFINE RUNOFF FILE
 ! ----------------------------------
