@@ -63,7 +63,6 @@ CONTAINS
  character(len=256)      :: delimiter             ! delimiter actually used
  integer(i4b)            :: p1,p2                 !
  integer(i4b)            :: iword                 ! loop through words
- integer(i4b),parameter  :: maxWords=100          ! maximum number of words in a line
  integer(i4b)            :: i1                    ! index at the start of a given word
  character(len=256)      :: cword                 ! the current word
  integer(i4b)            :: nWords                ! number of words in the character string
@@ -86,8 +85,10 @@ CONTAINS
 
  temp=inline  ! initialize string of characters
  i1=1         ! initialize the index at the start of the first word
+ iword=0
  ! ***** loop through the character string
- do iword=1,maxWords
+ do
+  iword=iword+1
   temp = temp(i1:); if(len_trim(temp)==0) exit
   ! skip leading delimiters
   p1 = verify(temp, trim(delimiter)) ! find first index of character not maching delimiter
@@ -111,8 +112,6 @@ CONTAINS
    allocate(current%next); current%next=node(cword,iword,null())
    current=>current%next
   endif
-  ! check that the line has fewer words than maxWords
-  if (iword==maxWords)then; print*, "WARNING: split_line exceeding 100 words"; endif
  end do
  ! ***** allocate space for the list of words
  nWords = current%ix
