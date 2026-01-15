@@ -44,6 +44,7 @@ CONTAINS
   USE public_var,           ONLY: verySmall           ! very small values
   USE public_var,           ONLY: realMissing         ! real missing value
   USE globalData,           ONLY: iTime               ! simulation time step index
+  USE globalData,           ONLY: nTracer             ! number of active tracers
   USE globalData,           ONLY: runoff_data         ! data structure to hru runoff data
   USE globalData,           ONLY: wm_data             ! data strcuture for water management
   USE globalData,           ONLY: remap_data          ! data structure to remap data
@@ -61,6 +62,7 @@ CONTAINS
   integer(i4b), intent(out)     :: ierr               ! error code
   character(*), intent(out)     :: message            ! error message
   ! local variables
+  integer(i4b)                  :: iTracer            ! tracer loop index
   type(map_time)                :: tmap_sim_ro        ! time-steps mapping data
   type(map_time)                :: tmap_sim_wm        ! time-steps mapping data
   logical(lgt)                  :: remove_negatives   ! flag to replace the negative values to zeros
@@ -107,29 +109,31 @@ CONTAINS
     if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
   end if
 
-  ! Optional: reading constituent
+  ! Optional: reading constituents
   if (tracer) then
-    call read_forcing_data(inFileInfo_ro,         & ! input: meta for runoff input files
-                           vname_solute,          & ! input: solute mass flux varname
-                           tmap_sim_ro,           & ! input: ro-sim time mapping at current simulation step
-                           runoff_data,           & ! inout: constituent conentration data structure
-                           ierr, cmessage)          ! output: error control
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    do iTracer = 1,nTracer
+      call read_forcing_data(inFileInfo_ro,         & ! input: meta for runoff input files
+                             vname_solute(iTracer), & ! input: solute mass flux varname
+                             tmap_sim_ro,           & ! input: ro-sim time mapping at current simulation step
+                             runoff_data,           & ! inout: constituent conentration data structure
+                             ierr, cmessage)          ! output: error control
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! Get river network HRU constituent into runoff_data data structure
-    if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
-      call remap_runoff(runoff_data, remap_data, runoff_data%basinSolute, ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    else ! runoff is already remapped to river network HRUs
-      remove_negatives = .true.
-      call sort_flux (runoff_data%hru_id,         &
-                      runoff_data%hru_ix,         &
-                      runoff_data%sim,            &
-                      remove_negatives,           &
-                      runoff_data%basinSolute,    &
-                      ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    end if
+      ! Get river network HRU constituent into runoff_data data structure
+      if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
+        call remap_runoff(runoff_data, remap_data, runoff_data%basinSolute(:,iTracer), ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      else ! runoff is already remapped to river network HRUs
+        remove_negatives = .true.
+        call sort_flux (runoff_data%hru_id,         &
+                        runoff_data%hru_ix,         &
+                        runoff_data%sim,            &
+                        remove_negatives,           &
+                        runoff_data%basinSolute(:,iTracer), &
+                        ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
+    end do ! end of iTracer loop
   end if
 
   ! Optional: lake module on -> read actual evaporation and preciptation

@@ -107,6 +107,7 @@ CONTAINS
   USE globalData,          ONLY: vol_wm_trib              ! nRch target vol holder for mainstem
   USE globalData,          ONLY: nRch_trib                ! number of tributary reaches
   USE globalData,          ONLY: nHRU_trib                ! number of tributary HRUs
+  USE globalData,          ONLY: nTracer                  ! number of tracer
   USE globalData,          ONLY: hru_per_proc             ! number of hrus assigned to each proc (size = num of procs+1)
   USE globalData,          ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
   USE globalData,          ONLY: ixHRU_order              ! global HRU index in the order of proc assignment (size = total number of HRUs contributing to any reaches, nContribHRU)
@@ -574,10 +575,10 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       if (tracer) then
-        allocate(basinSolute_main(nHRU_mainstem), source=0.0_dp, stat=ierr, errmsg=cmessage)
+        allocate(basinSolute_main(nHRU_mainstem,nTracer), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-        allocate(basinSolute_trib(nHRU_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
+        allocate(basinSolute_trib(nHRU_trib,nTracer), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
@@ -629,7 +630,7 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       if (tracer) then
-        allocate(basinSolute_trib(nHRU_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
+        allocate(basinSolute_trib(nHRU_trib,nTracer), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
@@ -1394,6 +1395,7 @@ CONTAINS
 
   USE globalData, ONLY: nHRU              ! number of all HRUs
   USE globalData, ONLY: nHRU_mainstem     ! number of mainstem HRUs
+  USE globalData, ONLY: nTracer           ! number of tracers
   USE globalData, ONLY: runoff_data       ! runoff data structure
   USE globalData, ONLY: hru_per_proc      ! number of hrus assigned to each proc (i.e., node)
   USE globalData, ONLY: basinRunoff_main  ! HRU runoff holder for mainstem
@@ -1413,10 +1415,11 @@ CONTAINS
   integer(i4b),           intent(out)     :: ierr                      ! error code
   character(len=strLen),  intent(out)     :: message                   ! error message
   ! local variables
+  integer(i4b)                            :: iTracer                   ! tracer loop index
   real(dp)                                :: basinRunoff_local(nHRU)   ! temporal basin runoff (m/s) for whole domain
   real(dp)                                :: basinEvapo_local(nHRU)    ! temporal basin evaporation (m/s) for whole domain
   real(dp)                                :: basinPrecip_local(nHRU)   ! temporal basin precipitation (m/s) for whole domain
-  real(dp)                                :: basinSolute_local(nHRU)   ! temporal basin constituent (g) for whole domain
+  real(dp)                                :: basinSolute_local(nHRU,nTracer)  ! temporal basin constituent (mg) for whole domain
   character(len=strLen)                   :: cmessage                  ! error message from a subroutine
 
   ierr=0; message='scatter_runoff/'
@@ -1433,7 +1436,7 @@ CONTAINS
     end if
 
     if (tracer) then
-      basinSolute_local (1:nHRU) = runoff_data%basinSolute(1:nHRU)
+      basinSolute_local (1:nHRU,1:nTracer) = runoff_data%basinSolute(1:nHRU,1:nTracer)
     end if
 
     if (nHRU_mainstem>0) then
@@ -1459,11 +1462,10 @@ CONTAINS
 
       if (tracer) then
         if (.not. allocated(basinSolute_main)) then
-          allocate(basinSolute_main(nHRU_mainstem), stat=ierr)
-          if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinEvapo_main]'; return; endif
+          allocate(basinSolute_main(nHRU_mainstem,nTracer), source=0.0_dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
         endif
-        basinSolute_main (1:nHRU_mainstem) = basinSolute_local (1:nHRU_mainstem)
-
+        basinSolute_main (1:nHRU_mainstem, 1:nTracer) = basinSolute_local(1:nHRU_mainstem,1:nTracer)
       end if
     end if
 
@@ -1491,11 +1493,13 @@ CONTAINS
   end if
 
   if (tracer) then
-    call shr_mpi_scatterV(basinSolute_local(nHRU_mainstem+1:nHRU), &
-                          hru_per_proc(0:nNodes-1),                &
-                          basinSolute_trib,                        &
-                          ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    do iTracer=1,nTracer
+      call shr_mpi_scatterV(basinSolute_local(nHRU_mainstem+1:nHRU,iTracer), &
+                            hru_per_proc(0:nNodes-1),                        &
+                            basinSolute_trib(:,iTracer),                     &
+                            ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end do
   end if
 
  END SUBROUTINE scatter_runoff
