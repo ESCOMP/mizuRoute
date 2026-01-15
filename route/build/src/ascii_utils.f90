@@ -49,20 +49,20 @@ CONTAINS
 
 
  ! **********************************************************************************************
- ! public subroutine: split a line of characters into an vector of "words"
+ ! public function: split a line of characters into an vector of "words"
  ! **********************************************************************************************
- SUBROUTINE split_line(inline,words,err,message)
+ function split_line(inline, delim) result(words)
  ! do not know how many "words", so use linked lists
  implicit none
  ! declare dummy arguments
- character(*),intent(in)              :: inline     ! line of characters
- character(*),intent(out),allocatable :: words(:) ! vector of "words"
- integer(i4b),intent(out)             :: err      ! error code
- character(*),intent(out)             :: message  ! error message
+ character(*),intent(in)              :: inline   ! line of characters
+ character(*),optional,intent(in)     :: delim    ! one character delimiter (optional)
  ! declare local variables
+ character(len=256),allocatable :: words(:)             ! returned object: vector of "words"
  character(len=256)      :: temp                  ! temporary line of characters
+ character(len=256)      :: delimiter             ! delimiter actually used
+ integer(i4b)            :: p1,p2                 !
  integer(i4b)            :: iword                 ! loop through words
- integer(i4b),parameter  :: maxWords=100          ! maximum number of words in a line
  integer(i4b)            :: i1                    ! index at the start of a given word
  character(len=256)      :: cword                 ! the current word
  integer(i4b)            :: nWords                ! number of words in the character string
@@ -75,16 +75,35 @@ CONTAINS
  type(node),pointer      :: list=>null()
  type(node),pointer      :: current=>null()
  type(node),pointer      :: previous=>null()
+
  ! start procedure here
- err=0; message='split_line/'
+ if (present(delim)) then
+   delimiter=delim
+ else
+   delimiter=' '
+ endif
+
  temp=inline  ! initialize string of characters
  i1=1         ! initialize the index at the start of the first word
+ iword=0
  ! ***** loop through the character string
- do iword=1,maxWords
-  ! extract a given "word"
-  temp=adjustl(temp(i1:len_trim(temp))); if(len_trim(temp)==0) exit
-  read(temp,*) cword
-  i1  =len_trim(cword)+1
+ do
+  iword=iword+1
+  temp = temp(i1:); if(len_trim(temp)==0) exit
+  ! skip leading delimiters
+  p1 = verify(temp, trim(delimiter)) ! find first index of character not maching delimiter
+  if (p1 == 0) exit ! if all the delimiter character....
+
+  temp = temp(p1:)
+  p2 = scan(temp,trim(delimiter))
+  if (p2==0) then
+    cword=temp
+    i1=len_trim(inline)+1
+  else
+    cword=temp(:p2-1)
+    i1=p1+p2
+  endif
+
   ! add the variable to the linked list
   if(iword==1)then
    allocate(list); list=node(cword,iword,null())
@@ -93,13 +112,10 @@ CONTAINS
    allocate(current%next); current%next=node(cword,iword,null())
    current=>current%next
   endif
-  ! check that the line has fewer words than maxWords
-  if (iword==maxWords)then; err=20; message=trim(message)//"exceedMaxWords"; return; endif
  end do
  ! ***** allocate space for the list of words
  nWords = current%ix
- allocate(words(nWords),stat=err)
- if(err/=0)then; err=30; message=trim(message)//"problemAllocateWords"; return; endif
+ allocate(words(nWords))
  ! ***** save the list in a vector, and deallocate space as we go...
  current=>list
  do while(associated(current))
@@ -107,7 +123,7 @@ CONTAINS
   previous=>current; current=>current%next
   deallocate(previous)
  end do
- END SUBROUTINE split_line
+ end function split_line
 
 
  ! **********************************************************************************************
