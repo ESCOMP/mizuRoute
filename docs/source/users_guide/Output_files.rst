@@ -72,34 +72,3 @@ Augmented River Network Topology
 
 #. **River network augmentation mode:** All the computed river network topology and parameters are written in <fname_ntopNew> and the program stops.
 
-.. _Restart_file_output:
-
-Restart File
-------------
-
-mizuRoute does not write restart netCDF as default. The following control variables are used to control restart dropoff timing and use restart file for continuous run from the previous simulations.
-The restart file is written at previous time step to the specified time. In other words, if ``Specified`` is used for <restart_write> and ``1981-01-01-00000`` is specified in <restart_date>, mizuRoute writes restart file
-at ``1980-12-31 00:00:00`` for daily time step. The restart file name uses the time stamp at user specified timing. ``yearly``, ``monthly``, ``daily`` options also follow this convention.
-
-The restart file name convension:  <case_name>.r.yyyy-mm-dd-sssss.nc
-
-+---------------------+---------------------------------------------------------------------------------------------------------+
-| control variable    | Description                                                                                             |
-+=====================+=========================================================================================================+
-| <restart_write>     | restart ouput options. never (default), last, specified, yearly, monthly, daily.                        |
-+---------------------+---------------------------------------------------------------------------------------------------------+
-| <restart_dir>       | directory for restart files. defualt is <output_dir>                                                    |
-+---------------------+---------------------------------------------------------------------------------------------------------+
-| <restart_date>      | restart time in yyyy-mm-dd (hh:mm:ss). required if <restart_write> = "Specified"                        |
-+---------------------+---------------------------------------------------------------------------------------------------------+
-| <restart_month>     | periodic restart month (default 1). Effective if <restart_write>="yearly"                               |
-+---------------------+---------------------------------------------------------------------------------------------------------+
-| <restart_day>       | periodic restart day (default 1). Effective if <restart_write>="yearly" or "monthly"                    |
-+---------------------+---------------------------------------------------------------------------------------------------------+
-| <restart_hour>      | periodic restart hour (default 0). Effective if <restart_write>="yearly", "monthly", or "daily"         |
-+---------------------+---------------------------------------------------------------------------------------------------------+
-| <restart_dir>       | Directory where restart netCDFs are output. Default is the same as <output_dir>                         |
-+---------------------+---------------------------------------------------------------------------------------------------------+
-| <fname_state_in>    | input restart netCDF name. If not specified, simulation start with cold start                           |
-+---------------------+---------------------------------------------------------------------------------------------------------+
-
