@@ -35,7 +35,7 @@ module rof_comp_nuopc
   USE RtmVar                , ONLY : cfile_name
   use RtmVar                , only : inst_index, inst_suffix, inst_name, rofVarSet
   use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
-  use RtmVar                , only : coupling_period !day
+  use RtmVar                , only : coupling_period !sec
 
   use perf_mod              , only : t_startf, t_stopf, t_barrierf
   use rof_import_export     , only : advertise_fields, realize_fields
@@ -451,7 +451,7 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Get coupling interval in day
-    call ESMF_TimeIntervalGet( timeStep, d=coupling_period, rc=rc)
+    call ESMF_TimeIntervalGet( timeStep, s_r8=coupling_period, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! get ymd integer and string for start time, end time and reference time
