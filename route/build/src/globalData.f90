@@ -252,10 +252,12 @@ MODULE globalData
   real(dp),           allocatable, public :: basinEvapo_main(:)     ! HRU evaporation array (m/s) for mainstem
   real(dp),           allocatable, public :: basinPrecip_trib(:)    ! HRU precipitation array (m/s) for tributaries
   real(dp),           allocatable, public :: basinPrecip_main(:)    ! HRU precipitation array (m/s) for mainstem
- ! solute (tracer) data
+
+  ! solute (tracer) data
   integer(i4b)                            :: nTracer                ! number of tracers
   real(dp),           allocatable, public :: basinSolute_trib(:,:)  ! HRU constituent array [nhru, nTracer] (mg/s) for tributaries
   real(dp),           allocatable, public :: basinSolute_main(:,:)  ! HRU constituent array [nhru, nTracer] (mg/s) for mainstem
+
   ! seg water management fluxes and target volume
   type(wm),                        public :: wm_data                ! SEG flux and target vol data structure for one time step for river network
   real(dp),           allocatable, public :: flux_wm_trib(:)        ! SEG flux array (m3/s) for tributaries
