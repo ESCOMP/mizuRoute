@@ -264,7 +264,7 @@ CONTAINS
 
  Q(0,0) = rstate%molecule%Q(1) ! inflow at previous time step (t-1)
  Q(0,1) = rstate%molecule%Q(2) ! outflow at previous time step (t-1)
- Q(1,1) = realMissing
+ Q(1,1) = realMissing ! to be solved
 
  associate(S         => rch_param%R_SLOPE,    & ! channel slope
            n         => rch_param%R_MAN_N,    & ! manning n
@@ -277,7 +277,7 @@ CONTAINS
 
  if (.not. isHW .or. hw_drain_point==top_reach) then
 
-   if (rch_param%RLENGTH > min_length_route) then
+   if (L > min_length_route) then
 
      theta = dt/L    ! [s/m]
 
@@ -285,10 +285,10 @@ CONTAINS
      Q(1,0) = q_upstream
 
      if (verbose) then
-       write(iulog,'(A,1X,G12.5)') ' length [m]        =',rch_param%RLENGTH
-       write(iulog,'(A,1X,G12.5)') ' slope [-]         =',rch_param%R_SLOPE
-       write(iulog,'(A,1X,G12.5)') ' channel width [m] =',rch_param%R_WIDTH
-       write(iulog,'(A,1X,G12.5)') ' manning coef [-]  =',rch_param%R_MAN_N
+       write(iulog,'(A,1X,G12.5)') ' length [m]        =',L
+       write(iulog,'(A,1X,G12.5)') ' slope [-]         =',S
+       write(iulog,'(A,1X,G12.5)') ' channel width [m] =',bt
+       write(iulog,'(A,1X,G12.5)') ' manning coef [-]  =',n
        write(iulog,'(A)')          ' Initial 3 point discharge [m3/s]: '
        write(iulog,'(3(A,1X,G12.5))') ' Qin(t-1) Q(0,0)=',Q(0,0),' Qin(t) Q(1,0)=',Q(1,0),' Qout(t-1) Q(0,1)=',Q(0,1)
      end if
@@ -368,6 +368,15 @@ CONTAINS
        rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+ Qlat
      else ! if Qbar == 0
        Q(1,1) = 0._dp
+       rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+ Qlat
+       rflux%ROUTE(idxMC)%REACH_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) + (Q(1,0)-Q(1,1))*dt
+       ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
+       if (rflux%ROUTE(idxMC)%REACH_VOL(1) > bankVol) then
+         rflux%ROUTE(idxMC)%FLOOD_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) - bankVol  ! floodplain volume == overflow volume
+       else
+         rflux%ROUTE(idxMC)%FLOOD_VOL(1) = 0._dp
+       end if
+       rflux%ROUTE(idxMC)%REACH_ELE = water_height(rflux%ROUTE(idxMC)%REACH_VOL(1)/L, bt, zc, zf=zf, bankDepth=bankDepth)
      end if
    else ! length < min_length_route: length is short enough to just pass upstream to downstream
      Q(1,0) = q_upstream
