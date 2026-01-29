@@ -177,7 +177,7 @@ CONTAINS
    write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(segIndex)%REACH_Q=', RCHFLX_out(segIndex)%ROUTE(idxDW)%REACH_Q
  endif
 
- if (RCHFLX_out(segIndex)%ROUTE(idxDW)%REACH_VOL(1) < 0) then
+ if (RCHFLX_out(segIndex)%ROUTE(idxDW)%REACH_VOL(1) < -1.0e-50_dp) then
    write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(segIndex)%ROUTE(idxDW)%REACH_VOL(1), &
          'at ', NETOPO_in(segIndex)%REACHID
  end if
@@ -309,7 +309,7 @@ CONTAINS
 
    ! For very low flow condition, outflow - inflow may exceed current storage, so limit outflow and adjust flow profile
    if (abs(Qlocal(nMolecule%DW_ROUTE-1,1))>0._dp) then
-     pcntReduc = min((rflux%ROUTE(idxDW)%REACH_VOL(1)/dt + Qlocal(1,1) *0.999)/Qlocal(nMolecule%DW_ROUTE-1,1), 1._dp)
+     pcntReduc = min((max(0._dp, rflux%ROUTE(idxDW)%REACH_VOL(1)) + dt*Qupstream)*0.999_dp/(Qlocal(nMolecule%DW_ROUTE-1,1)*dt), 1._dp)
      Qlocal(2:nMolecule%DW_ROUTE,1) = Qlocal(2:nMolecule%DW_ROUTE,1)*pcntReduc
    end if
 
