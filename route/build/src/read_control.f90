@@ -172,6 +172,7 @@ CONTAINS
    case('<ro_calendar>');          ro_calendar  = trim(cData)                          ! name of calendar used in runoff input netcdfs
    case('<ro_time_units>');        ro_time_units = trim(cData)                         ! time units used in runoff input netcdfs
    case('<ro_time_stamp>');        ro_time_stamp = trim(cData)                         ! time stamp used input - start, middle, or end, otherwise error
+   case('<runoffMin>');            read(cData,*,iostat=io_error) runoffMin             ! minimum runoff volume [m3/s] from HRU.
    ! Water-management input netCDF - water abstraction/infjection or lake target volume
    case('<fname_wm>');             fname_wm        = trim(cData)                       ! name of text file containing ordered nc file names
    case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                       ! name of varibale for fluxes to and from seg (reachs/lakes)
