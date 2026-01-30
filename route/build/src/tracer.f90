@@ -180,10 +180,13 @@ CONTAINS
    ! mass flux mg/s = discharge m3/s * concentration mg/m3
    reach_mass = Cupstream*dt + rflux%ROUTE(idxRoute)%reach_solute_mass(0)
    reach_vol  = rflux%ROUTE(idxRoute)%REACH_INFLOW*dt + rflux%ROUTE(idxRoute)%REACH_VOL(0)
-   solute_per_vol = reach_mass/reach_vol
+   solute_per_vol=0._dp
+   if (reach_vol>0._dp) then
+     solute_per_vol = reach_mass/reach_vol
+   end if
 
    solute_out = (rflux%ROUTE(idxRoute)%REACH_Q-rflux%BASIN_QR(1))*solute_per_vol
-
+   ! limit maximum allowable mass flux out of the reach
    max_outMass=rflux%ROUTE(idxRoute)%reach_solute_mass(1)/dt + Cupstream
    if (solute_out>max_outMass) then
      solute_out = max_outMass
