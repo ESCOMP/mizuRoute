@@ -1143,7 +1143,8 @@ CONTAINS
                       nNodes,        & ! input: number of procs
                       comm,          & ! input: communicator
                       ierr, message, & ! output: error control
-                      scatter_ro)      ! optional input: logical. .true. => scatter global hru runoff to mainstem and tributary
+                      scatter_ro   , & ! optional input: logical. .true. => scatter global hru runoff to mainstem and tributary
+                      enforce_min_runoff) ! optional input: true->enforce min. runoff, false->allow any runoff (e.g., negative)
   ! shared data
   USE globalData, ONLY: NETOPO_trib         ! tributary river netowrk topology structure
   USE globalData, ONLY: NETOPO_main         ! mainstem river netowrk topology structure
@@ -1197,19 +1198,25 @@ CONTAINS
   integer(i4b),             intent(out) :: ierr
   character(len=strLen),    intent(out) :: message                  ! error message
   logical(lgt), optional,   intent(in)  :: scatter_ro               ! logical to indicate if scattering global runoff is required
+  logical(lgt), optional,   intent(in)  :: enforce_min_runoff       ! enforce minimum runoff or not. min runoff is defined in runoffMin in Public_var.f90
   ! local variables
   integer(i4b), allocatable             :: ixRchProcessed(:)        ! reach indice list to be processed
   integer(i4b)                          :: ix1,ix2                  !
   integer(i4b)                          :: ixRoute                  !
   logical(lgt)                          :: doesScatterData          ! temporal logical to indicate if scattering global flux is required
+  logical(lgt)                          :: enfrc_min_ro             ! local variable of enforce_min_runoff
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
 
   ierr=0; message='mpi_route/'
 
+  ! handling optional arguments
+  doesScatterData = .true.
   if (present(scatter_ro)) then
     doesScatterData = scatter_ro
-  else
-    doesScatterData = .true.
+  end if
+  enfrc_min_ro = .true.
+  if (present(enforce_min_runoff))then
+    enfrc_min_ro = enforce_min_runoff
   end if
 
   ! --------------------------------
@@ -1274,7 +1281,8 @@ CONTAINS
                   RCHFLX_trib(ix1:ix2),   &  ! inout: reach flux data structure
                   RCHSTA_trib(ix1:ix2),   &  ! inout: reach state data structure
                   gage_obs_data_trib, &  ! inout: gage obs data for tributary reaches
-                  ierr, cmessage)        ! output: error control
+                  ierr, cmessage,     &  ! output: error control
+                  enfrc_min_ro)          ! optional input: flag to enforce minimum basin runoff input to runoffMin [m3/s]
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call t_stopf ('route/tributary-route')
 
@@ -1350,7 +1358,8 @@ CONTAINS
                       RCHFLX_trib(1:nRch_mainstem+nTribOutlet),  &  ! inout: reach flux data structure
                       RCHSTA_trib(1:nRch_mainstem+nTribOutlet),  &  ! inout: reach state data structure
                       gage_obs_data_main,      &  ! inout: gage obs data for mainstem reaches
-                      ierr, cmessage)              ! output: error control
+                      ierr, cmessage,          &  ! output: error control
+                      enfrc_min_ro)               ! optional input: flag to enforce minimum basin runoff input to runoffMin [m3/s]
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       call t_stopf ('route/mainstem_route')

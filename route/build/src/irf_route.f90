@@ -180,15 +180,9 @@ CONTAINS
     write(*,'(a,1x,F15.7)')     ' RCHFLX_out%REACH_Q =', RCHFLX_out(segIndex)%ROUTE(idxIRF)%REACH_Q
   endif
 
-  if (RCHFLX_out(segIndex)%ROUTE(idxIRF)%REACH_VOL(1) < 0) then
+  if (RCHFLX_out(segIndex)%ROUTE(idxIRF)%REACH_VOL(1) < -1.0e-50_dp) then
     write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE VOLUME [m3]= ', RCHFLX_out(segIndex)%ROUTE(idxIRF)%REACH_VOL(1), &
           'at ', NETOPO_in(segIndex)%REACHID
-!    RCHFLX_out(segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = 0._dp
-  end if
-  if (RCHFLX_out(segIndex)%ROUTE(idxIRF)%REACH_Q < 0) then
-    write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE FLOW [m3/s] = ', RCHFLX_out(segIndex)%ROUTE(idxIRF)%REACH_Q, &
-           'at ', NETOPO_in(segIndex)%REACHID
-!    RCHFLX_out(segIndex)%ROUTE(idxIRF)%REACH_Q = 0._dp
   end if
 
   if (qmodOption==1) then
@@ -248,8 +242,7 @@ CONTAINS
 
  ! compute volume in reach
  ! For very low flow condition, outflow - inflow > current storage, so limit outflow and adjust rflux%QFUTURE_IRF(1)
-! rflux%QFUTURE_IRF(1) = min(0.999*(rflux%ROUTE(idxIRF)%REACH_VOL(1)/dt + q_upstream), rflux%QFUTURE_IRF(1))
- rflux%QFUTURE_IRF(1) = min(rflux%ROUTE(idxIRF)%REACH_VOL(0)/dt + q_upstream*0.999, rflux%QFUTURE_IRF(1))
+ rflux%QFUTURE_IRF(1) = min((max(0._dp, rflux%ROUTE(idxIRF)%REACH_VOL(1))/dt + q_upstream)*0.999, rflux%QFUTURE_IRF(1))
  rflux%ROUTE(idxIRF)%REACH_VOL(1) = rflux%ROUTE(idxIRF)%REACH_VOL(1) - (rflux%QFUTURE_IRF(1) - q_upstream)*dt
 
  ! Add local routed flow at the bottom of reach
