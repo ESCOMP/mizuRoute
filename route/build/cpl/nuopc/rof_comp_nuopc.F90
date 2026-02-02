@@ -29,11 +29,12 @@ module rof_comp_nuopc
   use globalData            , only : hfile_dayStamp              ! daily history file time stamp - "period-end" or "period-start:
   use globalData            , only : nRoutes                     ! number of active routing methods - for cesm-coupling, limit to one
   use init_model_data       , only : get_mpi_omp, init_model
-  use RunoffMod             , only : rtmCTL
+  use RunoffMod             , only : ctl
   use RtmMod                , only : route_ini, route_run
   use RtmTimeManager        , only : shr_timeStr
   USE RtmVar                , ONLY : cfile_name
-  use RtmVar                , only : inst_index, inst_suffix, inst_name, rofVarSet
+  USE RtmVar                , ONLY : brnch_retain_casename, nsrest, caseid, ctitle, model_version, hostname, username
+  use RtmVar                , only : inst_index, inst_suffix, inst_name
   use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
   use RtmVar                , only : coupling_period !sec
 
@@ -323,24 +324,15 @@ contains
     integer                     :: stop_tod              ! stop time of day (sec)
     integer                     :: curr_ymd              ! Start date (YYYYMMDD)
     integer                     :: curr_tod              ! Start time of day (sec)
-    logical                     :: flood_present         ! flag
-    logical                     :: rof_prognostic        ! flag
     integer                     :: shrlogunit            ! original log unit
     integer                     :: lsize                 ! local size ofarrays
     integer                     :: n,ni                  ! indices
     integer                     :: lbnum                 ! input to memory diagnostic
-    integer                     :: nsrest                ! restart type
     integer                     :: ierr                  ! error
     character(len=CL)           :: cmessage              ! error message
     character(len=CL)           :: simRef                ! date string defining the reference time
-    character(len=CL)           :: username              ! user name
-    character(len=CL)           :: caseid                ! case identifier name
-    character(len=CL)           :: ctitle                ! case description title
-    character(len=CL)           :: hostname              ! hostname of machine running on
-    character(len=CL)           :: model_version         ! model version
     character(len=CL)           :: starttype             ! start-type (startup, continue, branch, hybrid)
     character(len=CL)           :: stdname, shortname    ! needed for advertise
-    logical                     :: brnch_retain_casename ! flag if should retain the case name on a branch start type
     integer                     :: localPet,localPeCount ! mpi task and thread count variables
     character(len=CL)           :: cvalue
     character(ESMF_MAXSTR)      :: convCIM, purpComp
@@ -516,8 +508,6 @@ contains
     endif
 
     ! Initialize RtmVar module variables
-    ! TODO: the following strings must not be hard-wired - must have module variables
-    ! like seq_infodata_start_type_type - maybe another entry in seq_flds_mod?
     if (     trim(starttype) == trim('startup')) then
        nsrest = nsrStartup
     else if (trim(starttype) == trim('continue') ) then
@@ -529,15 +519,6 @@ contains
        call shr_sys_abort( subname//' ERROR: unknown starttype' )
     end if
 
-    call rofVarSet(&
-         caseid_in=caseid, &
-         ctitle_in=ctitle,   &
-         brnch_retain_casename_in=brnch_retain_casename, &
-         nsrest_in=nsrest, &
-         version_in=model_version,     &
-         hostname_in=hostname, &
-         username_in=username)
-
     !----------------------
     ! Initialize mizuRoute
     !----------------------
@@ -547,22 +528,22 @@ contains
     ! - Initialize number of tracers (ice and liquid) -- NOT ACTIVATED
     ! - Read/process river network input data (global)
     ! - Allocate basins to pes
-    ! - Count and distribute HRUs to rglo2gdc (determine rtmCTL%begr, rtmCTL%endr)
-    ! - Initialize runoff datatype (rtmCTL)
+    ! - Count and distribute HRUs to rglo2gdc (determine ctl%begr, ctl%endr)
+    ! - Initialize runoff datatype (ctl)
 
-    call route_ini(rof_active=rof_prognostic, flood_active=flood_present)
+    call route_ini()
 
     !--------------------------------
     ! generate the mesh and realize fields
     !--------------------------------
 
     ! determine global index array
-    lsize = rtmCTL%endr - rtmCTL%begr + 1
+    lsize = ctl%endr - ctl%begr + 1
     allocate(gindex(lsize))
     ni = 0
-    do n = rtmCTL%begr,rtmCTL%endr
+    do n = ctl%begr,ctl%endr
        ni = ni + 1
-       gindex(ni) = rtmCTL%gindex(n)
+       gindex(ni) = ctl%gindex(n)
     end do
 
     if ( .not. allocated(gindex) )then
@@ -822,7 +803,7 @@ contains
     call shr_cal_ymd2date(yr_sync, mon_sync, day_sync, ymd_sync)
     write(rdate,'(i4.4,"-",i2.2,"-",i2.2,"-",i5.5)') yr_sync, mon_sync, day_sync, tod_sync
 
-    ! Advance mizuRoute time step then run mizuRoute (MODIFIY THIS COMMENT FOR MIZUROUTE: export data is in rtmCTL and Trunoff data types)
+    ! Advance mizuRoute time step then run mizuRoute (MODIFIY THIS COMMENT FOR MIZUROUTE: export data is in ctl and Trunoff data types)
     call route_run(rstwr)
     !call advance_timestep()
 
@@ -830,7 +811,7 @@ contains
     ! Pack export state to mediator
     !--------------------------------
 
-    ! (MODIFIY THIS COMMENT FOR MIZUROUTE: input is rtmCTL%runoff, output is r2x)
+    ! (MODIFIY THIS COMMENT FOR MIZUROUTE: input is ctl%runoff, output is r2x)
     call t_startf ('lc_rof_export')
 
     call export_fields(gcomp, rc)
