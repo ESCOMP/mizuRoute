@@ -259,6 +259,7 @@ CONTAINS
  integer(i4b)                             :: ntSub        ! number of sub time-step
  character(len=strLen)                    :: cmessage     ! error message from subroutine
  real(dp), parameter                      :: Y = 0.5      ! muskingum parameter Y (this is fixed)
+ real(dp), parameter                      :: Qmin=1.e-50_dp  ! minimum Q to proceed M-C routing (otherwise Q out is set to zero)
 
  ierr=0; message='muskingum-cunge/'
 
@@ -296,7 +297,7 @@ CONTAINS
      ! first, using 3-point average in computational molecule, check Cournat number is less than 1, otherwise subcycle within one time step
      Qbar = (Q(0,0)+Q(1,0)+Q(0,1))/3.0  ! average discharge [m3/s]
 
-     if (Qbar>0._dp) then
+     if (Qbar>Qmin) then
        depth = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
        ck   = celerity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
        Cn   = ck*theta                    ! Courant number [-]
@@ -322,7 +323,7 @@ CONTAINS
        ! solve outflow at each sub time step
        do ix = 1, nTsub
          Qbar = (QinLocal(ix)+QinLocal(ix-1)+QoutLocal(ix-1))/3.0 ! 3 point average discharge [m3/s]
-         if (Qbar>0._dp) then
+         if (Qbar>Qmin) then
            depth    = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
            topWidth = Btop(depth, bt, zc, zf=zf, bankDepth=bankDepth) ! top width at water level [m] (rectangular channel)
            ck       = celerity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
