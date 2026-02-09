@@ -200,7 +200,6 @@ CONTAINS
   USE read_streamSeg,       ONLY: mod_meta_varFile         ! modify variable I/O options
   USE model_utils,          ONLY: model_finalize
   USE mpi_process,          ONLY: comm_ntopo_data          ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
-  USE mpi_utils,            ONLY: shr_mpi_initialized      ! If MPI is being used
   USE domain_decomposition, ONLY: mpi_domain_decomposition ! domain decomposition for mpi
   USE network_topo,         ONLY: lakeInlet                ! identify lake inlet reach
   USE network_topo,         ONLY: outletSegment            ! subroutine: find oultlet reach id, index  as a destination reach
@@ -277,7 +276,6 @@ CONTAINS
    end if
 
    call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
-                        nRch, nHRU,                                           & ! input: number of reach and HRUs that contribut to any reaches
                         structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
                         ierr, cmessage)                                         ! output: error controls
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

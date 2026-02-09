@@ -54,7 +54,6 @@ CONTAINS
    USE globalData,          ONLY: version             ! mizuRoute version
    USE globalData,          ONLY: gitBranch           ! git branch
    USE globalData,          ONLY: gitHash             ! git commit hash
-   USE mpi_process,         ONLY: pass_global_data    ! mpi globaldata copy to slave proc
    USE init_model_data,     ONLY: init_ntopo_data
    USE init_model_data,     ONLY: init_state_data
    USE init_model_data,     ONLY: init_qmod
@@ -100,10 +99,6 @@ CONTAINS
      call init_forc_data(ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
-
-   ! broadcast public and some global variables
-   call pass_global_data(comm, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! restart initialization
    call init_state_data(pid, nNodes, comm, ierr, cmessage)
