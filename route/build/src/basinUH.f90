@@ -125,13 +125,15 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if(tracer) then
-    ! perform river network UH routing
-    call irf_conv(FRAC_FUTURE_local,                       &  ! input: unit hydrograph
-                  RCHFLX_out(iSeg)%BASIN_solute_inst, &  ! input: upstream fluxes
-                  RCHFLX_out(iSeg)%solute_future,     &  ! inout: updated solute future time series
-                  RCHFLX_out(iSeg)%BASIN_solute,      &  ! inout: updated fluxes at reach
-                 ierr, message)                               ! output: error control
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    do iTracer=1,nTracer
+      ! perform river network UH routing
+      call irf_conv(FRAC_FUTURE_local,                       &  ! input: unit hydrograph
+                    RCHFLX_out(iSeg)%BASIN_solute_inst(iTracer), &  ! input: upstream fluxes
+                    RCHFLX_out(iSeg)%solute_future,     &  ! inout: updated solute future time series
+                    RCHFLX_out(iSeg)%BASIN_solute(iTracer),      &  ! inout: updated fluxes at reach
+                   ierr, message)                               ! output: error control
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end do
   end if
 
  END SUBROUTINE hru_irf
