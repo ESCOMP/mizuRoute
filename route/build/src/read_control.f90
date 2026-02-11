@@ -364,8 +364,9 @@ CONTAINS
    case('<varname_pfafCode>'     ); meta_PFAF   (ixPFAF%code           )%varName =trim(cData)  ! pfafstetter code
 
    ! CESM coupling variables (not used for stand-alone)
-   case('<qgwl_runoff_option>'   ); qgwl_runoff_option    = trim(cData)  ! handling negative qgwl runoff: all, negative, threshold
-   case('<bypass_routing_option>'); bypass_routing_option = trim(cData)  ! routing bypass option: direct_in_place, direct_to_outlet, none
+   case('<qgwl_runoff_option>'   ); qgwl_runoff_option    = trim(cData)                        ! handling negative qgwl runoff: all, negative, threshold
+   case('<bypass_routing_option>'); bypass_routing_option = trim(cData)                        ! routing bypass option: direct_in_place, direct_to_outlet, none
+   case('<correct_area>');          read(cData,*,iostat=io_error) correct_area                 ! logical for area correction between model and coupler areas.
 
    ! if not in list then keep going
    case default

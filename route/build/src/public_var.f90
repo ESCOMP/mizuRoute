@@ -205,5 +205,6 @@ MODULE public_var
   ! CESM Coupling variables
   character(len=32)    ,public    :: bypass_routing_option = 'direct_in_place' ! bypass routing model method: direct_in_place or direct_to_outlet
   character(len=32)    ,public    :: qgwl_runoff_option    = 'threshold'       ! method for handling qgwl runoff: all, negative, or threshold
+  logical(lgt)         ,public    :: area_correct          = .false.           ! method for handling qgwl runoff: all, negative, or threshold
 
 END MODULE public_var

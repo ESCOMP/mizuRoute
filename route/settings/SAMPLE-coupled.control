@@ -94,6 +94,7 @@
 !       all: apply all qgwl runoff to bypass_routing, negative: apply only negative runoff, threshold: apply runoff below threshold
 <bypass_routing_option> direct_in_place            ! options: direct_in_place, or direct_to_outlet
 <qgwl_runoff_option>    threshold                  ! options: all, negative, or threshold
+<correct_area>          F                          ! logical: area correction between model and coupler areas
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************

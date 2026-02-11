@@ -20,6 +20,7 @@ module rof_comp_nuopc
 
   use public_var            , only : iulog, debug
   use public_var            , only : calendar, simStart, simEnd, time_units
+  use public_var            , only : correct_area
   use globalData            , only : masterproc
   use globalData            , only : iam        => pid
   use globalData            , only : npes       => nNodes
@@ -28,12 +29,13 @@ module rof_comp_nuopc
   use globalData            , only : runMode                     ! "ctsm-coupling" or "standalone" to differentiate some behaviours in mizuRoute
   use globalData            , only : hfile_dayStamp              ! daily history file time stamp - "period-end" or "period-start:
   use globalData            , only : nRoutes                     ! number of active routing methods - for cesm-coupling, limit to one
+  use globalData            , only : version
   use init_model_data       , only : get_mpi_omp, init_model
   use RunoffMod             , only : ctl
   use RtmMod                , only : route_ini, route_run
   use RtmTimeManager        , only : shr_timeStr
-  USE RtmVar                , ONLY : cfile_name
-  USE RtmVar                , ONLY : brnch_retain_casename, nsrest, caseid, ctitle, model_version, hostname, username
+  use RtmVar                , only : cfile_name
+  use RtmVar                , only : brnch_retain_casename, nsrest, caseid, ctitle, hostname, username
   use RtmVar                , only : inst_index, inst_suffix, inst_name
   use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
   use RtmVar                , only : coupling_period !sec
@@ -41,7 +43,7 @@ module rof_comp_nuopc
   use perf_mod              , only : t_startf, t_stopf, t_barrierf
   use rof_import_export     , only : advertise_fields, realize_fields
   use rof_import_export     , only : import_fields, export_fields
-  use rof_shr_methods       , only : chkerr, state_setscalar, state_getscalar, state_diagnose, alarmInit
+  use rof_shr_methods       , only : chkerr, state_setscalar, state_diagnose, alarmInit
   use rof_shr_methods       , only : set_component_logging, get_component_instance, log_clock_advance
 
 !$ use omp_lib              , only : omp_set_num_threads
@@ -405,7 +407,7 @@ contains
 
     call NUOPC_CompAttributeGet(gcomp, name='model_version', value=cvalue, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    read(cvalue,*) model_version
+    read(cvalue,*) version
 
     call NUOPC_CompAttributeGet(gcomp, name='hostname', value=cvalue, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -619,14 +621,14 @@ contains
     ! realize actively coupled fields
     !--------------------------------
 
-    call realize_fields(gcomp,  Emesh, flds_scalar_name, flds_scalar_num, rc)
+    call realize_fields(gcomp,  Emesh, flds_scalar_name, flds_scalar_num, correct_area=correct_area, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     !--------------------------------
     ! Create mizuRoute export state
     !--------------------------------
 
-    call export_fields(gcomp, rc)
+    call export_fields(gcomp, ctl%begr, ctl%endr, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Set global grid size scalars in export state
@@ -747,7 +749,7 @@ contains
 
     call t_startf ('lc_mizuRoute_import')
 
-    call import_fields(gcomp, rc)
+    call import_fields(gcomp, ctl%begr, ctl%endr, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     call t_stopf ('lc_mizuRoute_import')
@@ -814,7 +816,7 @@ contains
     ! (MODIFIY THIS COMMENT FOR MIZUROUTE: input is ctl%runoff, output is r2x)
     call t_startf ('lc_rof_export')
 
-    call export_fields(gcomp, rc)
+    call export_fields(gcomp, ctl%begr, ctl%endr, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     call t_stopf ('lc_rof_export')

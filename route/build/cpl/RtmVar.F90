@@ -5,7 +5,6 @@ MODULE RtmVar
   USE shr_kind_mod , ONLY: r8 => shr_kind_r8, CL => SHR_KIND_CL
   USE shr_sys_mod  , ONLY: shr_sys_abort, shr_sys_flush
   USE globalData   , ONLY: masterproc
-  USE globalData   , ONLY: version
   USE public_var   , ONLY: iulog, integerMissing
 
   implicit none

@@ -112,7 +112,7 @@ contains
   end subroutine advertise_fields
 
   !===============================================================================
-  subroutine realize_fields(gcomp, Emesh, flds_scalar_name, flds_scalar_num, rc)
+  subroutine realize_fields(gcomp, Emesh, flds_scalar_name, flds_scalar_num, correct_area, rc)
 
     use ESMF          , only : ESMF_GridComp, ESMF_StateGet
     use ESMF          , only : ESMF_Mesh, ESMF_MeshGet
@@ -125,6 +125,7 @@ contains
     type(ESMF_Mesh)     , intent(in)    :: Emesh
     character(len=*)    , intent(in)    :: flds_scalar_name
     integer             , intent(in)    :: flds_scalar_num
+    logical             , intent(in)    :: correlct_area
     integer             , intent(out)   :: rc
 
     ! local variables
@@ -135,7 +136,7 @@ contains
     integer               :: n,g
     real(r8), allocatable :: mesh_areas(:)
     real(r8), allocatable :: model_areas(:)
-    real(r8), pointer     :: dataptr(:)
+    real(r8), pointer     :: dataptr(:)=>null()
     real(r8)              :: re = shr_const_rearth*0.001_r8 ! radius of earth (km)
     real(r8)              :: max_mod2med_areacor
     real(r8)              :: max_med2mod_areacor
@@ -173,52 +174,56 @@ contains
          mesh=Emesh, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    ! Determine areas for regridding
     call ESMF_MeshGet(Emesh, numOwnedElements=numOwnedElements, rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
-    call ESMF_StateGet(exportState, itemName=trim(fldsFrRof(2)%stdname), field=lfield, rc=rc)
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    call ESMF_FieldRegridGetArea(lfield, rc=rc)
-    if (chkerr(rc,__LINE__,u_FILE_u)) return
-    call ESMF_FieldGet(lfield, farrayPtr=dataptr, rc=rc)
-    if (chkerr(rc,__LINE__,u_FILE_u)) return
-    allocate(mesh_areas(numOwnedElements))
-    mesh_areas(:) = dataptr(:)
+    allocate(mod2med_areacor(numOwnedElements), source=1._dp)
+    allocate(med2mod_areacor(numOwnedElements), source=1._dp)
 
-    ! Determine model areas
-    allocate(model_areas(numOwnedElements))
-    allocate(mod2med_areacor(numOwnedElements))
-    allocate(med2mod_areacor(numOwnedElements))
-    n = 0
-    do g = ctl%begr,ctl%endr
-       n = n + 1
-       model_areas(n) = ctl%area(g)*1.0e-6_r8/(re*re)
-       mod2med_areacor(n) = model_areas(n) / mesh_areas(n)
-       med2mod_areacor(n) = mesh_areas(n) / model_areas(n)
-    end do
-    deallocate(model_areas)
-    deallocate(mesh_areas)
+    ! Get area correction factor between model area and coupler area if necessary
+    if (correct_area) then
+      ! Determine areas for regridding
+      call ESMF_StateGet(exportState, itemName=trim(fldsFrRof(2)%stdname), field=lfield, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      call ESMF_FieldRegridGetArea(lfield, rc=rc)
+      if (chkerr(rc,__LINE__,u_FILE_u)) return
+      call ESMF_FieldGet(lfield, farrayPtr=dataptr, rc=rc)
+      if (chkerr(rc,__LINE__,u_FILE_u)) return
+      allocate(mesh_areas(numOwnedElements))
+      mesh_areas(:) = dataptr(:)
 
-    min_mod2med_areacor = minval(mod2med_areacor)
-    max_mod2med_areacor = maxval(mod2med_areacor)
-    min_med2mod_areacor = minval(med2mod_areacor)
-    max_med2mod_areacor = maxval(med2mod_areacor)
-    call shr_mpi_max(max_mod2med_areacor, max_mod2med_areacor_glob, mpicom_route)
-    call shr_mpi_min(min_mod2med_areacor, min_mod2med_areacor_glob, mpicom_route)
-    call shr_mpi_max(max_med2mod_areacor, max_med2mod_areacor_glob, mpicom_route)
-    call shr_mpi_min(min_med2mod_areacor, min_med2mod_areacor_glob, mpicom_route)
+      ! Determine model areas
+      allocate(model_areas(numOwnedElements))
+      n = 0
+      do g = ctl%begr,ctl%endr
+         n = n + 1
+         model_areas(n) = ctl%area(g)*1.0e-6_r8/(re*re)
+         mod2med_areacor(n) = model_areas(n) / mesh_areas(n)
+         med2mod_areacor(n) = mesh_areas(n) / model_areas(n)
+      end do
 
-    if (masterproc) then
-       write(iulog,'(2A,2g23.15,A )') trim(subname),' :  min_mod2med_areacor, max_mod2med_areacor ',&
-            min_mod2med_areacor_glob, max_mod2med_areacor_glob, 'mizuRoute'
-       write(iulog,'(2A,2g23.15,A )') trim(subname),' :  min_med2mod_areacor, max_med2mod_areacor ',&
-            min_med2mod_areacor_glob, max_med2mod_areacor_glob, 'mizuRoute'
+      min_mod2med_areacor = minval(mod2med_areacor)
+      max_mod2med_areacor = maxval(mod2med_areacor)
+      min_med2mod_areacor = minval(med2mod_areacor)
+      max_med2mod_areacor = maxval(med2mod_areacor)
+      call shr_mpi_max(max_mod2med_areacor, max_mod2med_areacor_glob, mpicom_route)
+      call shr_mpi_min(min_mod2med_areacor, min_mod2med_areacor_glob, mpicom_route)
+      call shr_mpi_max(max_med2mod_areacor, max_med2mod_areacor_glob, mpicom_route)
+      call shr_mpi_min(min_med2mod_areacor, min_med2mod_areacor_glob, mpicom_route)
+
+      if (masterproc) then
+         write(iulog,'(2A,2g23.15,A )') trim(subname),' :  min_mod2med_areacor, max_mod2med_areacor ',&
+              min_mod2med_areacor_glob, max_mod2med_areacor_glob, 'mizuRoute'
+         write(iulog,'(2A,2g23.15,A )') trim(subname),' :  min_med2mod_areacor, max_med2mod_areacor ',&
+              min_med2mod_areacor_glob, max_med2mod_areacor_glob, 'mizuRoute'
+      end if
+
+      nullify(dataptr)
     end if
 
   end subroutine realize_fields
 
   !===============================================================================
-  subroutine import_fields( gcomp, rc )
+  subroutine import_fields( gcomp, begr, endr, rc)
 
     !---------------------------------------------------------------------------
     ! Obtain the runoff input from the mediator and convert from kg/m2s to m3/s
@@ -226,12 +231,12 @@ contains
 
     ! input/output variables
     type(ESMF_GridComp)  :: gcomp
+    integer, intent(in)  :: begr
+    integer, intent(in)  :: endr
     integer, intent(out) :: rc
-
     ! Local variables
     type(ESMF_State) :: importState
     integer          :: n,nt
-    integer          :: begr, endr
     integer          :: nliq, nice
     character(len=*), parameter :: subname='(rof_import_export:import_fields)'
     !---------------------------------------------------------------------------
@@ -256,11 +261,7 @@ contains
        call shr_sys_abort()
     endif
 
-    begr = ctl%begr
-    endr = ctl%endr
-
     ! NOTE: Unit of runoff from  state_getimport is kg/m2s (mm/s)
-
     call state_getimport(importState, 'Flrl_rofsur', begr, endr, output=ctl%qsur(:,nliq), &
          do_area_correction=.true., rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -287,7 +288,7 @@ contains
   end subroutine import_fields
 
   !====================================================================================
-  subroutine export_fields (gcomp, rc)
+  subroutine export_fields (gcomp, begr, endr,  rc)
 
     !---------------------------------------------------------------------------
     ! Send the runoff model export state to the mediator and convert from m3/s to kg/m2s
@@ -298,12 +299,13 @@ contains
 
     ! input/output/variables
     type(ESMF_GridComp)  :: gcomp
+    integer, intent(in)  :: begr
+    integer, intent(in)  :: endr
     integer, intent(out) :: rc
 
     ! Local variables
     type(ESMF_State)  :: exportState
     integer           :: n,nt
-    integer           :: begr,endr
     integer           :: nliq, nice
     real(r8)          :: rofl(begr:endr)
     real(r8)          :: rofi(begr:endr)
@@ -345,9 +347,6 @@ contains
        endif
        first_time = .false.
     end if
-
-    begr = ctl%begr
-    endr = ctl%endr
 
     if ( ice_runoff )then
        ! separate liquid and ice runoff
@@ -579,7 +578,6 @@ contains
     ! ----------------------------------------------
     ! Map input array to export state field
     ! ----------------------------------------------
-    use ESMF          , only : ESMF_Field
     ! input/output variables
     type(ESMF_State)    , intent(inout) :: state
     character(len=*)    , intent(in)    :: fldname
@@ -590,7 +588,6 @@ contains
     integer             , intent(out)   :: rc
 
     ! local variables
-    type(ESMF_Field)            :: lfield
     integer                     :: g, i
     real(R8), pointer           :: fldptr(:)
     type(ESMF_StateItem_Flag)   :: itemFlag
