@@ -17,6 +17,7 @@ USE public_var,    ONLY: is_flux_wm      ! logical water management components f
 USE public_var,    ONLY: qmodOption      ! qmod option (use 1==direct insertion)
 USE public_var,    ONLY: hw_drain_point  ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
 USE public_var,    ONLY: min_length_route! minimum reach length for routing to be performed.
+USE public_var,    ONLY: negVolTol       ! negative channel water volume tolerance [m3]
 USE globalData,    ONLY: idxKW           ! routing method index for kinematic wave
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
 USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
@@ -176,7 +177,7 @@ CONTAINS
    write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(segIndex)%REACH_Q=', RCHFLX_out(segIndex)%ROUTE(idxKW)%REACH_Q
  endif
 
- if (RCHFLX_out(segIndex)%ROUTE(idxKW)%REACH_VOL(1) < -1.0e-50_dp) then
+ if (RCHFLX_out(segIndex)%ROUTE(idxKW)%REACH_VOL(1) < negVolTol) then
    write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(segIndex)%ROUTE(idxKW)%REACH_VOL(1), &
          'at ', NETOPO_in(segIndex)%REACHID
  end if
