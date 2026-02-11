@@ -267,29 +267,29 @@ CONTAINS
  Q(0,1) = rstate%molecule%Q(2) ! outflow at previous time step (t-1)
  Q(1,1) = realMissing ! to be solved
 
- associate(S         => rch_param%R_SLOPE,    & ! channel slope
-           n         => rch_param%R_MAN_N,    & ! manning n
-           bt        => rch_param%R_WIDTH,    & ! channel bottom width
-           bankDepth => rch_param%R_DEPTH,    & ! bankfull depth
-           zc        => rch_param%SIDE_SLOPE, & ! channel side slope
-           zf        => rch_param%FLDP_SLOPE, & ! floodplain slope
-           bankVol   => rch_param%R_STORAGE,  & ! bankful volume
-           L         => rch_param%RLENGTH)      ! channel length
+ associate(r_slope   => rch_param%R_SLOPE,    & ! channel slope
+           r_man_n   => rch_param%R_MAN_N,    & ! manning n
+           r_width   => rch_param%R_WIDTH,    & ! channel bottom width
+           r_depth   => rch_param%R_DEPTH,    & ! bankfull depth
+           side_slope=> rch_param%SIDE_SLOPE, & ! channel side slope
+           fldp_slope=> rch_param%FLDP_SLOPE, & ! floodplain slope
+           r_storage => rch_param%R_STORAGE,  & ! bankful volume
+           rlength   => rch_param%RLENGTH)      ! channel length
 
  if (.not. isHW .or. hw_drain_point==top_reach) then
 
-   if (L > min_length_route) then
+   if (rlength > min_length_route) then
 
-     theta = dt/L    ! [s/m]
+     theta = dt/rlength    ! [s/m]
 
      ! compute total flow rate and flow area at upstream end at current time step
      Q(1,0) = q_upstream
 
      if (verbose) then
-       write(iulog,'(A,1X,G12.5)') ' length [m]        =',L
-       write(iulog,'(A,1X,G12.5)') ' slope [-]         =',S
-       write(iulog,'(A,1X,G12.5)') ' channel width [m] =',bt
-       write(iulog,'(A,1X,G12.5)') ' manning coef [-]  =',n
+       write(iulog,'(A,1X,G12.5)') ' length [m]        =',rlength
+       write(iulog,'(A,1X,G12.5)') ' slope [-]         =',r_slope
+       write(iulog,'(A,1X,G12.5)') ' channel width [m] =',r_width
+       write(iulog,'(A,1X,G12.5)') ' manning coef [-]  =',r_man_n
        write(iulog,'(A)')          ' Initial 3 point discharge [m3/s]: '
        write(iulog,'(3(A,1X,G12.5))') ' Qin(t-1) Q(0,0)=',Q(0,0),' Qin(t) Q(1,0)=',Q(1,0),' Qout(t-1) Q(0,1)=',Q(0,1)
      end if
@@ -298,15 +298,15 @@ CONTAINS
      Qbar = (Q(0,0)+Q(1,0)+Q(0,1))/3.0  ! average discharge [m3/s]
 
      if (Qbar>Qmin) then
-       depth = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
-       ck   = celerity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
+       depth = flow_depth(abs(Qbar), r_width, side_slope, r_slope, r_man_n, zf=fldp_slope, bankDepth=r_depth) ! compute flow depth as normal depth (a function of flow)
+       ck   = celerity(abs(Qbar), depth, r_width, side_slope, r_slope, r_man_n, zf=fldp_slope, bankDepth=r_depth)
        Cn   = ck*theta                    ! Courant number [-]
 
        ! time-step adjustment so Courant number is less than 1
        ntSub = 1
        dTsub = dt
        if (Cn>1.0_dp) then
-         ntSub = ceiling(dt/L*ck)
+         ntSub = ceiling(dt/rlength*ck)
          dTsub = dt/ntSub
        end if
        if (verbose) then
@@ -324,12 +324,12 @@ CONTAINS
        do ix = 1, nTsub
          Qbar = (QinLocal(ix)+QinLocal(ix-1)+QoutLocal(ix-1))/3.0 ! 3 point average discharge [m3/s]
          if (Qbar>Qmin) then
-           depth    = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
-           topWidth = Btop(depth, bt, zc, zf=zf, bankDepth=bankDepth) ! top width at water level [m] (rectangular channel)
-           ck       = celerity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
+           depth    = flow_depth(abs(Qbar), r_width, side_slope, r_slope, r_man_n, zf=fldp_slope, bankDepth=r_depth) ! compute flow depth as normal depth (a function of flow)
+           topWidth = Btop(depth, r_width, side_slope, zf=fldp_slope, bankDepth=r_depth) ! top width at water level [m] (rectangular channel)
+           ck       = celerity(abs(Qbar), depth, r_width, side_slope, r_slope, r_man_n, zf=fldp_slope, bankDepth=r_depth)
 
-           X = 0.5*(1.0 - Qbar/(topWidth*S*ck*L))         ! X factor for descreterized kinematic wave equation
-           Cn = ck*dTsub/L                                         ! Courant number [-]
+           X = 0.5*(1.0 - Qbar/(topWidth*r_slope*ck*rlength))         ! X factor for descreterized kinematic wave equation
+           Cn = ck*dTsub/rlength                                        ! Courant number [-]
 
            C0 = (-X+Cn*(1-Y))/(1-X+Cn*(1-Y))
            C1 = (X+Cn*Y)/(1-X+Cn*(1-Y))
@@ -356,14 +356,14 @@ CONTAINS
        rflux%ROUTE(idxMC)%REACH_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) + (Q(1,0)-Q(1,1))*dt
 
        ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
-       if (rflux%ROUTE(idxMC)%REACH_VOL(1) > bankVol) then
-         rflux%ROUTE(idxMC)%FLOOD_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) - bankVol  ! floodplain volume == overflow volume
+       if (rflux%ROUTE(idxMC)%REACH_VOL(1) > r_storage) then
+         rflux%ROUTE(idxMC)%FLOOD_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) - r_storage  ! floodplain volume == overflow volume
        else
          rflux%ROUTE(idxMC)%FLOOD_VOL(1) = 0._dp
        end if
 
        ! compute surface water height [m]
-       rflux%ROUTE(idxMC)%REACH_ELE = water_height(rflux%ROUTE(idxMC)%REACH_VOL(1)/L, bt, zc, zf=zf, bankDepth=bankDepth)
+       rflux%ROUTE(idxMC)%REACH_ELE = water_height(rflux%ROUTE(idxMC)%REACH_VOL(1)/rlength, r_width, side_slope, zf=fldp_slope, bankDepth=r_depth)
 
        ! add catchment flow
        rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+ Qlat
@@ -372,12 +372,12 @@ CONTAINS
        rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+ Qlat
        rflux%ROUTE(idxMC)%REACH_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) + (Q(1,0)-Q(1,1))*dt
        ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
-       if (rflux%ROUTE(idxMC)%REACH_VOL(1) > bankVol) then
-         rflux%ROUTE(idxMC)%FLOOD_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) - bankVol  ! floodplain volume == overflow volume
+       if (rflux%ROUTE(idxMC)%REACH_VOL(1) > r_storage) then
+         rflux%ROUTE(idxMC)%FLOOD_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) - r_storage  ! floodplain volume == overflow volume
        else
          rflux%ROUTE(idxMC)%FLOOD_VOL(1) = 0._dp
        end if
-       rflux%ROUTE(idxMC)%REACH_ELE = water_height(rflux%ROUTE(idxMC)%REACH_VOL(1)/L, bt, zc, zf=zf, bankDepth=bankDepth)
+       rflux%ROUTE(idxMC)%REACH_ELE = water_height(rflux%ROUTE(idxMC)%REACH_VOL(1)/rlength, r_width, side_slope, zf=fldp_slope, bankDepth=r_depth)
      end if
    else ! length < min_length_route: length is short enough to just pass upstream to downstream
      Q(1,0) = q_upstream
