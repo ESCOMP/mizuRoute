@@ -17,6 +17,7 @@ USE public_var,    ONLY: is_flux_wm      ! logical water management components f
 USE public_var,    ONLY: qmodOption      ! qmod option (use 1==direct insertion)
 USE public_var,    ONLY: hw_drain_point  ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
 USE public_var,    ONLY: min_length_route! minimum reach length for routing to be performed.
+USE public_var,    ONLY: negVolTol       ! negative channel water volume tolerance [m3]
 USE globalData,    ONLY: idxDW           ! routing method index for diffusive wave
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
 USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
@@ -177,7 +178,7 @@ CONTAINS
    write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(segIndex)%REACH_Q=', RCHFLX_out(segIndex)%ROUTE(idxDW)%REACH_Q
  endif
 
- if (RCHFLX_out(segIndex)%ROUTE(idxDW)%REACH_VOL(1) < 0) then
+ if (RCHFLX_out(segIndex)%ROUTE(idxDW)%REACH_VOL(1) < negVolTol) then
    write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(segIndex)%ROUTE(idxDW)%REACH_VOL(1), &
          'at ', NETOPO_in(segIndex)%REACHID
  end if
@@ -309,7 +310,7 @@ CONTAINS
 
    ! For very low flow condition, outflow - inflow may exceed current storage, so limit outflow and adjust flow profile
    if (abs(Qlocal(nMolecule%DW_ROUTE-1,1))>0._dp) then
-     pcntReduc = min((rflux%ROUTE(idxDW)%REACH_VOL(1)/dt + Qlocal(1,1) *0.999)/Qlocal(nMolecule%DW_ROUTE-1,1), 1._dp)
+     pcntReduc = min((max(0._dp, rflux%ROUTE(idxDW)%REACH_VOL(1)) + dt*Qupstream)*0.999_dp/(Qlocal(nMolecule%DW_ROUTE-1,1)*dt), 1._dp)
      Qlocal(2:nMolecule%DW_ROUTE,1) = Qlocal(2:nMolecule%DW_ROUTE,1)*pcntReduc
    end if
 

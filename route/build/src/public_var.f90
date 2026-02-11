@@ -28,9 +28,9 @@ MODULE public_var
   real(dp),    parameter,public   :: maxTimeDiff=1/secprday ! time difference tolerance for input checks
   real(dp),    parameter,public   :: verySmall=tiny(1.0_dp) ! a very small number
   real(dp),    parameter,public   :: min_slope=1.e-6_dp     ! minimum slope
-  real(dp),    parameter,public   :: runoffMin=1.e-15_dp    ! minimum runoff from each basin
   real(dp),    parameter,public   :: negRunoffTol=-1.e-3_dp ! nagative runoff tolerance
   real(dp),    parameter,public   :: lakeWBtol=1.e-3_dp     ! lake water balance tolerance
+  real(dp),    parameter,public   :: negVolTol=-1.0e-50_dp  ! negative channel volume tolerance
 
   ! routing related constants
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
@@ -142,10 +142,11 @@ MODULE public_var
   character(len=strLen),public    :: ro_time_units        = charMissing     ! time units used in ro netcdf. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
   character(len=strLen),public    :: ro_calendar          = charMissing     ! calendar used in ro netcdf
   character(len=strLen),public    :: ro_time_stamp        = 'start'         ! time stamp used in runoff input - start (default), middle, or end, otherwise error
+  real(dp)             ,public    :: runoffMin            = 0._dp           ! minimum runoff volume [m3/s] from HRU. used to be 1.e-15_dp
   ! Water-management input netCDF - water abstraction/infjection or lake target volume
   character(len=strLen),public    :: fname_wm             = charMissing     ! the txt file name that includes nc files holesing the abstraction, injection, target volume values
-  character(len=strLen),public    :: vname_flux_wm        = ''              ! variable name for abstraction or injection from or to a river segment
-  character(len=strLen),public    :: vname_vol_wm         = ''              ! variable name for target volume when lake is_lake_sim is on
+  character(len=strLen),public    :: vname_flux_wm        = charMissing     ! variable name for abstraction or injection from or to a river segment
+  character(len=strLen),public    :: vname_vol_wm         = charMissing     ! variable name for target volume when lake is_lake_sim is on
   character(len=strLen),public    :: vname_time_wm        = 'time'          ! variable name for time
   character(len=strLen),public    :: vname_segid_wm       = 'seg'           ! variable name for runoff hru id
   character(len=strLen),public    :: dname_time_wm        = 'time'          ! dimension name for time
