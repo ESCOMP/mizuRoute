@@ -38,7 +38,6 @@ USE mpi_utils, ONLY: shr_mpi_bcast
 USE mpi_utils, ONLY: shr_mpi_gatherV
 USE mpi_utils, ONLY: shr_mpi_scatterV
 USE mpi_utils, ONLY: shr_mpi_allgather
-USE mpi_utils, ONLY: shr_mpi_barrier
 USE mpi_utils, ONLY: shr_mpi_abort
 
 implicit none
@@ -119,7 +118,6 @@ CONTAINS
   USE globalData,          ONLY: runMode                  ! mizuRoute run mode - standalone or ctsm-coupling
   USE globalData,          ONLY: reachID
   USE globalData,          ONLY: basinID
-  USE globalData,          ONLY: commRch                  !
   USE public_var,          ONLY: tracer                   ! logical whether or not tracer is on
   USE public_var,          ONLY: is_flux_wm               ! logical whether or not water abstraction/injection occurs
   USE public_var,          ONLY: is_lake_sim              ! logical whether or not lake simulation occurs
@@ -162,16 +160,6 @@ CONTAINS
   integer(i4b),      allocatable              :: array_int_temp_local(:)  ! integer temporal array
   integer(i4b)                                :: ixNode(nRch_in)          ! node assignment for each reach
   integer(i4b)                                :: ixDomain(nRch_in)        ! domain index for each reach
-  !
-  integer(i4b)                                :: ixDestSeg                !
-  integer(i4b)                                :: ixLocalSeg               !
-  integer(i4b)                                :: nComm                    !
-  integer(i4b),     allocatable               :: destSegId(:)             !
-  integer(i4b),     allocatable               :: destSegIndex(:)          !
-  integer(i4b),     allocatable               :: srcTask(:)               !
-  integer(i4b),     allocatable               :: destTask(:)              !
-  integer(i4b),     allocatable               :: srcIndex(:)              !
-  integer(i4b),     allocatable               :: destIndex(:)             !
   !
   logical(lgt),      allocatable              :: tribOutlet(:)            ! logical to indicate tributary outlet to mainstems over entire network
   integer(i4b)                                :: nRch_trib_outlet         ! number of tributary outlets for each proc (scalar)
@@ -265,61 +253,6 @@ CONTAINS
     reachID(1:nRch_in) = reachID( ixRch_order )
     basinID(1:nHRU_in) = basinID( ixHRU_order )
 
-    ! Find destination reach index (in local domain) and task-id
-    if (trim(runMode)=='cesm-coupling' .and. &
-        trim(bypass_routing_option)=='direct_to_outlet') then
-
-      allocate(srcTask(nRch_in),destTask(nRch_in), srcIndex(nRch_in), destIndex(nRch_in))
-      allocate(destSegIndex(nRch_in), destSegId(nRch_in))
-
-      srcTask(:)   = integerMissing
-      destTask(:)  = integerMissing
-      srcIndex(:)  = integerMissing
-      destIndex(:) = integerMissing
-
-      do iSeg=1,nRch_in
-        jSeg = ixRch_order(iSeg)
-        destSegId(iSeg) = structNTOPO(jSeg)%var(ixNTOPO%destSegId)%dat(1)
-      end do
-      ! matching index in reachID
-      destSegIndex = match_index(reachID, destSegId, ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      nComm = 0
-      do iSeg = 1,nRch_in
-        ! process only if source and destination reaches are different
-        if (destSegId(iSeg)/=integerMissing .and. reachID(iSeg) /= destSegId(iseg)) then
-          nComm = nComm + 1
-          if (ixNode(iSeg)>0) then ! if this segment is in any non-main tasks
-            ixLocalSeg = iSeg - sum(rch_per_proc(-1:ixNode(iSeg)-1))
-          else
-            ixLocalSeg = iSeg
-          end if
-          if (ixNode(destSegIndex(iSeg))>0) then
-            ixDestSeg = destSegIndex(iSeg)-sum(rch_per_proc(-1:ixNode(destSegIndex(iSeg))-1))
-          else
-            ixDestSeg = destSegIndex(iSeg)
-          end if
-
-          if (ixNode(iSeg)==-1) then
-            srcTask(nComm) = 0
-          else
-            srcTask(nComm) = ixNode(iSeg)
-          end if
-
-          if (ixNode(destSegIndex(iSeg))==-1) then
-            destTask(nComm) = 0
-          else
-            destTask(nComm) = ixNode(destSegIndex(iSeg))
-          end if
-
-          srcIndex(nComm) = ixLocalSeg
-          destIndex(nComm) = ixDestSeg
-        end if
-      end do
-      deallocate(destSegIndex, destSegId)
-    end if
-
     if (debug_mpi) then
       write(iulog,'(a)') 'ix, segId, ixRch_order, domain-index, proc-id'
       do ix = 1,nRch_in
@@ -347,26 +280,9 @@ CONTAINS
   if (trim(runMode)=='cesm-coupling' .and. &
       trim(bypass_routing_option)=='direct_to_outlet') then
 
-    call shr_mpi_bcast(nComm, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call shr_mpi_bcast(srcTask, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call shr_mpi_bcast(destTask, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call shr_mpi_bcast(srcIndex, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call shr_mpi_bcast(destIndex, ierr, cmessage)
+    call sparse_dist_data(pid, nNodes, nRch_in, reachID, structNTOPO, ixNode, ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    allocate(commRch(nComm))
-    do ix = 1, nComm
-      commRch(ix)%srcTask   = srcTask(ix)
-      commRch(ix)%destTask  = destTask(ix)
-      commRch(ix)%srcIndex  = srcIndex(ix)
-      commRch(ix)%destIndex = destIndex(ix)
-    end do
-    call shr_mpi_barrier(comm, cmessage)
-    deallocate(srcTask, destTask, srcIndex, destIndex)
   end if
 
   ! define the number of reaches/hrus on the mainstem
@@ -2978,5 +2894,92 @@ CONTAINS
   call MPI_ALLREDUCE(MPI_IN_PLACE, maxtdh, 1, MPI_INTEGER, MPI_MAX, comm, ierr)
 
  END SUBROUTINE pass_global_data
+
+
+ SUBROUTINE sparse_dist_data(pid, nNodes, nRch_in, reachID_in, structNTOPO, ixNode, ierr, message)   !
+   USE globalData, ONLY: commRch           !
+   USE globalData, ONLY: nRch_mainstem     ! number of mainstem reaches
+   USE globalData, ONLY: nRch_trib         ! number of tributary reaches
+   USE globalData, ONLY: ixRch_order       ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
+   USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
+   implicit none
+   ! argument variables
+   integer(i4b),                   intent(in)  :: pid                      ! proessor id
+   integer(i4b),                   intent(in)  :: nNodes                   ! number of tasks
+   integer(i4b),                   intent(in)  :: nRch_in                  ! number of total reaches
+   integer(i4b),                   intent(in)  :: reachID_in(:)            ! reach ID array
+   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)           ! network topology
+   integer(i4b),                   intent(in)  :: ixNode(:)                ! task assingment for reach
+   integer(i4b),                   intent(out) :: ierr
+   character(len=strLen),          intent(out) :: message                  ! error message
+   integer(i4b)                                :: iSeg,jSeg                ! reach indices
+   integer(i4b)                                :: destSegId(nRch_in)       !
+   integer(i4b)                                :: destSegIndex(nRch_in)    !
+   integer(i4b)                                :: destTask(nRch_in)        !
+   integer(i4b)                                :: destIndex(nRch_in)       !
+   integer(i4b), allocatable                   :: destTask_local(:)        !
+   integer(i4b), allocatable                   :: destIndex_local(:)       !
+   character(len=strLen)                       :: cmessage                 ! error message from subroutine
+
+   ierr=0; message='sparse_dist_data/'
+
+   ! data for the entire network, which is scatter to the other tasks
+   destTask(:)=integerMissing
+   destIndex(:)=integerMissing
+
+   if (masterproc) then ! this is a root process
+     do iSeg=1,nRch_in
+       jSeg = ixRch_order(iSeg)
+       destSegId(iSeg) = structNTOPO(jSeg)%var(ixNTOPO%destSegId)%dat(1)
+     end do
+     ! matching index in reachID
+     destSegIndex = match_index(reachID_in, destSegId, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     do iSeg = 1,nRch_in
+       ! process only if destination reaches exist
+       if (destSegId(iSeg)/=integerMissing) then
+         ! index of reach for destination (index is based on local array in each task)
+         if (ixNode(destSegIndex(iSeg))>0) then ! if this segment is located in non-main task
+           destIndex(iSeg) = destSegIndex(iSeg)-sum(rch_per_proc(-1:ixNode(destSegIndex(iSeg))-1))
+         else
+           destIndex(iSeg) = destSegIndex(iSeg)
+         end if
+         !  destination task for a reach
+         if (ixNode(destSegIndex(iSeg))==-1) then
+           destTask(iSeg) = 0
+         else
+           destTask(iSeg) = ixNode(destSegIndex(iSeg))
+         end if
+       end if
+     end do
+   end if ! end of masterproc
+
+   allocate(destIndex_local(nRch_trib))
+   allocate(destTask_local(nRch_trib))
+
+   call shr_mpi_scatterV(destIndex, rch_per_proc(root:nNodes-1), destIndex_local, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   call shr_mpi_scatterV(destTask, rch_per_proc(root:nNodes-1), destTask_local, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   if (masterproc) then ! main task includes mainstems and tributarires
+     allocate(commRch(nRch_mainstem+nRch_trib))
+     if (nRch_mainstem > 0) then ! mainstem
+       commRch(1:nRch_mainstem)%destTask= destTask(1:nRch_mainstem)
+       commRch(1:nRch_mainstem)%destIndex= destIndex(1:nRch_mainstem)
+     end if
+     if (nRch_trib > 0) then ! tributary
+       commRch(nRch_mainstem+1:nRch_trib)%destTask  = destTask_local(1:nRch_trib)
+       commRch(nRch_mainstem+1:nRch_trib)%destIndex = destIndex_local(1:nRch_trib)
+     end if
+   else ! other tasks include only tributary
+     allocate(commRch(nRch_trib))
+     commRch(1:nRch_trib)%destTask  = destTask_local
+     commRch(1:nRch_trib)%destIndex = destIndex_local
+   end if
+
+ END SUBROUTINE sparse_dist_data
 
 END MODULE mpi_process
