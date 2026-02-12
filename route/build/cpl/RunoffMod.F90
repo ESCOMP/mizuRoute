@@ -54,7 +54,7 @@ CONTAINS
              ctl%qsub(begr:endr,nt_rof),       &
              ctl%qgwl(begr:endr,nt_rof),       &
              ctl%qirrig(begr:endr),            &
-             ctl%qirrig_actual(begr:endr),              &
+             ctl%qirrig_actual(begr:endr),     &
              ctl%discharge(begr:endr,nt_rof),  &
              ctl%direct(begr:endr,nt_rof),     &
              ctl%volr(begr:endr),              &
@@ -75,6 +75,7 @@ CONTAINS
     ctl%qsub(:,:)       = 0._r8
     ctl%qgwl(:,:)       = 0._r8
     ctl%discharge(:,:)  = 0._r8
+    ctl%direct(:,:)     = 0._r8
     ctl%volr(:)         = 0._r8
     ctl%flood(:)        = 0._r8
 
