@@ -29,6 +29,7 @@ MODULE RtmMod
   USE globalData,   ONLY: masterproc
   USE globalData,   ONLY: isColdStart                ! initial river state - cold start (T) or from restart file (F)
   USE mpi_utils,    ONLY: shr_mpi_barrier
+  USE mpi_utils,    ONLY: shr_mpi_sparse_distribute
 
   implicit none
   logical, parameter :: verbose=.false.
@@ -397,8 +398,6 @@ CONTAINS
     real(r8)                     :: irrig_depth            ! depth of irrigation demand during time step [mm]
     real(r8)                     :: river_depth            ! depth of river water during time step [mm]
     real(r8), allocatable        :: qSend(:)               ! array holding negative lateral flow to be sent to outlet
-    real(r8), allocatable        :: qvolSend(:)            ! array holding negative lateral flow to be sent to outlet
-    real(r8), allocatable        :: qvolRecv(:)            ! array holding negative lateral flow to be recieved
     logical                      :: finished               ! dummy arguments (not really used)
     character(len=CL)            :: cmessage               ! error message from subroutines
     integer                      :: ierr                   ! error code
@@ -455,7 +454,6 @@ CONTAINS
       case('direct_in_place')
         ctl%direct = 0._r8
         do nr = ctl%begr,ctl%endr
-
           ! --- Transfer qgwl [mm/s] to ocean
           if (trim(qgwl_runoff_option) == 'all') then ! send all qgwl flow to ocean
             ctl%direct(nr,1) = ctl%qgwl(nr,1)
@@ -480,63 +478,29 @@ CONTAINS
               ctl%qgwl(nr,1) = 0._r8
             end if
           end if
-
           ! --- Transfer qsub to ocean [mm/s]
           if(ctl%qsub(nr,1) < 0._r8) then
             ctl%direct(nr,1) = ctl%direct(nr,1)+ ctl%qsub(nr,1)
             ctl%qsub(nr,1) = 0._r8
           endif
-
         end do
       case('direct_to_outlet')
         allocate(qSend(ctl%lnumr))
         qSend(:) = 0._r8     ! total negative q [mm/s] to be sent to the outlet (converted to +)
         do nr = ctl%begr,ctl%endr
           if(ctl%qgwl(nr,1) < 0._r8) then
-            qSend(nr) = -1._r8* ctl%qgwl(nr,1) ! converted to +
+            qSend(nr) = ctl%qgwl(nr,1)
             ctl%qgwl(nr,1) = 0._r8
           end if
           if(ctl%qsub(nr,1) < 0._r8) then
-            qSend(nr) = qSend(nr) - ctl%qsub(nr,1) !ctl%qsub(nr,1) is -
+            qSend(nr) = qSend(nr) + ctl%qsub(nr,1)
             ctl%qsub(nr,1) = 0._r8
           end if
         end do
 
-        ! Transfer hru negative flow [mm/s] to volume [m3/s] at river segment
-        if (masterproc) then
-          allocate(qvolSend(nRch_mainstem+nRch_trib), qvolRecv(nRch_mainstem+nRch_trib), stat=ierr)
-          if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//"allocate qvolSend/qvolRecv error"); endif
-          qvolRecv = 0._r8
-          if (nRch_mainstem > 0) then ! mainstem
-            call basin2reach(qsend(1:nHRU_mainstem), NETOPO_main, RPARAM_main, qvolSend(1:nRch_mainstem), &
-                             ierr, cmessage, limitRunoff=.false.)
-            if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-          end if
-          if (nRch_trib > 0) then ! tributaries in main processor
-            call basin2reach(qsend(nHRU_mainstem+1:ctl%lnumr), NETOPO_trib, RPARAM_trib, qvolSend(nRch_mainstem+1:nRch_trib), &
-                             ierr, cmessage, limitRunoff=.false.)
-            if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-          end if
-        else ! other processors (tributary)
-          allocate(qvolSend(nRch_trib), qvolRecv(nRch_trib), stat=ierr)
-          if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//"allocate qvolSend/qvolRecv error"); endif
-          qvolRecv = 0._r8
-          call basin2reach(qsend, NETOPO_trib, RPARAM_trib, qvolSend, ierr, cmessage, limitRunoff=.false.)
-          if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-        end if
+        ! Distribute "direct runoff to ocean" to targe reach (i.e., outlet of river network)
+        call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct(:,1), fillvalue=0._r8)
 
-        ! Send negative flow [m3/s] to outlet
-        do nr=1,size(commRch)
-          if (commRch(nr)%srcTask/=commRch(nr)%destTask) then
-            call shr_mpi_send(qvolSend, commRch(nr)%srcTask, commRch(nr)%srcIndex, &
-                              qvolRecv, commRch(nr)%destTask, commRch(nr)%destIndex, ierr, cmessage)
-            if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-          else
-            if (iam==commRch(nr)%srcTask) then
-              qvolRecv(commRch(nr)%destIndex) = qvolRecv(commRch(nr)%destIndex) + qvolSend(commRch(nr)%srcIndex)
-            end if
-          end if
-        end do
         call shr_mpi_barrier(mpicom_rof, cmessage)
         if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
@@ -554,24 +518,15 @@ CONTAINS
         call basin2reach(ctl%qirrig_actual(1:nHRU_mainstem), NETOPO_main, RPARAM_main, flux_wm_main, &
                          ierr, cmessage, limitRunoff=.false.)
         if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-        if (trim(bypass_routing_option)=='direct_to_outlet') then
-          flux_wm_main = flux_wm_main + qvolRecv(1:nRch_mainstem)
-        end if
       end if
       if (nRch_trib > 0) then ! tributaries in main processor
         call basin2reach(ctl%qirrig_actual(nHRU_mainstem+1:ctl%lnumr), NETOPO_trib, RPARAM_trib, flux_wm_trib, &
                          ierr, cmessage, limitRunoff=.false.)
         if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-        if (trim(bypass_routing_option)=='direct_to_outlet') then
-          flux_wm_trib = flux_wm_trib + qvolRecv(nRch_mainstem+1:nRch_trib)
-        end if
       end if
     else ! other processors (tributary)
       call basin2reach(ctl%qirrig_actual, NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, cmessage, limitRunoff=.false.)
       if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-      if (trim(bypass_routing_option)=='direct_to_outlet') then
-        flux_wm_trib = flux_wm_trib + qvolRecv
-      end if
     end if
 
     if (masterproc) then
@@ -594,7 +549,7 @@ CONTAINS
 
     if (barrier_timers) then
       call t_startf('mizuRoute_SMdirect_barrier')
-      call mpi_barrier(mpicom_rof,ierr)
+      call shr_mpi_barrier(mpicom_rof, cmessage)
       if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//"mpi_barrier error"); endif
       call t_stopf ('mizuRoute_SMdirect_barrier')
     endif
@@ -737,7 +692,6 @@ CONTAINS
       end do
     end do
   END SUBROUTINE
-
 
   SUBROUTINE RtmRestGetfile()
 
