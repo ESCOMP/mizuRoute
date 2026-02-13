@@ -19,7 +19,7 @@
 <sim_end>                 yyyy-mm-dd hh:mm:ss        ! time of simulation end. hh:mm:ss can be omitted
 !-- routing control
 <route_opt>               5                          ! options for routing schemes (multiple options allowed - e.g, 12345-no spaces/commas between routing ids): 1->IRF 2->KWT 3->KW 4->MC 5->DW
-<doesBasinRoute>          1                          ! basin routing options (default: 1) : 0-> no, 1->IRF, otherwise error
+<doesBasinRoute>          1                          ! basin routing options (default: 1) : 0-> no, 1->gamma-distribution UH, otherwise error
 <dt_qsim>                 86400                      ! simulation time interval [sec] e.g., 86400 sec for daily step
 <hw_drain_point>          2                          ! how to add lateral runoff to headwater reaches (default 2) . 1->top of reach, 2->bottom of reach 
 !-- restart controls
