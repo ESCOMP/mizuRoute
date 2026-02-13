@@ -125,7 +125,7 @@ contains
     type(ESMF_Mesh)     , intent(in)    :: Emesh
     character(len=*)    , intent(in)    :: flds_scalar_name
     integer             , intent(in)    :: flds_scalar_num
-    logical             , intent(in)    :: correlct_area
+    logical             , intent(in)    :: correct_area
     integer             , intent(out)   :: rc
 
     ! local variables
@@ -176,8 +176,8 @@ contains
 
     call ESMF_MeshGet(Emesh, numOwnedElements=numOwnedElements, rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
-    allocate(mod2med_areacor(numOwnedElements), source=1._dp)
-    allocate(med2mod_areacor(numOwnedElements), source=1._dp)
+    allocate(mod2med_areacor(numOwnedElements), source=1._r8)
+    allocate(med2mod_areacor(numOwnedElements), source=1._r8)
 
     ! Get area correction factor between model area and coupler area if necessary
     if (correct_area) then
