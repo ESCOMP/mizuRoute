@@ -16,7 +16,7 @@
 ! --------------------------------------------
 <case_name>             CASE_NAME                  ! name of simulation
 <route_opt>             5                          ! option for routing schemes (only one-option allowed) 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW 
-<doesBasinRoute>        1                          ! basin routing options   0-> no, 1->IRF, otherwise error
+<doesBasinRoute>        1                          ! basin routing options   0-> no, 1->gamma-diestribution UH, otherwise error
 <is_flux_wm>            T                          ! switch for water abstraction/injection
 <hw_drain_point>        1                          ! how lateral flow is put into a headwater reach 1-> top of headwater, 2-> bottom of headwater
 <fname_state_in>        STATE_IN_NC                ! input restart netCDF name. remove for run without any particular initial channel states
@@ -94,6 +94,7 @@
 !       all: apply all qgwl runoff to bypass_routing, negative: apply only negative runoff, threshold: apply runoff below threshold
 <bypass_routing_option> direct_in_place            ! options: direct_in_place, or direct_to_outlet
 <qgwl_runoff_option>    threshold                  ! options: all, negative, or threshold
+<correct_area>          F                          ! logical: area correction between model and coupler areas
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
