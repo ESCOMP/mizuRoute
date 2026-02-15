@@ -621,7 +621,7 @@ contains
     ! realize actively coupled fields
     !--------------------------------
 
-    call realize_fields(gcomp,  Emesh, flds_scalar_name, flds_scalar_num, correct_area=correct_area, rc)
+    call realize_fields(gcomp,  Emesh, flds_scalar_name, flds_scalar_num, correct_area, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     !--------------------------------
