@@ -725,6 +725,8 @@ CONTAINS
   USE globalData, ONLY: nTribOutlet      !
   USE globalData, ONLY: ixRch_order      ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
   USE globalData, ONLY: global_ix_comm   ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
+  USE globalData, ONLY: RPARAM_trib      ! tributary reach parameter structure
+  USE globalData, ONLY: RPARAM_main      ! mainstem reach parameter structure
   USE globalData, ONLY: RCHFLX_trib      ! tributary reach flux structure
   USE globalData, ONLY: RCHSTA_trib      ! tributary reach state structure
   USE globalData, ONLY: RCHFLX           ! entire reach flux structure
@@ -967,12 +969,30 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     if (masterproc) then
+      if (nRch_mainstem>0) then ! populate flood volume (NOTE channel volume is already populated) for mainstem
+        do iSeg = 1, nRch_mainstem
+          RCHFLX_trib(iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+          if (RCHFLX_trib(iSeg)%ROUTE(idxDW)%REACH_VOL(1) > RPARAM_main(iSeg)%R_STORAGE) then
+            RCHFLX_trib(iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = RCHFLX_trib(iSeg)%ROUTE(idxDW)%REACH_VOL(1) - RPARAM_main(iSeg)%R_STORAGE
+          end if
+        end do
+      end if
       do iSeg = 1, rch_per_proc(pid)
         RCHFLX_trib(nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxDW)%REACH_VOL(1) = vol_local(iSeg)
+        ! populate flood volume
+        RCHFLX_trib(nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+        if (vol_local(iSeg) > RPARAM_trib(iSeg)%R_STORAGE) then
+          RCHFLX_trib(nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = vol_local(iSeg)-RPARAM_trib(iSeg)%R_STORAGE
+        end if
       enddo
     else
       do iSeg = 1, rch_per_proc(pid)
         RCHFLX_trib(iSeg)%ROUTE(idxDW)%REACH_VOL(1) = vol_local(iSeg)
+        ! populate flood volume
+        RCHFLX_trib(iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+        if (vol_local(iSeg) > RPARAM_trib(iSeg)%R_STORAGE) then
+          RCHFLX_trib(iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) =  vol_local(iSeg)-RPARAM_trib(iSeg)%R_STORAGE
+        end if
       end do
     end if
   end if ! (onRoute(diffusiveWave))
