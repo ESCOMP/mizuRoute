@@ -36,7 +36,7 @@ MODULE RunoffMod
     real(r8), pointer :: flood(:)         ! coupler exporting flood water sent back to clm [m3/s]
   end type runoff_flow
 
-  type(runoff_flow), public :: rtmCTL
+  type(runoff_flow), public :: ctl
 
   public :: RunoffInit
 
@@ -47,18 +47,18 @@ CONTAINS
     integer, intent(in) :: begr, endr, numr
     integer :: ierr
 
-    allocate(rtmCTL%gindex(begr:endr),            &
-             rtmCTL%area(begr:endr),              &
-             rtmCTL%mask(begr:endr),              &
-             rtmCTL%qsur(begr:endr,nt_rof),       &
-             rtmCTL%qsub(begr:endr,nt_rof),       &
-             rtmCTL%qgwl(begr:endr,nt_rof),       &
-             rtmCTL%qirrig(begr:endr),            &
-             rtmCTL%qirrig_actual(begr:endr),              &
-             rtmCTL%discharge(begr:endr,nt_rof),  &
-             rtmCTL%direct(begr:endr,nt_rof),     &
-             rtmCTL%volr(begr:endr),              &
-             rtmCTL%flood(begr:endr),             &
+    allocate(ctl%gindex(begr:endr),            &
+             ctl%area(begr:endr),              &
+             ctl%mask(begr:endr),              &
+             ctl%qsur(begr:endr,nt_rof),       &
+             ctl%qsub(begr:endr,nt_rof),       &
+             ctl%qgwl(begr:endr,nt_rof),       &
+             ctl%qirrig(begr:endr),            &
+             ctl%qirrig_actual(begr:endr),     &
+             ctl%discharge(begr:endr,nt_rof),  &
+             ctl%direct(begr:endr,nt_rof),     &
+             ctl%volr(begr:endr),              &
+             ctl%flood(begr:endr),             &
              stat=ierr)
     if (ierr/=0) then
       write(iulog,*)'Rtmini ERROR allocation of runoff local arrays'
@@ -66,17 +66,18 @@ CONTAINS
       call shr_sys_abort
     end if
 
-    rtmCTL%gindex(:)       = integerMissing
-    rtmCTL%mask(:)         = integerMissing
-    rtmCTL%area(:)         = 0._r8
-    rtmCTL%qirrig(:)       = 0._r8
-    rtmCTL%qirrig_actual(:)= 0._r8
-    rtmCTL%qsur(:,:)       = 0._r8
-    rtmCTL%qsub(:,:)       = 0._r8
-    rtmCTL%qgwl(:,:)       = 0._r8
-    rtmCTL%discharge(:,:)  = 0._r8
-    rtmCTL%volr(:)         = 0._r8
-    rtmCTL%flood(:)        = 0._r8
+    ctl%gindex(:)       = integerMissing
+    ctl%mask(:)         = integerMissing
+    ctl%area(:)         = 0._r8
+    ctl%qirrig(:)       = 0._r8
+    ctl%qirrig_actual(:)= 0._r8
+    ctl%qsur(:,:)       = 0._r8
+    ctl%qsub(:,:)       = 0._r8
+    ctl%qgwl(:,:)       = 0._r8
+    ctl%discharge(:,:)  = 0._r8
+    ctl%direct(:,:)     = 0._r8
+    ctl%volr(:)         = 0._r8
+    ctl%flood(:)        = 0._r8
 
   END SUBROUTINE RunoffInit
 

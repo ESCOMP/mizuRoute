@@ -172,6 +172,7 @@ CONTAINS
    case('<ro_calendar>');          ro_calendar  = trim(cData)                          ! name of calendar used in runoff input netcdfs
    case('<ro_time_units>');        ro_time_units = trim(cData)                         ! time units used in runoff input netcdfs
    case('<ro_time_stamp>');        ro_time_stamp = trim(cData)                         ! time stamp used input - start, middle, or end, otherwise error
+   case('<runoffMin>');            read(cData,*,iostat=io_error) runoffMin             ! minimum runoff volume [m3/s] from HRU.
    ! Water-management input netCDF - water abstraction/infjection or lake target volume
    case('<fname_wm>');             fname_wm        = trim(cData)                       ! name of text file containing ordered nc file names
    case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                       ! name of varibale for fluxes to and from seg (reachs/lakes)
@@ -364,8 +365,9 @@ CONTAINS
    case('<varname_pfafCode>'     ); meta_PFAF   (ixPFAF%code           )%varName =trim(cData)  ! pfafstetter code
 
    ! CESM coupling variables (not used for stand-alone)
-   case('<qgwl_runoff_option>'   ); qgwl_runoff_option    = trim(cData)  ! handling negative qgwl runoff: all, negative, threshold
-   case('<bypass_routing_option>'); bypass_routing_option = trim(cData)  ! routing bypass option: direct_in_place, direct_to_outlet, none
+   case('<qgwl_runoff_option>'   ); qgwl_runoff_option    = trim(cData)                        ! handling negative qgwl runoff: all, negative, threshold
+   case('<bypass_routing_option>'); bypass_routing_option = trim(cData)                        ! routing bypass option: direct_in_place, direct_to_outlet, none
+   case('<correct_area>');          read(cData,*,iostat=io_error) correct_area                 ! logical for area correction between model and coupler areas.
 
    ! if not in list then keep going
    case default
