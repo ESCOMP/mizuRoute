@@ -282,7 +282,7 @@ CONTAINS
   if (trim(runMode)=='cesm-coupling' .and. &
       trim(bypass_routing_option)=='direct_to_outlet') then
 
-    call sparse_dist_data(pid, nNodes, nRch_in, reachID, structNTOPO, ixNode, ierr, message)
+    call sparse_dist_data(pid, nNodes, nRch, reachID, structNTOPO, ixNode, ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end if
