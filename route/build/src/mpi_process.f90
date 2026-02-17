@@ -62,7 +62,6 @@ private
 public :: comm_ntopo_data
 public :: mpi_restart
 public :: mpi_route
-public :: pass_global_data
 
 CONTAINS
 
@@ -72,8 +71,6 @@ CONTAINS
  SUBROUTINE comm_ntopo_data(pid,                & ! input: proc id
                             nNodes,             & ! input: number of procs
                             comm,               & ! input: communicator
-                            nRch_in,            & ! input: number of stream segments in whole domain
-                            nHRU_in,            & ! input: number of HRUs that are connected to reaches
                             structHRU,          & ! input: data structure for HRUs
                             structSEG,          & ! input: data structure for stream segments
                             structHRU2seg,      & ! input: data structure for mapping hru2basin
@@ -90,6 +87,8 @@ CONTAINS
   USE globalData,          ONLY: RPARAM_trib              ! reach physical parameter data structure (per proc, tributary)
   USE globalData,          ONLY: NETOPO_main              ! network topology data structure (per proc, tributary)
   USE globalData,          ONLY: RPARAM_main              ! reach physical parameter data structure (per proc, tributary)
+  USE globalData,          ONLY: nRch                     ! number of reaches in the entire network
+  USE globalData,          ONLY: nHRU                     ! number of HRUs in the entire network
   USE globalData,          ONLY: nRch_mainstem            ! number of mainstem reaches
   USE globalData,          ONLY: nHRU_mainstem            ! number of mainstem HRUs
   USE globalData,          ONLY: basinRunoff_main         ! mainstem only HRU runoff
@@ -118,6 +117,7 @@ CONTAINS
   USE globalData,          ONLY: runMode                  ! mizuRoute run mode - standalone or ctsm-coupling
   USE globalData,          ONLY: reachID
   USE globalData,          ONLY: basinID
+  USE globalData,          ONLY: maxtdh                   !
   USE public_var,          ONLY: tracer                   ! logical whether or not tracer is on
   USE public_var,          ONLY: is_flux_wm               ! logical whether or not water abstraction/injection occurs
   USE public_var,          ONLY: is_lake_sim              ! logical whether or not lake simulation occurs
@@ -132,8 +132,6 @@ CONTAINS
   integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),                   intent(in)  :: nNodes                   ! number of processes (MPI)
   integer(i4b),                   intent(in)  :: comm                     ! communicator
-  integer(i4b),                   intent(in)  :: nRch_in                  ! number of total reaches
-  integer(i4b),                   intent(in)  :: nHRU_in                  ! number of total HRUs that are connected to reaches
   type(var_dlength), allocatable, intent(in)  :: structHRU(:)             ! HRU properties
   type(var_dlength), allocatable, intent(in)  :: structSEG(:)             ! stream segment properties
   type(var_ilength), allocatable, intent(in)  :: structHRU2SEG(:)         ! HRU to SEG mapping
@@ -158,8 +156,8 @@ CONTAINS
   real(dp),          allocatable              :: array_dp_temp_local(:)   ! double precision temporal array
   integer(i4b),      allocatable              :: array_int_temp(:)        ! integer temporal array
   integer(i4b),      allocatable              :: array_int_temp_local(:)  ! integer temporal array
-  integer(i4b)                                :: ixNode(nRch_in)          ! node assignment for each reach
-  integer(i4b)                                :: ixDomain(nRch_in)        ! domain index for each reach
+  integer(i4b)                                :: ixNode(nRch)             ! node assignment for each reach
+  integer(i4b)                                :: ixDomain(nRch)           ! domain index for each reach
   !
   logical(lgt),      allocatable              :: tribOutlet(:)            ! logical to indicate tributary outlet to mainstems over entire network
   integer(i4b)                                :: nRch_trib_outlet         ! number of tributary outlets for each proc (scalar)
@@ -197,7 +195,7 @@ CONTAINS
     allocate(rch_per_proc(-1:nNodes-1), hru_per_proc(-1:nNodes-1), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [rch_per_proc, hru_per_proc]'; return; endif
 
-    allocate(ixHRU_order(nHRU_in),ixRch_order(nRch_in), stat=ierr)
+    allocate(ixHRU_order(nHRU),ixRch_order(nRch), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixHRU_order, ixRch_order]'; return; endif
 
     ! Create segIndex array from domains derived type. The array is sorted from node 0 through nNodes-1
@@ -250,12 +248,12 @@ CONTAINS
     deallocate(domains_mpi)
 
     ! Reorder reachID and basinID for output to match up with order of RCHFLX/RCHSTA reach order and basinRunoff hru order
-    reachID(1:nRch_in) = reachID( ixRch_order )
-    basinID(1:nHRU_in) = basinID( ixHRU_order )
+    reachID(1:nRch) = reachID( ixRch_order )
+    basinID(1:nHRU) = basinID( ixHRU_order )
 
     if (debug_mpi) then
       write(iulog,'(a)') 'ix, segId, ixRch_order, domain-index, proc-id'
-      do ix = 1,nRch_in
+      do ix = 1,nRch
         write(iulog,*) ix, structNTOPO(ix)%var(ixNTOPO%segId)%dat(1), ixRch_order(ix), ixDomain(ix), ixNode(ix)
       enddo
     endif
@@ -263,6 +261,10 @@ CONTAINS
   endif  ! ( masterproc )
 
   ! sends the number of reaches/hrus per proc to all processors
+  call shr_mpi_bcast(nRch, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  call shr_mpi_bcast(nHRU, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call shr_mpi_bcast(rch_per_proc, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call shr_mpi_bcast(hru_per_proc, ierr, cmessage)
@@ -280,7 +282,7 @@ CONTAINS
   if (trim(runMode)=='cesm-coupling' .and. &
       trim(bypass_routing_option)=='direct_to_outlet') then
 
-    call sparse_dist_data(pid, nNodes, nRch_in, reachID, structNTOPO, ixNode, ierr, message)
+    call sparse_dist_data(pid, nNodes, nRch, reachID, structNTOPO, ixNode, ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end if
@@ -308,18 +310,18 @@ CONTAINS
     !  Send the information for tributaries to individual processors
     ! -----------------------------------------------------------------------------
 
-    allocate(array_int_temp(nRch_in), array_dp_temp(nRch_in), stat=ierr, errmsg=cmessage)
+    allocate(array_int_temp(nRch), array_dp_temp(nRch), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     do ix=1,nVarsNTOPO
       if (meta_NTOPO(ix)%varFile .or. ix==ixNTOPO%isLakeInlet) then  ! isLakeInlet also needs to distributed
         if (masterproc) then
-          do iSeg = 1,nRch_in
+          do iSeg = 1,nRch
             jSeg = ixRch_order(iSeg)
             array_int_temp(iSeg) = structNTOPO(jSeg)%var(ix)%dat(1)
           end do
         end if
-        call shr_mpi_scatterV(array_int_temp(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), array_int_temp_local, ierr, cmessage)
+        call shr_mpi_scatterV(array_int_temp(nRch_mainstem+1:nRch), rch_per_proc(0:nNodes-1), array_int_temp_local, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
         do iSeg = 1,size(array_int_temp_local)
           structNTOPO_local(iSeg)%var(ix)%dat(1) = array_int_temp_local(iSeg)
@@ -330,12 +332,12 @@ CONTAINS
     do ix=1,nVarsSEG
       if (.not. meta_SEG(ix)%varFile) cycle
       if (masterproc) then
-        do iSeg = 1,nRch_in
+        do iSeg = 1,nRch
           jSeg = ixRch_order(iSeg)
           array_dp_temp(iSeg) = structSEG(jSeg)%var(ix)%dat(1)
         end do
       end if
-      call shr_mpi_scatterV(array_dp_temp(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), array_dp_temp_local, ierr, cmessage)
+      call shr_mpi_scatterV(array_dp_temp(nRch_mainstem+1:nRch), rch_per_proc(0:nNodes-1), array_dp_temp_local, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       do iSeg = 1,size(array_dp_temp_local)
         structSEG_local(iSeg)%var(ix)%dat(1) = array_dp_temp_local(iSeg)
@@ -344,18 +346,18 @@ CONTAINS
 
     deallocate(array_dp_temp, array_int_temp, stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    allocate(array_dp_temp(nHRU_in), array_int_temp(nHRU_in), stat=ierr, errmsg=cmessage)
+    allocate(array_dp_temp(nHRU), array_int_temp(nHRU), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     do ix=1,nVarsHRU2SEG
       if (.not. meta_HRU2SEG(ix)%varFile) cycle
       if (masterproc) then
-        do iHru = 1,nHRU_in
+        do iHru = 1,nHRU
           jHRU = ixHRU_order(iHru)
           array_int_temp(iHru) = structHRU2SEG(jHru)%var(ix)%dat(1)
         end do
       end if
-      call shr_mpi_scatterV(array_int_temp(nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), array_int_temp_local, ierr, cmessage)
+      call shr_mpi_scatterV(array_int_temp(nHRU_mainstem+1:nHRU), hru_per_proc(0:nNodes-1), array_int_temp_local, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       do iHru = 1,size(array_int_temp_local)
         structHRU2SEG_local(iHru)%var(ix)%dat(1) = array_int_temp_local(iHru)
@@ -365,12 +367,12 @@ CONTAINS
     do ix=1,nVarsHRU
       if (.not. meta_HRU(ix)%varFile) cycle
       if (masterproc) then
-        do iHru = 1,nHRU_in
+        do iHru = 1,nHRU
           jHRU = ixHRU_order(iHru)
           array_dp_temp(iHru) = structHRU(jHru)%var(ix)%dat(1)
         end do
       end if
-      call shr_mpi_scatterV(array_dp_temp(nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), array_dp_temp_local, ierr, cmessage)
+      call shr_mpi_scatterV(array_dp_temp(nHRU_mainstem+1:nHRU), hru_per_proc(0:nNodes-1), array_dp_temp_local, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       do iHru = 1,size(array_dp_temp_local)
         structHRU_local(iHru)%var(ix)%dat(1) = array_dp_temp_local(iHru)
@@ -708,6 +710,8 @@ CONTAINS
     end if ! (masterproc)
   end if ! (nRch_mainstem > 0)
 
+  call MPI_ALLREDUCE(MPI_IN_PLACE, maxtdh, 1, MPI_INTEGER, MPI_MAX, comm, ierr)
+
  END SUBROUTINE comm_ntopo_data
 
 
@@ -747,10 +751,16 @@ CONTAINS
   real(dp),     allocatable             :: vol_global_tmp(:)        ! temporary reach/lake volume (m3) for entire network
   real(dp),     allocatable             :: flux_local(:)            ! basin runoff (m/s) for tributaries
   real(dp),     allocatable             :: vol_local(:)             ! reach/lake volume (m3) for tributaries
+  real(dp),     allocatable             :: TSEC_local(:)            ! temporary tsec array for allocatable array broadcasting (TSEC is not allocatable array)
 
   ierr=0; message='mpi_restart/'
 
-  call MPI_BCAST(TSEC, nTbound, MPI_DOUBLE_PRECISION, root, comm, ierr)
+  allocate(TSEC_local(1:2))
+  if (masterproc) then
+    TSEC_local(1:2) = TSEC(1:2)
+  end if
+  call shr_mpi_bcast(TSEC_local, ierr, cmessage)
+  TSEC(1:2)=TSEC_local(1:2)
 
   allocate(flux_global(nRch))
   allocate(flux_local(rch_per_proc(pid)))
@@ -2026,7 +2036,7 @@ CONTAINS
     endif ! end of root process
 
     ! will have to broadcast updated ntdh to all proc
-    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
+    call shr_mpi_bcast(ntdh, ierr, cmessage)
 
     if (.not.masterproc) then
       allocate(qfuture(sum(ntdh)),stat=ierr, errmsg=cmessage)
@@ -2118,7 +2128,7 @@ CONTAINS
     call shr_mpi_gatherV(ntdh_trib, nReach, ntdh, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
+    call shr_mpi_bcast(ntdh, ierr, cmessage)
 
     ! total waves in reaches in each proc
     ix2=0
@@ -2229,7 +2239,7 @@ CONTAINS
     endif ! end of root process
 
     ! will have to broadcast updated ntdh to all proc
-    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
+    call shr_mpi_bcast(ntdh, ierr, cmessage)
 
     if (.not.masterproc) then
       allocate(qfuture(sum(ntdh)),stat=ierr, errmsg=cmessage)
@@ -2300,7 +2310,7 @@ CONTAINS
     call shr_mpi_gatherV(ntdh_trib, nReach, ntdh, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
+    call shr_mpi_bcast(ntdh, ierr, cmessage)
 
     ! total waves in reaches in each proc
     ix2=0
@@ -2546,7 +2556,7 @@ CONTAINS
     endif ! end of root process
 
     ! will have to broadcast updated nWave to all proc
-    call MPI_BCAST(nWave, nSeg, MPI_INTEGER, root, comm, ierr)
+    call shr_mpi_bcast(nWave, ierr, cmessage)
 
     ! total waves from all the tributary reaches in each proc
     ix2=0
@@ -2636,7 +2646,7 @@ CONTAINS
     call shr_mpi_gatherV(nWave_trib, nReach, nWave, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call MPI_BCAST(nWave, nSeg, MPI_INTEGER, root, comm, ierr)
+    call shr_mpi_bcast(nWave, ierr, cmessage)
 
     ! total waves in reaches in each proc
     ix2=0
@@ -2877,32 +2887,6 @@ CONTAINS
   end do
 
  END SUBROUTINE subrch_struc2array
-
- ! *********************************************************************
- ! public subroutine: send global data
- ! *********************************************************************
- ! send all the necessary public/global variables neccesary in task
- SUBROUTINE pass_global_data(comm, ierr, message)   ! output: error control
-  USE globalData, ONLY: nRch,nHRU         ! number of reaches and hrus in whole network
-  USE globalData, ONLY: iTime             ! time index
-  USE globalData, ONLY: maxtdh            !
-  implicit none
-  ! argument variables
-  integer(i4b),                   intent(in)  :: comm    ! communicator
-  integer(i4b),                   intent(out) :: ierr
-  character(len=strLen),          intent(out) :: message ! error message
-
-  ierr=0; message='pass_global_data/'
-
-  ! send scalars
-  call MPI_BCAST(iTime,       1,     MPI_INTEGER,          root, comm, ierr)
-  call MPI_BCAST(nRch,        1,     MPI_INTEGER,          root, comm, ierr)
-  call MPI_BCAST(nHRU,        1,     MPI_INTEGER,          root, comm, ierr)
-  call MPI_BCAST(calendar,  strLen,  MPI_CHARACTER,        root, comm, ierr)
-  call MPI_BCAST(time_units,strLen,  MPI_CHARACTER,        root, comm, ierr)
-  call MPI_ALLREDUCE(MPI_IN_PLACE, maxtdh, 1, MPI_INTEGER, MPI_MAX, comm, ierr)
-
- END SUBROUTINE pass_global_data
 
 
  SUBROUTINE sparse_dist_data(pid, nNodes, nRch_in, reachID_in, structNTOPO, ixNode, ierr, message)   !

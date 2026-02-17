@@ -75,7 +75,6 @@ CONTAINS
     USE init_model_data,     ONLY: init_ntopo_data             !
     USE init_model_data,     ONLY: init_state_data
     USE RtmTimeManager,      ONLY: init_time
-    USE mpi_process,         ONLY: pass_global_data
     USE write_simoutput_pio, ONLY: init_histFile
 
     implicit none
@@ -189,9 +188,6 @@ CONTAINS
     !-------------------------------------------------------
 
     call init_ntopo_data(iam, npes, mpicom_rof, ierr, cmessage)
-    if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-
-    call pass_global_data(mpicom_rof, ierr, cmessage)
     if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     !-------------------------------------------------------
