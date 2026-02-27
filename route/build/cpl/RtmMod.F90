@@ -8,15 +8,13 @@ MODULE RtmMod
                           shr_pio_getrearranger, shr_pio_getioroot, shr_pio_getiosys
   USE shr_kind_mod, ONLY: r8 => shr_kind_r8, CL => SHR_KIND_CL
   USE shr_sys_mod,  ONLY: shr_sys_flush, shr_sys_abort
-  USE RtmVar,       ONLY: nt_rof, rof_tracers, &
-                          ice_runoff, &
+  USE RtmVar,       ONLY: ice_runoff, &
                           river_depth_minimum, &
                           nsrContinue, nsrBranch, nsrStartup, nsrest, &
                           cfile_name, coupling_period, nsub, &
                           caseid, brnch_retain_casename, inst_name, &
-                          barrier_timers
-  USE RunoffMod,    ONLY: ctl, RunoffInit         ! rof related data objects
-
+                          barrier_timers, &
+                          ctl         ! rof control data objects
   ! mizuRoute share routines
   USE public_var,   ONLY: secprday                   ! second per day
   USE public_var,   ONLY: dt                         ! routing time step
@@ -80,11 +78,11 @@ CONTAINS
     implicit none
     ! Argument variables:
     ! Local variables:
-    character(len=CL)          :: rof_trstr                 ! tracer string
     integer                    :: ierr                      ! error code
     integer                    :: nt, ix, ix1, ix2
-    integer                    :: lwr,upr                ! lower and upper bounds for array slicing
+    integer                    :: lwr,upr                   ! lower and upper bounds for array slicing
     character(len= 7)          :: runtyp(4)                 ! run type
+    character(len=CL)          :: rof_tracers(2) = (/'LIQ','ICE'/) ! now hard-corded - this should be coming from mizuRoute control variables
     character(len=CL)          :: cmessage
     character(len=*),parameter :: subname = '(route_ini) '
 
@@ -96,14 +94,14 @@ CONTAINS
     runtyp(nsrContinue + 1) = 'restart'
     runtyp(nsrBranch   + 1) = 'branch '
 
+    !-------------------------------------------------------
+    ! 1. tracer names
+    !-------------------------------------------------------
     ! Initialize tracers
-    rof_trstr = trim(rof_tracers(1))
-    do nt = 2,nt_rof
-      rof_trstr = trim(rof_trstr)//':'//trim(rof_tracers(nt))
-    enddo
+    call ctl%init_tracer_names(rof_tracers)
 
     if (masterproc) then
-      write(iulog,*)'mizuRoute tracers = ',nt_rof, trim(rof_trstr)
+      write(iulog,'(A,*(1X,A,:))') "mizuRoute tracers=", (trim(ctl%tracer_names(nt)), nt=1,ctl%ntracers)
     end if
 
     !-------------------------------------------------------
@@ -219,7 +217,7 @@ CONTAINS
       end if
     endif
 
-    call RunoffInit(ctl%begr, ctl%endr, ctl%numr)
+    call ctl%init(ctl%begr, ctl%endr, ctl%numr)
 
     ! index wrt global domain
     ctl%gindex(ctl%begr:ctl%endr) = ixHRU_order(ix1:ix2)
@@ -402,6 +400,9 @@ CONTAINS
     call t_startf('mizuRoute_tot')
     call shr_sys_flush(iulog)
 
+    associate(nt_liq => ctl%nt_liq, &
+              nt_ice => ctl%nt_ice)
+
     !-------------------------------------------------------
     ! Initialize mizuRoute history handler and fields
     !-------------------------------------------------------
@@ -430,7 +431,7 @@ CONTAINS
       ! add overage to subsurface runoff
       ! later check negative qsub is handle the same as qgwl
       if(irrig_depth > river_depth) then
-        ctl%qsub(nr,1) = ctl%qsub(nr,1) + (river_depth-irrig_depth)/coupling_period
+        ctl%qsub(nr,nt_liq) = ctl%qsub(nr,nt_liq) + (river_depth-irrig_depth)/coupling_period
         irrig_depth = river_depth
 
         ! actual irrigation rate [mm/s]
@@ -452,12 +453,12 @@ CONTAINS
         do nr = ctl%begr,ctl%endr
           ! --- Transfer qgwl [mm/s] to ocean
           if (trim(qgwl_runoff_option) == 'all') then ! send all qgwl flow to ocean
-            ctl%direct(nr,1) = ctl%qgwl(nr,1)
-            ctl%qgwl(nr,1) = 0._r8
+            ctl%direct(nr,nt_liq) = ctl%qgwl(nr,nt_liq)
+            ctl%qgwl(nr,nt_liq) = 0._r8
           else if (trim(qgwl_runoff_option) == 'negative') then ! send only negative qgwl flow to ocean
-            if(ctl%qgwl(nr,1) < 0._r8) then
-              ctl%direct(nr,1) = ctl%qgwl(nr,1)
-              ctl%qgwl(nr,1) = 0._r8
+            if(ctl%qgwl(nr,nt_liq) < 0._r8) then
+              ctl%direct(nr,nt_liq) = ctl%qgwl(nr,nt_liq)
+              ctl%qgwl(nr,nt_liq) = 0._r8
             endif
           else if (trim(qgwl_runoff_option) == 'threshold') then
             ! if qgwl is negative, and adding it to the main channel
@@ -465,37 +466,37 @@ CONTAINS
             ! send qgwl directly to ocean
 
             ! --- calculate depth of qgwl flux [mm] during timestep
-            qgwl_depth = ctl%qgwl(nr,1)* coupling_period
+            qgwl_depth = ctl%qgwl(nr,nt_liq)* coupling_period
             river_depth = ctl%volr(nr)* 1000._r8 ! convert m to mm
 
             if ((qgwl_depth + river_depth < river_depth_minimum) &
-                 .and. (ctl%qgwl(nr,1) < 0._r8)) then
-              ctl%direct(nr,1) = ctl%qgwl(nr,1)
-              ctl%qgwl(nr,1) = 0._r8
+                 .and. (ctl%qgwl(nr,nt_liq) < 0._r8)) then
+              ctl%direct(nr,nt_liq) = ctl%qgwl(nr,nt_liq)
+              ctl%qgwl(nr,nt_liq) = 0._r8
             end if
           end if
           ! --- Transfer qsub to ocean [mm/s]
-          if(ctl%qsub(nr,1) < 0._r8) then
-            ctl%direct(nr,1) = ctl%direct(nr,1)+ ctl%qsub(nr,1)
-            ctl%qsub(nr,1) = 0._r8
+          if(ctl%qsub(nr,nt_liq) < 0._r8) then
+            ctl%direct(nr,nt_liq) = ctl%direct(nr,nt_liq)+ ctl%qsub(nr,nt_liq)
+            ctl%qsub(nr,nt_liq) = 0._r8
           endif
         end do
       case('direct_to_outlet')
         allocate(qSend(ctl%lnumr))
         qSend(:) = 0._r8     ! total negative q [mm/s] to be sent to the outlet (converted to +)
         do nr = ctl%begr,ctl%endr
-          if(ctl%qgwl(nr,1) < 0._r8) then
-            qSend(nr) = ctl%qgwl(nr,1)
-            ctl%qgwl(nr,1) = 0._r8
+          if(ctl%qgwl(nr,nt_liq) < 0._r8) then
+            qSend(nr) = ctl%qgwl(nr,nt_liq)
+            ctl%qgwl(nr,nt_liq) = 0._r8
           end if
-          if(ctl%qsub(nr,1) < 0._r8) then
-            qSend(nr) = qSend(nr) + ctl%qsub(nr,1)
-            ctl%qsub(nr,1) = 0._r8
+          if(ctl%qsub(nr,nt_liq) < 0._r8) then
+            qSend(nr) = qSend(nr) + ctl%qsub(nr,nt_liq)
+            ctl%qsub(nr,nt_liq) = 0._r8
           end if
         end do
 
         ! Distribute "direct runoff to ocean" to targe reach (i.e., outlet of river network)
-        call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct(:,1), fillvalue=0._r8)
+        call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct(:,nt_liq), fillvalue=0._r8)
 
         call shr_mpi_barrier(mpicom_rof, cmessage)
         if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
@@ -504,6 +505,23 @@ CONTAINS
     end select
 
     call t_stopf('mizuRoute_bypass_route')
+
+    call t_startf('mizuRoute_direct_to_outlet_land_ice')
+
+    qSend(:) = 0._r8     ! total negative q [mm/s] to be sent to the outlet (converted to +)
+    do nr = ctl%begr,ctl%endr
+      qSend(nr) = ctl%qsur(nr,nt_ice) + ctl%qsub(nr,nt_ice) + ctl%qgwl(nr,nt_ice)
+    end do
+
+    ! Distribute "direct runoff to ocean" to targe reach (i.e., outlet of river network)
+    call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct(:,nt_ice), fillvalue=0._r8)
+
+    ! Set ctl%qsur, ctl%qsub and ctl%qgwl to zero for nt_ice
+    ctl%qsur(:,nt_ice) = 0._r8
+    ctl%qsub(:,nt_ice) = 0._r8
+    ctl%qgwl(:,nt_ice) = 0._r8
+
+    call t_stopf('mizuRoute_direct_to_outlet_land_ice')
 
     ! --- Transfer total runoff [mm/s] at HRUs to mizuRoute array
     call t_startf('mizuRoute_mapping_runoff')
@@ -528,16 +546,16 @@ CONTAINS
     if (masterproc) then
       if (nHRU_mainstem > 0) then
         do nr = 1,nHRU_mainstem
-          basinRunoff_main(nr) = ctl%qsur(nr,1)+ctl%qsub(nr,1)+ctl%qgwl(nr,1)
+          basinRunoff_main(nr) = ctl%qsur(nr,nt_liq)+ctl%qsub(nr,nt_liq)+ctl%qgwl(nr,nt_liq)
         end do
       end if
       do nr = 1, nHRU_trib
         ix = nr + nHRU_mainstem
-        basinRunoff_trib(nr) = ctl%qsur(ix,1)+ctl%qsub(ix,1)+ctl%qgwl(ix,1)
+        basinRunoff_trib(nr) = ctl%qsur(ix,nt_liq)+ctl%qsub(ix,nt_liq)+ctl%qgwl(ix,nt_liq)
       end do
     else
       do nr = ctl%begr,ctl%endr
-        basinRunoff_trib(nr) = ctl%qsur(nr,1)+ctl%qsub(nr,1)+ctl%qgwl(nr,1)
+        basinRunoff_trib(nr) = ctl%qsur(nr,nt_liq)+ctl%qsub(nr,nt_liq)+ctl%qgwl(nr,nt_liq)
       end do
     end if
 
@@ -612,6 +630,7 @@ CONTAINS
 
     call t_stopf('mizuRoute_prep_export')
 
+    end associate
     !-----------------------------------
     ! Done
     !-----------------------------------
@@ -679,7 +698,7 @@ CONTAINS
         end if
         if (update_q) then
           if (NETOPO_in(iRch)%DREACHI==-1 .and. NETOPO_in(iRch)%DREACHK<=0) then ! if reach is the outlet
-            ctl%discharge(ix,1) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)/ctl%area(ix)/0.001_r8
+            ctl%discharge(ix,ctl%nt_liq) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)/ctl%area(ix)/0.001_r8
           end if
         end if
         if (update_fld) then
