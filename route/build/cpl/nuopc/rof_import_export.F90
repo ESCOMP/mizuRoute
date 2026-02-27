@@ -15,8 +15,7 @@ module rof_import_export
   use globalData      , only : masterproc          !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
   use globalData      , only : mpicom_route
   use globalData      , only : iTime               ! get step number in mizuRoute
-  use RunoffMod       , only : ctl
-  use RtmVar          , only : nt_rof, rof_tracers
+  use RtmVar          , only : ctl
 
   implicit none
   private ! except
@@ -236,7 +235,6 @@ contains
     integer, intent(out) :: rc
     ! Local variables
     type(ESMF_State) :: importState
-    integer          :: n,nt
     integer          :: nliq, nice
     character(len=*), parameter :: subname='(rof_import_export:import_fields)'
     !---------------------------------------------------------------------------
@@ -249,17 +247,8 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Set tracers
-    nliq = 0
-    nice = 0
-    do nt = 1,nt_rof
-       if (trim(rof_tracers(nt)) == 'LIQ') nliq = nt
-       if (trim(rof_tracers(nt)) == 'ICE') nice = nt
-    enddo
-    if (nliq == 0 .or. nice == 0) then
-       write(iulog,*) trim(subname),': ERROR in rof_tracers LIQ ICE ',nliq,nice,rof_tracers
-       call shr_sys_flush(iulog)
-       call shr_sys_abort()
-    endif
+    nliq = ctl%nt_liq
+    nice = ctl%nt_ice
 
     ! NOTE: Unit of runoff from  state_getimport is kg/m2s (mm/s)
     call state_getimport(importState, 'Flrl_rofsur', begr, endr, output=ctl%qsur(:,nliq), &
@@ -305,7 +294,7 @@ contains
 
     ! Local variables
     type(ESMF_State)  :: exportState
-    integer           :: n,nt
+    integer           :: n
     integer           :: nliq, nice
     real(r8)          :: rofl(begr:endr)
     real(r8)          :: rofi(begr:endr)
@@ -324,17 +313,8 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Set tracers
-    nliq = 0
-    nice = 0
-    do nt = 1,nt_rof
-       if (trim(rof_tracers(nt)) == 'LIQ') nliq = nt
-       if (trim(rof_tracers(nt)) == 'ICE') nice = nt
-    enddo
-    if (nliq == 0 .or. nice == 0) then
-       write(iulog,*) trim(subname),': ERROR in rof_tracers LIQ ICE ',nliq,nice,rof_tracers
-       call shr_sys_flush(iulog)
-       call shr_sys_abort()
-    endif
+    nliq = ctl%nt_liq
+    nice = ctl%nt_ice
 
     if (first_time) then
        if (masterproc) then
