@@ -96,7 +96,7 @@ CONTAINS
     character(len=*),parameter :: subname = '(RunoffMod: init_tracer_names)'
 
     ! Determine number of tracers and array of tracer names
-    this%ntracers = len(tracer_names)
+    this%ntracers = size(tracer_names)
     allocate(this%tracer_names(this%ntracers))
     do nt = 1,this%ntracers
       this%tracer_names(nt) = tracer_names(nt)
