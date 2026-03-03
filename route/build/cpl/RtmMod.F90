@@ -101,7 +101,7 @@ CONTAINS
     call ctl%init_tracer_names(rof_tracers)
 
     if (masterproc) then
-      write(iulog,'(A,*(1X,A,:))') "mizuRoute tracers=", (trim(ctl%tracer_names(nt)), nt=1,ctl%ntracers)
+      write(iulog,'(A,*(1X,A,":"))') "mizuRoute tracers=", (trim(ctl%tracer_names(nt)), nt=1,ctl%ntracers)
     end if
 
     !-------------------------------------------------------
@@ -515,6 +515,9 @@ CONTAINS
 
     ! Distribute "direct runoff to ocean" to targe reach (i.e., outlet of river network)
     call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct(:,nt_ice), fillvalue=0._r8)
+
+    call shr_mpi_barrier(mpicom_rof, cmessage)
+    if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//"mpi_barrier error"); endif
 
     ! Set ctl%qsur, ctl%qsub and ctl%qgwl to zero for nt_ice
     ctl%qsur(:,nt_ice) = 0._r8
