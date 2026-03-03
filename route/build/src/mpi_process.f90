@@ -278,6 +278,12 @@ CONTAINS
   call shr_mpi_bcast(basinID,ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+  ! define the number of reaches/hrus on the mainstem
+  nRch_mainstem = rch_per_proc(-1)
+  nHRU_mainstem = hru_per_proc(-1)
+  nRch_trib     = rch_per_proc(pid)
+  nHRU_trib     = hru_per_proc(pid)
+
   ! element-to-element transfer data
   if (trim(runMode)=='cesm-coupling' .and. &
       trim(bypass_routing_option)=='direct_to_outlet') then
@@ -286,12 +292,6 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end if
-
-  ! define the number of reaches/hrus on the mainstem
-  nRch_mainstem = rch_per_proc(-1)
-  nHRU_mainstem = hru_per_proc(-1)
-  nRch_trib     = rch_per_proc(pid)
-  nHRU_trib     = hru_per_proc(pid)
 
   ! ********************************************************************************************************************
   ! process for processor 0 through nNodes (tributary domains)
@@ -2951,10 +2951,10 @@ CONTAINS
    allocate(destIndex_local(nRch_trib))
    allocate(destTask_local(nRch_trib))
 
-   call shr_mpi_scatterV(destIndex, rch_per_proc(root:nNodes-1), destIndex_local, ierr, cmessage)
+   call shr_mpi_scatterV(destIndex(nRch_mainstem+1:nRch_in), rch_per_proc(root:nNodes-1), destIndex_local, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   call shr_mpi_scatterV(destTask, rch_per_proc(root:nNodes-1), destTask_local, ierr, cmessage)
+   call shr_mpi_scatterV(destTask(nRch_mainstem+1:nRch_in), rch_per_proc(root:nNodes-1), destTask_local, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    if (masterproc) then ! main task includes mainstems and tributarires
@@ -2964,8 +2964,8 @@ CONTAINS
        commRch(1:nRch_mainstem)%destIndex= destIndex(1:nRch_mainstem)
      end if
      if (nRch_trib > 0) then ! tributary
-       commRch(nRch_mainstem+1:nRch_trib)%destTask  = destTask_local(1:nRch_trib)
-       commRch(nRch_mainstem+1:nRch_trib)%destIndex = destIndex_local(1:nRch_trib)
+       commRch(nRch_mainstem+1:nRch_mainstem+nRch_trib)%destTask  = destTask_local(1:nRch_trib)
+       commRch(nRch_mainstem+1:nRch_mainstem+nRch_trib)%destIndex = destIndex_local(1:nRch_trib)
      end if
    else ! other tasks include only tributary
      allocate(commRch(nRch_trib))
