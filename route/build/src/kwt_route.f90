@@ -995,7 +995,7 @@ CONTAINS
  !  subroutine: removes flow particles from the routing structure,
  !                 to reduce memory usage and processing time
  ! *********************************************************************
- SUBROUTINE remove_rch(MAXQPAR,&                           ! input
+ SUBROUTINE remove_rch(MAXQPAR, &                          ! input
                        Q_JRCH,TENTRY,T_EXIT,ierr,message)  ! output
  ! ----------------------------------------------------------------------------------------
  ! Creator(s):

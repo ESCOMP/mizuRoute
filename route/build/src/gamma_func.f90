@@ -108,15 +108,15 @@ CONTAINS
  REAL(DP) :: gammln
  REAL(DP) :: tmp,x
  REAL(DP) :: stp = 2.5066282746310005_dp
- REAL(DP), DIMENSION(6) :: coef = (/76.18009172947146_dp,&
-  -86.50532032941677_dp,24.01409824083091_dp,&
-  -1.231739572450155_dp,0.1208650973866179e-2_dp,&
+ REAL(DP), DIMENSION(6) :: coef = (/76.18009172947146_dp, &
+  -86.50532032941677_dp,24.01409824083091_dp, &
+  -1.231739572450155_dp,0.1208650973866179e-2_dp, &
   -0.5395239384953e-5_dp/)
  if(xx <= 0._dp) stop 'xx > 0 in gammln'
  x=xx
  tmp=x+5.5_dp
  tmp=(x+0.5_dp)*log(tmp)-tmp
- gammln=tmp+log(stp*(1.000000000190015_dp+&
+ gammln=tmp+log(stp*(1.000000000190015_dp+ &
   sum(coef(:)/arth(x+1.0_dp,1.0_dp,size(coef))))/x)
  END FUNCTION gammln
 

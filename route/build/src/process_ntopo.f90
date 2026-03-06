@@ -119,16 +119,12 @@ CONTAINS
  if(topoNetworkOption==compute)then
 
   ! get the mapping between HRUs and basins
-  call hru2segment(&
-                   ! input
-                   nHRU,          & ! input: number of HRUs
+  call hru2segment(nHRU,          & ! input: number of HRUs
                    nSeg,          & ! input: number of stream segments
-                   ! input-output: data structures
-                   structHRU,     & ! ancillary data for HRUs
-                   structSEG,     & ! ancillary data for stream segments
-                   structHRU2seg, & ! ancillary data for mapping hru2basin
-                   structNTOPO,   & ! ancillary data for network toopology
-                   ! output
+                   structHRU,     & ! inout: ancillary data for HRUs
+                   structSEG,     & ! inout: ancillary data for stream segments
+                   structHRU2seg, & ! inout: ancillary data for mapping hru2basin
+                   structNTOPO,   & ! inout: ancillary data for network toopology
                    tot_hru_tmp,   & ! output: total number of all the upstream hrus for all stream segments
                    ierr, cmessage)  ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -145,12 +141,8 @@ CONTAINS
  if(topoNetworkOption==compute)then
 
   ! get the mapping between upstream and downstream segments
-  call up2downSegment(&
-                      ! input
-                      nSeg,          & ! input: number of stream segments
-                      ! input-output: data structures
-                      structNTOPO,   & ! ancillary data for network toopology
-                      ! output
+  call up2downSegment(nSeg,          & ! input: number of stream segments
+                      structNTOPO,   & ! inout: ancillary data for network toopology
                       tot_upseg_tmp, & ! output: sum of immediate upstream segments
                       ierr, cmessage)  ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -198,12 +190,9 @@ CONTAINS
  ! ---------- get the list of all upstream reaches above a given reach ---------------------------------------
 
  ! get the list of all upstream reaches above a given reach
- call reach_list(&
-                 ! input
-                 nSeg,                        & ! Number of reaches
+ call reach_list(nSeg,                        & ! Number of reaches
                  (computeReachList==compute), & ! flag to compute the reach list
                  structNTOPO,                 & ! Network topology
-                 ! output
                  structSEG,                   & ! input: ancillary data for stream segments
                  tot_upstream_tmp,            & ! Total number of upstream reaches for all reaches
                  ierr, cmessage)                ! Error control
@@ -284,23 +273,18 @@ CONTAINS
  ! ---------- get the mask of all upstream reaches above a given reach ---------------------------------------
 
  ! get the mask of all upstream reaches above a given reach
- call reach_mask(&
-                 ! input
-                 idSegOut,          &  ! input: reach index
+ call reach_mask(idSegOut,          &  ! input: reach index
                  structNTOPO,       &  ! input: network topology structures
                  structSeg,         &  ! input: river reach properties
                  nHRU,              &  ! input: number of HRUs
                  nSeg,              &  ! input: number of reaches
-                 ! output: updated dimensions
                  tot_hru_tmp,       &  ! input+output: total number of all the upstream hrus for all stream segments
                  tot_upseg_tmp,     &  ! input+output: sum of immediate upstream segments
                  tot_upstream_tmp,  &  ! input+output: total number of upstream reaches for all reaches
                  tot_uh_tmp,        &  ! input+output: total number of unit hydrograph dimensions
-                 ! output: dimension masks
                  ixHRU_desired_tmp, &  ! output: indices of desired hrus
                  ixSeg_desired_tmp, &  ! output: indices of desired reaches
-                 ! output: error control
-                 ierr, cmessage )  ! output: error control
+                 ierr, cmessage )      ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get timing

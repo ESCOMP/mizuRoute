@@ -536,7 +536,7 @@ CONTAINS
   ! ***************************************************************************************
   ! public subroutine compJulday: convert datetime to julian day (units of days)
   ! ***************************************************************************************
-  SUBROUTINE compJulday(iyyy,mm,id,ih,imin,dsec,&  ! input
+  SUBROUTINE compJulday(iyyy,mm,id,ih,imin,dsec, & ! input
                         juldayss,err,message)      ! output
     implicit none
     ! Argument variables
@@ -582,7 +582,7 @@ CONTAINS
   ! public subroutine compJulday: convert datetime to julian day (units of days) for noleap calendar
   ! reference: https://github.com/nmizukami/VIC/blob/VIC.5.0.0/vic/drivers/shared_all/src/vic_time.c
   ! ***************************************************************************************
-  SUBROUTINE compJulday_noleap(iyyy,mm,id,ih,imin,dsec,&   ! input
+  SUBROUTINE compJulday_noleap(iyyy,mm,id,ih,imin,dsec, &  ! input
                                juldayss,err,message)       ! output
     implicit none
     ! Argument variables

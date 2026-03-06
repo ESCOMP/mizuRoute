@@ -37,18 +37,14 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: get ancillary data for HRUs and stream segments
  ! *********************************************************************
- SUBROUTINE alloc_struct(&
-                         ! input: model control
-                         nHRU,         & ! output: number of HRUs
-                         nSeg,         & ! output: number of stream segments
-                         ! inout: populate data structures
-                         structHRU,    & ! ancillary data for HRUs
-                         structSeg,    & ! ancillary data for stream segments
-                         structHRU2seg,& ! ancillary data for mapping hru2basin
-                         structNTOPO,  & ! ancillary data for network toopology
-                         structPFAF,   & ! ancillary data for pfafstetter code
-                         ! output: error control
-                         ierr,message)   ! output: error control
+ SUBROUTINE alloc_struct(nHRU,          & ! input: number of HRUs
+                         nSeg,          & ! input: number of stream segments
+                         structHRU,     & ! inout: ancillary data for HRUs
+                         structSeg,     & ! inout: ancillary data for stream segments
+                         structHRU2seg, & ! inout: ancillary data for mapping hru2basin
+                         structNTOPO,   & ! inout: ancillary data for network toopology
+                         structPFAF,    & ! inout: ancillary data for pfafstetter code
+                         ierr,message)    ! output: error control
  implicit none
  ! Argument variables
  integer(i4b)      , intent(in)                 :: nHRU             ! number of HRUs
