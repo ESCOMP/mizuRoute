@@ -1,7 +1,7 @@
 MODULE RtmVar
 
   ! Public variables used for only coupled version mizuRoute
-
+  USE RunoffMod,     ONLY: rof_control
   USE shr_kind_mod , ONLY: r8 => shr_kind_r8, CL => SHR_KIND_CL
   USE shr_sys_mod  , ONLY: shr_sys_abort, shr_sys_flush
   USE globalData   , ONLY: masterproc
@@ -14,12 +14,8 @@ MODULE RtmVar
   save
 
   ! public variables (saved)
-  !TODO - nt_rof and rof_tracers need to be removed and set by access to the index array
-  integer,           public, parameter :: nt_rof = 2                      ! number of tracers
-  character(len=3),  public, parameter :: rof_tracers(nt_rof) = (/'LIQ','ICE'/)
-
-  logical,           public            :: barrier_timers = .false.       ! barrier timers
-
+  ! rof control data that interact with import/export in coupler
+  type(rof_control), public            :: ctl
   ! Metadata variables used in history and restart files's global attributes
   character(len=CL), public            :: caseid      = ' '              ! case id
   character(len=CL), public            :: ctitle      = ' '              ! case title
@@ -28,19 +24,16 @@ MODULE RtmVar
   character(len=CL), public            :: conventions = 'CF-1.0'         ! dataset conventions
   character(len=CL), public            :: model_doi_url                  ! Web address of the Digital Object Identifier (DOI) for this model version
   character(len=CL), public            :: source   = 'mizuRoute'         ! description of this source
-
   ! Run startup
   integer,           public, parameter :: nsrStartup  = 0                ! Startup from initial conditions
   integer,           public, parameter :: nsrContinue = 1                ! Continue from restart files
   integer,           public, parameter :: nsrBranch   = 2                ! Branch from restart files
   integer,           public            :: nsrest = integerMissing        ! Type of run
   logical,           public            :: brnch_retain_casename = .false.! true => allow case name to remain the same for branch run
-
   ! Instance control
   integer,           public            :: inst_index
   character(len=16), public            :: inst_name
   character(len=16), public            :: inst_suffix
-
   ! rof control variables
   character(len=CL), public            :: nrevsn_rtm     = ' '                      ! restart data file name for branch run
   real(r8),          public            :: river_depth_minimum = 1.e-1               ! minimum river depth for water take [mm]
@@ -52,5 +45,7 @@ MODULE RtmVar
   logical,           public            :: ice_runoff     = .false.                  ! true => runoff is split into liquid and ice,
   character(len=256),public            :: cfile_name     = 'mizuRoute.control'
   character(len=256),public            :: para_xxxx      = 'mizuRoute_in'
+  ! Miscellaneous variables
+  logical,           public            :: barrier_timers = .false.       ! barrier timers
 
 END MODULE RtmVar
