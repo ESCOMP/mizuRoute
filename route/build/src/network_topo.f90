@@ -51,18 +51,14 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: compute correspondence between HRUs and segments
  ! *********************************************************************
- subroutine hru2segment(&
-                        ! input
-                        nHRU,       &   ! input: number of HRUs
-                        nSeg,       &   ! input: number of stream segments
-                        ! input-output: data structures
-                        structHRU,     & ! ancillary data for HRUs
-                        structSeg,     & ! ancillary data for stream segments
-                        structHRU2seg, & ! ancillary data for mapping hru2basin
-                        structNTOPO,   & ! ancillary data for network toopology
-                        ! output
-                        total_hru,  &   ! output: total number of HRUs that drain into any segments
-                        ierr, message)  ! output: error control
+ subroutine hru2segment(nHRU,          & ! input: number of HRUs
+                        nSeg,          & ! input: number of stream segments
+                        structHRU,     & ! inout: ancillary data for HRUs
+                        structSeg,     & ! inout: ancillary data for stream segments
+                        structHRU2seg, & ! inout: ancillary data for mapping hru2basin
+                        structNTOPO,   & ! inout: ancillary data for network toopology
+                        total_hru,     & ! output: total number of HRUs that drain into any segments
+                        ierr, message)   ! output: error control
  implicit none
  ! input variables
  integer(i4b), intent(in)                      :: nHRU              ! number of HRUs
@@ -105,13 +101,10 @@ CONTAINS
   hruSegId(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruSegId)%dat(1)
  end do
 
- call downReachIndex(&
-                     ! input
-                     nHRU,          & ! number of upstream elements
+ call downReachIndex(nHRU,          & ! number of upstream elements
                      nSeg,          & ! number of stream segments
                      segId,         & ! unique identifier of the stream segments
                      hruSegId,      & ! unique identifier of the segment where water drains
-                     ! output
                      segHRUix,      & ! index of downstream stream segment
                      nHRU2seg,      & ! number of elements that drain into each segment
                      ierr,cmessage)   ! error control
@@ -214,12 +207,8 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: mapping between upstream and downstream segments
  ! *********************************************************************
- subroutine up2downSegment(&
-                           ! input
-                           nRch,         & ! input: number of stream segments
-                           ! input-output: data structures
-                           structNTOPO,  & ! ancillary data for network toopology
-                           ! output
+ subroutine up2downSegment(nRch,         & ! input: number of stream segments
+                           structNTOPO,  & ! inout: ancillary data for network toopology
                            total_upseg,  & ! output: sum of immediate upstream segments
                            ierr, message)  ! output (error control)
  implicit none
@@ -273,13 +262,10 @@ CONTAINS
  endif
 
  ! define the index of the downstream reach ID
- call downReachIndex(&
-                     ! input
-                     nRch,          & ! number of upstream elements
+ call downReachIndex(nRch,          & ! number of upstream elements
                      nRch,          & ! number of stream segments
                      segId,         & ! unique identifier of the stream segments
                      downSegId,     & ! unique identifier of the downstream segment
-                     ! output
                      downIndex,     & ! index of downstream stream segment
                      nUpstream,     & ! number of elements that drain into each segment
                      ierr,cmessage)   ! error control
@@ -382,13 +368,10 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: define index of downstream reach
  ! *********************************************************************
- subroutine downReachIndex(&
-                           ! input
-                           nUp,          & ! number of upstream elements
+ subroutine downReachIndex(nUp,          & ! number of upstream elements
                            nSeg,         & ! number of stream segments
                            segId,        & ! unique identifier of the stream segments
                            downId,       & ! unique identifier of the segment where water drains
-                           ! output
                            downSegIndex, & ! index of downstream stream segment
                            nElement2Seg, & ! number of elements that drain into each segment
                            ierr,message)
@@ -493,9 +476,9 @@ CONTAINS
  ! subroutine: define processing order for the individual
  !                 stream segments in the river network
  ! *********************************************************************
- subroutine REACHORDER(NRCH,         &   ! input:        number of reaches
-                       structNTOPO,  &   ! input:output: network topology
-                       ierr, message)    ! output:       error control
+ subroutine REACHORDER(NRCH,         &   ! input:  number of reaches
+                       structNTOPO,  &   ! inout:  network topology
+                       ierr, message)    ! output: error control
  ! ----------------------------------------------------------------------------------------
  ! Purpose:
  !
@@ -660,12 +643,9 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: identify all reaches above the current reach
  ! *********************************************************************
- SUBROUTINE reach_list(&
-                       ! input
-                       NRCH,        & ! Number of reaches
+ SUBROUTINE reach_list(NRCH,        & ! Number of reaches
                        doReachList, & ! flag to compute the list of upstream reaches
                        structNTOPO, & ! Network topology
-                       ! output
                        structSEG,   & ! Reach properties
                        NTOTAL,      & ! Total number of upstream reaches for all reaches
                        ierr,message)  ! Error control
@@ -810,22 +790,17 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: identify all reaches above a given reach
  ! *********************************************************************
- SUBROUTINE reach_mask(&
-                       ! input
-                       desireId,      &  ! input: reach index
-                       structNTOPO,   &  ! input: network topology structures
+ SUBROUTINE reach_mask(desireId,      &  ! input: reach index
+                       structNTOPO,   &  ! input+output:: network topology structures
                        structSeg,     &  ! input: Reach property structures
                        nHRU,          &  ! input: number of HRUs
                        nRch,          &  ! input: number of reaches
-                       ! output: updated dimensions
                        tot_hru,       &  ! input+output: total number of all the upstream hrus for all stream segments
                        tot_upseg,     &  ! input+output: sum of immediate upstream segments
                        tot_upstream,  &  ! input+output: total number of upstream reaches for all reaches
                        tot_uh,        &  ! input+output: total number of unit hydrograph dimensions
-                       ! output: dimension masks
                        ixHRU_desired, &  ! output: indices of desired hrus
                        ixSeg_desired, &  ! output: indices of desired reaches
-                       ! output: error control
                        ierr, message )   ! output: error control
  ! ----------------------------------------------------------------------------------------
  ! Purpose:
@@ -834,7 +809,7 @@ CONTAINS
  !
  ! ----------------------------------------------------------------------------------------
 
- IMPLICIT NONE
+ implicit none
  ! input variables
  integer(i4b)      , intent(in)                :: desireId          ! id of the desired reach
  type(var_ilength) , intent(inout)             :: structNTOPO(:)    ! network topology structure
@@ -1036,20 +1011,15 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: identify all reaches above a given reach
  ! *********************************************************************
- SUBROUTINE REACH_MASK_ORIG(&
-                            ! input
-                            desireId,      &  ! input: reach index
+ SUBROUTINE REACH_MASK_ORIG(desireId,      &  ! input: reach index
                             structNTOPO,   &  ! input: network topology structures
                             nHRU,          &  ! input: number of HRUs
                             nRch,          &  ! input: number of reaches
-                            ! output: updated dimensions
                             tot_hru,       &  ! input+output: total number of all the upstream hrus for all stream segments
                             tot_upseg,     &  ! input+output: sum of immediate upstream segments
                             tot_upstream,  &  ! input+output: total number of upstream reaches for all reaches
-                            ! output: dimension masks
                             ixHRU_desired, &  ! output: indices of desired hrus
                             ixSeg_desired, &  ! output: indices of desired reaches
-                            ! output: error control
                             ierr, message )   ! output: error control
  ! ----------------------------------------------------------------------------------------
  ! Purpose:

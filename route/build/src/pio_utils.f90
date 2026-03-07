@@ -75,13 +75,13 @@ CONTAINS
   ! *********************************************************************
   ! subroutine: initialize ParallelIO system
   ! *********************************************************************
-  SUBROUTINE pio_sys_init(pid,       &  !input
-                          comm,      &  !input
-                          stride,    &  !input
-                          nIOtasks,  &  !input
-                          rearranger,&  !input
-                          idxBase,   &  !input
-                          pioIOsystem)  !output
+  SUBROUTINE pio_sys_init(pid,        &  ! input
+                          comm,       &  ! input
+                          stride,     &  ! input
+                          nIOtasks,   &  ! input
+                          rearranger, &  ! input
+                          idxBase,    &  ! input
+                          pioIOsystem)   ! output
     implicit none
     ! ARGUMENTS:
     integer(i4b),          intent(in)  :: pid

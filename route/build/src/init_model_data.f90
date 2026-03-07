@@ -692,39 +692,29 @@ CONTAINS
     maxPfafLen = dummy(1)
   end if
 
-  call getData(&
-               ! input
-               trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
-               dname_nhru,   & ! input: dimension name of the HRUs
-               dname_sseg,   & ! input: dimension name of the stream segments
-               ! output: model control
+  call getData(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
+               dname_nhru,    & ! input: dimension name of the HRUs
+               dname_sseg,    & ! input: dimension name of the stream segments
                nHRU_out,      & ! output: number of HRUs
                nRch_out,      & ! output: number of stream segments
-               ! output: populate data structures
-               structHRU,    & ! ancillary data for HRUs
-               structSeg,    & ! ancillary data for stream segments
-               structHRU2seg,& ! ancillary data for mapping hru2basin
-               structNTOPO,  & ! ancillary data for network topology
-               structPFAF,   & ! ancillary data for pfafstetter code
-               ! output: error control
-               ierr,cmessage) ! output: error control
+               structHRU,     & ! output: ancillary data for HRUs
+               structSeg,     & ! output: ancillary data for stream segments
+               structHRU2seg, & ! output: ancillary data for mapping hru2basin
+               structNTOPO,   & ! output: ancillary data for network topology
+               structPFAF,    & ! output: ancillary data for pfafstetter code
+               ierr,cmessage)   ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   call check_river_properties(structNTOPO, structHRU, structSEG, ierr, cmessage) ! input: data structure for physical river network data
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  call augment_ntopo(&
-                     ! input: model control
-                     nHRU_out,                         & ! number of HRUs
+  call augment_ntopo(nHRU_out,                         & ! number of HRUs
                      nRch_out,                         & ! number of stream segments
-                     ! inout: populate data structures
                      structHRU,                        & ! ancillary data for HRUs
                      structSeg,                        & ! ancillary data for stream segments
                      structHRU2seg,                    & ! ancillary data for mapping hru2basin
                      structNTOPO,                      & ! ancillary data for network toopology
-                     ! output:
                      ierr, cmessage,                   & ! error control
-                     ! optional output
                      tot_hru       = tot_hru,          & ! total number of all the upstream hrus for all stream segments
                      tot_upseg     = tot_upseg,        & ! total number of all the immediate upstream segments for all stream segments
                      tot_upstream  = tot_upstream,     & ! total number of all the upstream segments for all stream segments
@@ -742,24 +732,18 @@ CONTAINS
     !        --> users can modify the hard-coded parameter "maxUpstreamFile" if desired
     if(tot_upstream > maxUpstreamFile) tot_upstream=0
 
-    call writeData(&
-                   ! input
-                   trim(ancil_dir)//trim(fname_ntopNew), & ! input: file name
-                   ! input: model control
+    call writeData(trim(ancil_dir)//trim(fname_ntopNew), & ! input: file name
                    tot_hru,       & ! input: total number of all the upstream hrus for all stream segments
                    tot_upseg,     & ! input: total number of immediate upstream segments for all  stream segments
                    tot_upstream,  & ! input: total number of all of the upstream stream segments for all stream segments
                    tot_uh,        & ! input: total number of unit hydrograph for all stream segments
-                   ! input: reach masks
                    ixHRU_desired, & ! input: indices of desired hrus
                    ixSeg_desired, & ! input: indices of desired reaches
-                   ! input: data structures
                    structHRU,     & ! input: ancillary data for HRUs
                    structSeg,     & ! input: ancillary data for stream segments
                    structHRU2seg, & ! input: ancillary data for mapping hru2basin
                    structNTOPO,   & ! input: ancillary data for network topology
                    structPFAF,    & ! input: ancillary data for pfafstetter code
-                   ! output: error control
                    ierr,cmessage) ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 

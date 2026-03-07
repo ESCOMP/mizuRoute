@@ -160,7 +160,7 @@ contains
          numflds=fldsFrRof_num, &
          flds_scalar_name=flds_scalar_name, &
          flds_scalar_num=flds_scalar_num, &
-         tag=subname//':mizuRouteExport',&
+         tag=subname//':mizuRouteExport', &
          mesh=Emesh, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
@@ -170,7 +170,7 @@ contains
          numflds=fldsToRof_num, &
          flds_scalar_name=flds_scalar_name, &
          flds_scalar_num=flds_scalar_num, &
-         tag=subname//':mizuRouteImport',&
+         tag=subname//':mizuRouteImport', &
          mesh=Emesh, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
@@ -211,9 +211,9 @@ contains
       call shr_mpi_min(min_med2mod_areacor, min_med2mod_areacor_glob, mpicom_route)
 
       if (masterproc) then
-         write(iulog,'(2A,2g23.15,A )') trim(subname),' :  min_mod2med_areacor, max_mod2med_areacor ',&
+         write(iulog,'(2A,2g23.15,A )') trim(subname),' :  min_mod2med_areacor, max_mod2med_areacor ', &
               min_mod2med_areacor_glob, max_mod2med_areacor_glob, 'mizuRoute'
-         write(iulog,'(2A,2g23.15,A )') trim(subname),' :  min_med2mod_areacor, max_med2mod_areacor ',&
+         write(iulog,'(2A,2g23.15,A )') trim(subname),' :  min_med2mod_areacor, max_med2mod_areacor ', &
               min_med2mod_areacor_glob, max_med2mod_areacor_glob, 'mizuRoute'
       end if
 

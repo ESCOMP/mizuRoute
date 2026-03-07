@@ -371,7 +371,7 @@ CONTAINS
 
    ! if not in list then keep going
    case default
-    message=trim(message)//'unexpected text in control file provided: '//trim(cName)&
+    message=trim(message)//'unexpected text in control file provided: '//trim(cName) &
                          //' (note strings in control file must match the variable names in public_var.f90)'
     err=20; return
   end select
