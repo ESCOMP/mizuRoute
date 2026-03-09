@@ -37,6 +37,7 @@ CONTAINS
  USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
                        idxKW,idxMC,idxDW
  USE globalData, ONLY: runMode                 ! mizuRoute run mode: standalone, cesm-coupling
+ USE globalData, ONLY: nTracer                 ! number of active tracers
  ! index of named variables in each structure
  USE var_lookup, ONLY: ixHRU
  USE var_lookup, ONLY: ixHRU2SEG
@@ -48,6 +49,7 @@ CONTAINS
  ! external subroutines
  USE ascii_utils, ONLY: file_open        ! open file (performs a few checks as well)
  USE ascii_utils, ONLY: get_vlines       ! get a list of character strings from non-comment lines
+ USE ascii_utils, ONLY: split_line       ! split string into sub-strings with delimiter
  USE ascii_utils, ONLY: lower            ! convert string to lower case
  USE nr_utils,    ONLY: char2int         ! convert integer number to a array containing individual digits
 
@@ -61,6 +63,7 @@ CONTAINS
  character(len=strLen)             :: cName,cData             ! name and data from cLines(iLine)
  character(len=strLen)             :: cLength,cTime           ! length and time units
  character(len=strLen)             :: cMass                   ! mass units needed only when tracer is on
+ character(len=strLen),allocatable :: vname_tmp(:)            ! multiple variable names with semi-colon delimited
  logical(lgt)                      :: isGeneric               ! temporal logical scalar
  logical(lgt)                      :: onlyOneRouting          ! temporal logical scalar
  integer(i4b)                      :: ipos                    ! index of character string
@@ -158,7 +161,7 @@ CONTAINS
    case('<vname_qsim>');           vname_qsim   = trim(cData)                          ! name of runoff variable
    case('<vname_evapo>');          vname_evapo  = trim(cData)                          ! name of actual evapoartion variable
    case('<vname_precip>');         vname_precip = trim(cData)                          ! name of precipitation variable
-   case('<vname_solute>');         vname_solute = trim(cData)                          ! name of solute mass flux variable
+   case('<vname_solute>');         vname_tmp    = split_line(trim(cData),delim=';,:')  ! name of solute mass flux variables (up to 10 is ok), acceptable delimiter: : , :
    case('<vname_time>');           vname_time   = trim(cData)                          ! name of time variable in the runoff file
    case('<vname_hruid>');          vname_hruid  = trim(cData)                          ! name of the HRU id
    case('<dname_time>');           dname_time   = trim(cData)                          ! name of time variable in the runoff file
@@ -384,6 +387,9 @@ CONTAINS
  end do  ! looping through lines in the control file
 
  ! ---------- Perform minor processing and checking control variables ----------------------------------------
+ ! extract tracer names into vname_solute
+ nTracer=size(vname_tmp)
+ vname_solute(1:nTracer)=vname_tmp(:)
 
  ! ---------- directory option  ---------------------------------------------------------------------
  if (trim(restart_dir)==charMissing) then
@@ -451,7 +457,7 @@ CONTAINS
  cLength = units_qsim(1:ipos-1)
  cTime   = units_qsim(ipos+1:len_trim(units_qsim))
 
- ! get the conversion factor for length
+ ! get the conversion factor for length (to m)
  select case(trim(cLength))
    case('m');  length_conv = 1._dp
    case('mm'); length_conv = 1._dp/1000._dp
@@ -460,7 +466,7 @@ CONTAINS
      err=81; return
  end select
 
- ! get the conversion factor for time
+ ! get the conversion factor for time (to second)
  select case(trim(cTime))
    case('d','day');          time_conv = 1._dp/secprday
    case('h','hr','hour');    time_conv = 1._dp/secprhour
@@ -482,17 +488,17 @@ CONTAINS
    cMass = units_cc(1:ipos-1)
    cTime = units_cc(ipos+1:len_trim(units_cc))
 
-   ! get the conversion factor for length
+   ! get the conversion factor for mass (to mg)
    select case(trim(cMass))
      case('mg');  mass_conv_solute = 1._dp
      case('g');   mass_conv_solute = 1000._dp
      case('kg');  mass_conv_solute = 1000000._dp
      case default
-       message=trim(message)//'expect the mass units of solute to be "mg" [units='//trim(cMass)//']'
+       message=trim(message)//'expect the mass units of solute to be "mg","g",or "kg" [units='//trim(cMass)//']'
        err=81; return
    end select
 
-   ! get the conversion factor for time
+   ! get the conversion factor for time (to second)
    select case(trim(cTime))
      case('d','day');          time_conv_solute = 1._dp/secprday
      case('h','hr','hour');    time_conv_solute = 1._dp/secprhour
