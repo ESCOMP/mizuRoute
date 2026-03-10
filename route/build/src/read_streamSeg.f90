@@ -44,22 +44,17 @@ CONTAINS
 ! *********************************************************************
 ! new subroutine: get ancillary data for HRUs and stream segments
 ! *********************************************************************
-SUBROUTINE getData(&
-                  ! input
-                  fname,        & ! input: file name
-                  dname_nhru,   & ! input: dimension name of the HRUs
-                  dname_sseg,   & ! input: dimension name of the stream segments
-                  ! output: model control
-                  nHRU_in,      & ! output: number of HRUs
-                  nRch_in,      & ! output: number of stream segments
-                  ! output: populate data structures
-                  structHRU,    & ! ancillary data for HRUs
-                  structSeg,    & ! ancillary data for stream segments
-                  structHRU2seg,& ! ancillary data for mapping hru2basin
-                  structNTOPO,  & ! ancillary data for network toopology
-                  structPFAF,   & ! ancillary data for pfafstetter code
-                  ! output: error control
-                  ierr,message)   ! output: error control
+SUBROUTINE getData(fname,        & ! input: file name
+                  dname_nhru,    & ! input: dimension name of the HRUs
+                  dname_sseg,    & ! input: dimension name of the stream segments
+                  nHRU_in,       & ! output: number of HRUs
+                  nRch_in,       & ! output: number of stream segments
+                  structHRU,     & ! output: ancillary data for HRUs
+                  structSeg,     & ! output: ancillary data for stream segments
+                  structHRU2seg, & ! output: ancillary data for mapping hru2basin
+                  structNTOPO,   & ! output: ancillary data for network toopology
+                  structPFAF,    & ! output: ancillary data for pfafstetter code
+                  ierr,message)    ! output: error control
 
   implicit none
   ! Argument variables
@@ -121,15 +116,14 @@ SUBROUTINE getData(&
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
   ! ---------- allocate space for higher-level structure components -------------------------------------------------
-  call alloc_struct(&
-                    nHRU_in,      & ! output: number of HRUs
-                    nRch_in,      & ! output: number of stream segments
-                    structHRU,    & ! inout: ancillary data for HRUs
-                    structSeg,    & ! inout: ancillary data for stream segments
-                    structHRU2seg,& ! inout: ancillary data for mapping hru2basin
-                    structNTOPO,  & ! inout: ancillary data for network toopology
-                    structPFAF,   & ! inout: ancillary data for pfafstetter code
-                    ierr,cmessage)  ! output: error control
+  call alloc_struct(nHRU_in,       & ! output: number of HRUs
+                    nRch_in,       & ! output: number of stream segments
+                    structHRU,     & ! inout: ancillary data for HRUs
+                    structSeg,     & ! inout: ancillary data for stream segments
+                    structHRU2seg, & ! inout: ancillary data for mapping hru2basin
+                    structNTOPO,   & ! inout: ancillary data for network toopology
+                    structPFAF,    & ! inout: ancillary data for pfafstetter code
+                    ierr,cmessage)   ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! initial allocation of the temporary vectors
@@ -168,16 +162,13 @@ SUBROUTINE getData(&
       if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(varName); return; endif
 
       ! get subset of indices for each reach
-      call getSubetIndices(&
-                          ! input
-                          ncid,                       &  ! netCDF file id
-                          ivarID,                     &  ! netCDF variable id
-                          meta_struct(iStruct)%nSpace,&  ! length of the spatial dimension
-                          ! output
-                          ixStart,                    &  ! vector of start indices
-                          ixCount,                    &  ! vector defining number of elements in each reach
-                          dimLength,                  &  ! dimension length
-                          ierr,cmessage)                 ! error control
+      call getSubetIndices(ncid,                       &  ! netCDF file id
+                          ivarID,                      &  ! netCDF variable id
+                          meta_struct(iStruct)%nSpace, &  ! length of the spatial dimension
+                          ixStart,                     &  ! vector of start indices
+                          ixCount,                     &  ! vector defining number of elements in each reach
+                          dimLength,                   &  ! dimension length
+                          ierr,cmessage)                  ! error control
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! skip for cases where te dimension length is zero

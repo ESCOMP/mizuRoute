@@ -38,12 +38,12 @@ CONTAINS
  ! ***************************************************************
  ! public subroutine: MPI Domain decomposition
  ! ***************************************************************
- SUBROUTINE mpi_domain_decomposition(nNodes,       & ! input: number of procs
-                                     nSeg,         & ! input: number of reaches
-                                     structNTOPO,  & ! input: river network data structure
-                                     structHRU2SEG,& ! input: reach-hru topology data structure
-                                     nContribHRU,  & ! output: number of contributory HRUs within the entire river network
-                                     ierr, message)  ! output: error handling
+ SUBROUTINE mpi_domain_decomposition(nNodes,        & ! input: number of procs
+                                     nSeg,          & ! input: number of reaches
+                                     structNTOPO,   & ! input: river network data structure
+                                     structHRU2SEG, & ! input: reach-hru topology data structure
+                                     nContribHRU,   & ! output: number of contributory HRUs within the entire river network
+                                     ierr, message)   ! output: error handling
 
    USE globalData, ONLY: domains_mpi             ! domain data structure - for each domain listing segment and hru indices
    USE globalData, ONLY: nDomain_mpi             ! count of decomposed domains (tributaries + mainstems)

@@ -317,12 +317,9 @@ MODULE process_remap_module
   ! *****
   ! * public subroutine: used to obtain streamflow for each stream segment...
   ! *************************************************************************
-  SUBROUTINE basin2reach(&
-                         ! input
-                         basinRunoff,       & ! basin runoff (m/s)
+  SUBROUTINE basin2reach(basinRunoff,       & ! basin runoff (m/s)
                          NETOPO_in,         & ! reach topology data structure
                          RPARAM_in,         & ! reach parameter data structure
-                         ! output
                          reachRunoff,       & ! intent(out): reach runoff (m/s)
                          ierr, message,     & ! intent(out): error control
                          ixSubRch,          & ! optional input: subset of reach indices to be processed
