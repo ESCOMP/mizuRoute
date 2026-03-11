@@ -31,7 +31,7 @@ module rof_comp_nuopc
   use globalData            , only : nRoutes                     ! number of active routing methods - for cesm-coupling, limit to one
   use globalData            , only : version
   use init_model_data       , only : get_mpi_omp, init_model
-  use RunoffMod             , only : ctl
+  use RtmVar                , only : ctl
   use RtmMod                , only : route_ini, route_run
   use RtmTimeManager        , only : shr_timeStr
   use RtmVar                , only : cfile_name
