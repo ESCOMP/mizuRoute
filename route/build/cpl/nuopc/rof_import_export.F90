@@ -284,7 +284,7 @@ contains
     !---------------------------------------------------------------------------
 
     ! uses
-    use RtmVar, only : ice_runoff
+    use public_var, only : ice_runoff
 
     ! input/output/variables
     type(ESMF_GridComp)  :: gcomp
