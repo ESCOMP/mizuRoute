@@ -87,7 +87,8 @@
 !       all: apply all qgwl runoff to bypass_routing, negative: apply only negative runoff, threshold: apply runoff below threshold
 <bypass_routing_option> direct_to_outlet            ! options: direct_in_place, or direct_to_outlet
 <qgwl_runoff_option>    negative                    ! options: all, negative, or threshold
-<correct_area>          F                           ! logical: area correction between model and coupler areas
+<correct_area>          F                           ! T => perform area correction between model and coupler areas
+<ice_runoff>            T                           ! T => ice runoff exported to cpler separately from liquid, otherwise ice is combined with liquid 
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
