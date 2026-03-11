@@ -45,6 +45,10 @@ MODULE RunoffMod
 CONTAINS
 
   SUBROUTINE init(this, begr, endr, numr)
+
+    ! DESCRIPTION:
+    ! Initialize rof_control derived data variables
+
     implicit none
     class(rof_control)  :: this
     integer, intent(in) :: begr, endr, numr
@@ -87,6 +91,12 @@ CONTAINS
   END SUBROUTINE init
 
   SUBROUTINE init_tracer_names(this, tracer_names)
+
+    ! DESCRIPTION:
+    ! Initialize tracer names in rof_coontrol derived data
+    ! LIQ (i.e., water) and ICE are always initialized
+    ! Any additional tracers to be tracked can be added.
+
     implicit none
     ! Argument variables
     class(rof_control)            :: this
