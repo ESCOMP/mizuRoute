@@ -463,8 +463,6 @@ contains
 
     call ESMF_TimeGet( stopTime, yy=yy, mm=mm, dd=dd, s=stop_tod, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    ! adjust stopTime for mizuRoute clock
-    stopTime = stopTime - timeStep
     call shr_cal_ymd2date(yy,mm,dd,stop_ymd)
     call shr_timeStr( stopTime, simEnd )
 

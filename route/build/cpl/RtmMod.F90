@@ -8,8 +8,7 @@ MODULE RtmMod
                           shr_pio_getrearranger, shr_pio_getioroot, shr_pio_getiosys
   USE shr_kind_mod, ONLY: r8 => shr_kind_r8, CL => SHR_KIND_CL
   USE shr_sys_mod,  ONLY: shr_sys_flush, shr_sys_abort
-  USE RtmVar,       ONLY: ice_runoff, &
-                          river_depth_minimum, &
+  USE RtmVar,       ONLY: river_depth_minimum, &
                           nsrContinue, nsrBranch, nsrStartup, nsrest, &
                           cfile_name, coupling_period, nsub, &
                           caseid, brnch_retain_casename, inst_name, &
@@ -594,9 +593,9 @@ CONTAINS
       call t_stopf('mizuRoute_htapes')
 
       !-----------------------------------
-      ! Write out mizuRoute restart file
+      ! Write out mizuRoute restart file - write when coupler said so (rstwr==T) and at end of subcycling
       !-----------------------------------
-      if (rstwr) then
+      if (rstwr .and. ns==nsub) then
         call t_startf('mizuRoute_rest')
 
         call restart_output(ierr, cmessage)

@@ -367,7 +367,8 @@ CONTAINS
    ! CESM coupling variables (not used for stand-alone)
    case('<qgwl_runoff_option>'   ); qgwl_runoff_option    = trim(cData)                        ! handling negative qgwl runoff: all, negative, threshold
    case('<bypass_routing_option>'); bypass_routing_option = trim(cData)                        ! routing bypass option: direct_in_place, direct_to_outlet, none
-   case('<correct_area>');          read(cData,*,iostat=io_error) correct_area                 ! logical for area correction between model and coupler areas.
+   case('<correct_area>');          read(cData,*,iostat=io_error) correct_area                 ! logical flag: area correction between model and coupler areas.
+   case('<ice_runoff>');            read(cData,*,iostat=io_error) ice_runoff                   ! logical flag: true => ice sent to coupler separately from liquid, otherwise combined with liquid
 
    ! if not in list then keep going
    case default

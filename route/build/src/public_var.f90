@@ -206,6 +206,7 @@ MODULE public_var
   ! CESM Coupling variables
   character(len=32)    ,public    :: bypass_routing_option = 'direct_in_place' ! bypass routing model method: direct_in_place or direct_to_outlet
   character(len=32)    ,public    :: qgwl_runoff_option    = 'threshold'       ! method for handling qgwl runoff: all, negative, or threshold
-  logical(lgt)         ,public    :: correct_area          = .false.           ! method for handling qgwl runoff: all, negative, or threshold
+  logical(lgt)         ,public    :: correct_area          = .false.           ! .true. => correct area based on differenec between model and coupler areas.
+  logical(lgt)         ,public    :: ice_runoff            = .true.            ! .true. => ice sent to coupler separately from liquid, otherwise combined with liquid
 
 END MODULE public_var
