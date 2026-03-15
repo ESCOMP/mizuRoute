@@ -593,9 +593,9 @@ CONTAINS
       call t_stopf('mizuRoute_htapes')
 
       !-----------------------------------
-      ! Write out mizuRoute restart file
+      ! Write out mizuRoute restart file - write when coupler said so (rstwr==T) and at end of subcycling
       !-----------------------------------
-      if (rstwr) then
+      if (rstwr .and. ns==nsub) then
         call t_startf('mizuRoute_rest')
 
         call restart_output(ierr, cmessage)
