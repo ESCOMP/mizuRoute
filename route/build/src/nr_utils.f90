@@ -29,12 +29,12 @@ INTERFACE sizeo
 END INTERFACE
 
 INTERFACE char2int
-  module procedure :: char2int_1d
-  module procedure :: char2int_2d
+  module procedure char2int_1d
+  module procedure char2int_2d
 END INTERFACE
 
 INTERFACE match_index
-  module procedure :: match_index_i4b, match_index_i8b
+  module procedure match_index_i4b, match_index_i8b
 END INTERFACE
 
 private

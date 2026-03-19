@@ -32,7 +32,6 @@ public::diffusivity
 logical(lgt), parameter :: useFrictionSlope = .true.    ! .false. -> approximate friction slope with channel slope
 real(dp),     parameter :: const13=1._dp/3._dp          ! constant
 real(dp),     parameter :: const23=2._dp/3._dp          ! constant
-real(dp),     parameter :: const43=4._dp/3._dp          ! constant
 real(dp),     parameter :: const53=5._dp/3._dp          ! constant
 real(dp),     parameter :: const103=10._dp/3._dp        ! constant
 real(dp),     parameter :: err_thresh=0.005_dp          ! newton method convergence threshold

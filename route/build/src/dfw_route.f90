@@ -10,7 +10,6 @@ USE dataTypes,     ONLY: RCHPRP          ! Reach parameter
 USE dataTypes,     ONLY: dwRCH           ! dw specific state data structure
 USE public_var,    ONLY: iulog           ! i/o logical unit number
 USE public_var,    ONLY: realMissing     ! missing value for real number
-USE public_var,    ONLY: integerMissing  ! missing value for integer number
 USE public_var,    ONLY: desireId        ! ID or reach where detailed reach state is print in log
 USE public_var,    ONLY: dt              ! simulation time step [sec]
 USE public_var,    ONLY: is_flux_wm      ! logical water management components fluxes should be read

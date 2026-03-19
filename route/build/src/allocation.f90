@@ -19,13 +19,13 @@ USE globalData, ONLY: meta_NTOPO          ! network topology
 USE globalData, ONLY: meta_PFAF           ! network topology
 
 ! named variables
-USE var_lookup, ONLY: ixStruct, nStructures  ! index of data structures
-USE var_lookup, ONLY: ixDims,   nDimensions  ! index of dimensions
-USE var_lookup, ONLY: ixHRU,    nVarsHRU     ! index of variables for the HRUs
-USE var_lookup, ONLY: ixSEG,    nVarsSEG     ! index of variables for the stream segments
-USE var_lookup, ONLY: ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-USE var_lookup, ONLY: ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
-USE var_lookup, ONLY: ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
+USE var_lookup, ONLY: ixStruct, nStructures  ! index of nStructures data structures
+USE var_lookup, ONLY: ixDims                 ! index of dimensions
+USE var_lookup, ONLY: ixSEG,    nVarsSEG     ! index of nVarsSEG variables for the stream segments
+USE var_lookup, ONLY: ixNTOPO,  nVarsNTOPO   ! index of nVarsNTOPO variables for the network topology
+USE var_lookup, ONLY: nVarsHRU               ! number of variables for the HRUs
+USE var_lookup, ONLY: nVarsHRU2SEG           ! number of variables for the hru2segment mapping
+USE var_lookup, ONLY: nVarsPFAF              ! number of variables for the pfafstetter code
 
 implicit none
 
@@ -71,18 +71,18 @@ CONTAINS
 
  ! allocate the spatial dimension in all data structures
  allocate(structHRU(nHRU), structHRU2seg(nHRU), structSeg(nSeg), structNTOPO(nSeg), structPFAF(nSeg), stat=ierr)
- if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating [structHRU,structHRU2seg,structNTOPO,structPFAF]'; return; endif
+ if(ierr/=0)then; message=trim(message)//'problem allocating structHRU, structHRU2seg, structNTOPO or structPFAF'; return; endif
 
  ! allocate the variable dimension in the data structures with length nHRU
  do iHRU=1,nHRU
   allocate(structHRU(iHRU)%var(nVarsHRU), structHRU2seg(iHRU)%var(nVarsHRU2SEG), stat=ierr)
-  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating variables for HRUs'; return; endif
+  if(ierr/=0)then; message=trim(message)//'problem allocating variables for HRUs'; return; endif
  end do
 
  ! allocate the variable dimension in the data structures with length nSeg
  do iSeg=1,nSeg
   allocate(structSeg(iSeg)%var(nVarsSEG), structNTOPO(iSeg)%var(nVarsNTOPO), structPFAF(iSeg)%var(nVarsPFAF),stat=ierr)
-  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating variables for stream segments'; return; endif
+  if(ierr/=0)then; message=trim(message)//'problem allocating var of structSeg,structNTOPO or structPFAF'; return; endif
  end do
 
  ! ---------- allocate space for the scalar variables --------------------------------------------------------------
@@ -122,7 +122,7 @@ CONTAINS
      case(ixStruct%PFAF   ); if(isDimScalar) allocate(structPFAF(   iSpace)%var(iVar)%dat(1), stat=ierr)
      case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
     end select
-    if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for the data vectors'; return; endif
+    if(ierr/=0)then; message=trim(message)//'problem allocating space for the data vectors'; return; endif
 
    end do  ! loop through variab;es
   end do  ! loop through space

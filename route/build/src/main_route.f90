@@ -5,7 +5,6 @@ USE dataTypes,            ONLY: STRSTA          ! state in each reach
 USE dataTypes,            ONLY: STRFLX          ! fluxes in each reach
 USE dataTypes,            ONLY: RCHTOPO         ! Network topology
 USE dataTypes,            ONLY: RCHPRP          ! Reach parameter
-USE dataTypes,            ONLY: runoff          ! runoff data type
 USE dataTypes,            ONLY: subbasin_omp    ! mainstem+tributary data structures
 USE obs_data,             ONLY: gageObs
 USE globalData,           ONLY: routeMethods    ! Active routing method IDs
