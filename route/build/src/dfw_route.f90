@@ -191,7 +191,7 @@ CONTAINS
                          RCHFLX_out,     & ! inout: reach fluxes datq structure
                          ierr, cmessage)   ! output: error control
    if(ierr/=0)then
-     write(message,'(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
+     write(message,'(A,1X,I12,1X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
    endif
  end if
 
