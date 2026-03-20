@@ -2,15 +2,13 @@ MODULE write_simoutput_pio
 
 ! Moudle wide shared data/routines
 USE nrtype
-USE var_lookup,     ONLY: ixRFLX, nVarsRFLX
-USE dataTypes,      ONLY: STRFLX
 USE datetime_data,  ONLY: datetime
 USE public_var,     ONLY: iulog
 USE public_var,     ONLY: integerMissing
 USE globalData,     ONLY: runMode           ! 'standalone' or 'cesm-coupling'
-USE globalData,     ONLY: pid, nNodes
+USE globalData,     ONLY: pid
 USE globalData,     ONLY: masterproc
-USE globalData,     ONLY: hfileout, hfileout_gage, rfileout
+USE globalData,     ONLY: hfileout, hfileout_gage
 USE globalData,     ONLY: initHvars
 USE historyFile,    ONLY: histFile
 USE histVars_data,  ONLY: histVars
@@ -348,7 +346,6 @@ CONTAINS
    integer(i4b)                :: sec_in_day      ! second within day
    character(len=strLen)       :: timeString
    character(len=27),parameter :: fmtYMDS='(I0.4,a,I0.2,a,I0.2,a,I0.5)'
-   character(len=20),parameter :: fmtYMD ='(I0.4,a,I0.2,a,I0.2)'
    character(len=13),parameter :: fmtYM  ='(I0.4,a,I0.2)'
    character(len=6),parameter  :: fmtY   ='(I0.4)'
 

@@ -4,18 +4,10 @@ MODULE process_remap_module
   USE nrtype
   USE dataTypes, ONLY: remap                ! remapping data type
   USE dataTypes, ONLY: runoff               ! runoff data type
-  USE dataTypes, ONLY: var_ilength          ! integer type:          var(:)%dat
-  USE dataTypes, ONLY: var_dlength          ! double precision type: var(:)%dat
 
   ! parameter structures
   USE dataTypes,  ONLY: RCHPRP              ! Reach parameters (properties)
   USE dataTypes,  ONLY: RCHTOPO             ! Network topology
-
-  ! look-up variables
-  USE var_lookup, ONLY: ixHRU,    nVarsHRU     ! index of variables for the HRUs
-  USE var_lookup, ONLY: ixSEG,    nVarsSEG     ! index of variables for the stream segments
-  USE var_lookup, ONLY: ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-  USE var_lookup, ONLY: ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 
   ! global data
   USE public_var, ONLY: iulog                  ! i/o logical unit number

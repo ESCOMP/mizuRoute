@@ -24,7 +24,7 @@ CONTAINS
  USE ncio_utils, ONLY: check_variable
  USE dataTypes,  ONLY: states
  ! meta data
- USE var_lookup, ONLY: ixStateDims, nStateDims
+ USE var_lookup, ONLY: ixStateDims
  USE globalData, ONLY: meta_stateDims            ! dimension for state variables
  USE globalData, ONLY: idxDW                     ! DW routing method index (now tracer use only dw method)
  USE globalData, ONLY: RCHFLX                    ! reach flux data structure for the entire domain
@@ -318,7 +318,6 @@ CONTAINS
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
     integer(i4b), allocatable     :: numQF(:)       ! number of future Q time steps for each segment
     integer(i4b)                  :: ntdh_irf       ! dimenion sizes
-    integer(i4b)                  :: nTbound=2      ! dimenion sizes
 
     ierr=0; message1='read_IRF_state/'
 

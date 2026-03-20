@@ -22,11 +22,6 @@ USE globalData, ONLY: meta_PFAF           ! network topology
 ! named variables
 USE var_lookup, ONLY: ixStruct, nStructures  ! index of data structures
 USE var_lookup, ONLY: ixDims,   nDimensions  ! index of dimensions
-USE var_lookup, ONLY: ixHRU,    nVarsHRU     ! index of variables for the HRUs
-USE var_lookup, ONLY: ixSEG,    nVarsSEG     ! index of variables for the stream segments
-USE var_lookup, ONLY: ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-USE var_lookup, ONLY: ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
-USE var_lookup, ONLY: ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
 
 ! netcdf modules
 USE netcdf

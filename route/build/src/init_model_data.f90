@@ -18,9 +18,6 @@ USE public_var, ONLY: charMissing
 
 implicit none
 
-integer(i4b),parameter  :: upstream_size=1
-integer(i4b),parameter  :: stream_order=2
-
 private
 public :: get_mpi_omp
 public :: init_model
@@ -337,7 +334,6 @@ CONTAINS
  SUBROUTINE init_state_data(pid, nNodes, comm, ierr, message)
 
   ! external routines
-  USE ascii_utils,  ONLY: lower             ! convert string to lower case
   USE read_restart, ONLY: read_state_nc     ! read netcdf state output file
   USE mpi_process,  ONLY: mpi_restart
   ! shared data
@@ -645,9 +641,6 @@ CONTAINS
   ! options
   USE public_var, ONLY: ntopAugmentMode          ! River network augmentation mode
   USE public_var, ONLY: idSegOut                 ! River network subset mode (idSegOut > 0)
-  ! common variables
-  USE public_var, ONLY: realMissing              ! missing value for real
-  USE public_var, ONLY: integerMissing           ! missing value for integers
   ! global data
   USE globalData, ONLY: meta_PFAF                ! meta for pfafstetter code
   ! external subroutines

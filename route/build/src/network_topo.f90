@@ -8,24 +8,16 @@ USE dataTypes, ONLY: var_dlength    ! double precision type: var(:)%dat
 ! public parameters
 USE public_var, ONLY: iulog          ! i/o logical unit number
 
-! metadata on data structures
-USE globalData, ONLY: meta_struct  ! structure information
-USE globalData, ONLY: meta_HRU     ! HRU properties
-USE globalData, ONLY: meta_HRU2SEG ! HRU-to-segment mapping
-USE globalData, ONLY: meta_SEG     ! stream segment properties
-USE globalData, ONLY: meta_NTOPO   ! network topology
-
 ! named variables
 USE public_var, ONLY: true,false      ! named integers for true/false
 USE public_var, ONLY: verySmall       ! a very small value
 USE public_var, ONLY: integerMissing
 
 ! named variables
-USE var_lookup, ONLY:ixStruct, nStructures  ! index of data structures
-USE var_lookup, ONLY:ixHRU,    nVarsHRU     ! index of variables for the HRUs
-USE var_lookup, ONLY:ixSEG,    nVarsSEG     ! index of variables for the stream segments
-USE var_lookup, ONLY:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
+USE var_lookup, ONLY:ixHRU      ! index of variables for the HRUs
+USE var_lookup, ONLY:ixSEG      ! index of variables for the stream segments
+USE var_lookup, ONLY:ixHRU2SEG  ! index of variables for the hru2segment mapping
+USE var_lookup, ONLY:ixNTOPO    ! index of variables for the network topology
 
 ! external utilities
 USE nr_utils, ONLY: findIndex     ! Num. Recipies utilities
