@@ -98,12 +98,17 @@ CONTAINS
  integer(i4b)                                      :: iSeg                 ! indices for stream segment
  real(dp)     , allocatable                        :: seg_length(:)        ! temporal array for segment length
  type(dlength), allocatable                        :: temp_dat(:)          ! temporal storage for dlength data structure
- !integer(i8b)                                      :: time0,time1,cr       ! for timing
 
  ierr=0; message='augment_ntopo/'
 
- !call system_clock(count_rate=cr)
- !call system_clock(time0)
+ ! To time each process, these are what to do
+ !  integer(i8b)                                      :: time0,time1,cr       ! for timing
+ !  call system_clock(count_rate=cr)
+ !  call system_clock(time0)
+ !  call subroutine
+ !  call system_clock(time1)
+ !  write(*,'(a,1x,1PG15.7,A)') 'hru2segment: elapsed time = ', real(time1-time0,kind(dp))/real(cr), ' s'
+ !  call system_clock(time0)
 
  ! ---------- get the mapping between HRUs and segments ------------------------------------------------------
 
@@ -121,10 +126,6 @@ CONTAINS
                    ierr, cmessage)  ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  !call system_clock(time1)
-  !write(*,'(a,1x,1PG15.7,A)') 'hru2segment: elapsed time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-  !call system_clock(time0)
-
  endif  ! if need to compute network topology
 
  ! ---------- get the mapping between upstream and downstream segments ---------------------------------------
@@ -139,10 +140,6 @@ CONTAINS
                       ierr, cmessage)  ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  !call system_clock(time1)
-  !write(*,'(a,1x,1PG15.7,A)') 'up2downSegment: elapsed time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-  !call system_clock(time0)
-
  endif  ! if need to compute network topology
 
  ! ---------- get the processing order -----------------------------------------------------------------------
@@ -155,10 +152,6 @@ CONTAINS
                   structNTOPO,  &   ! input:output: network topology
                   ierr, cmessage)   ! output:       error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  !call system_clock(time1)
-  !write(*,'(a,1x,1PG15.7,A)') 'reachOrder: elapsed time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-  !call system_clock(time0)
 
  endif  ! if need to compute network topology
 
@@ -173,10 +166,6 @@ CONTAINS
                       ierr, cmessage)   ! output:       error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  !call system_clock(time1)
-  !write(*,'(a,1x,1PG15.7,A)') 'streamOrder: elapsed time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-  !call system_clock(time0)
-
  endif  ! if need to compute network topology
 
  ! ---------- get the list of all upstream reaches above a given reach ---------------------------------------
@@ -189,10 +178,6 @@ CONTAINS
                  tot_upstream_tmp,            & ! Total number of upstream reaches for all reaches
                  ierr, cmessage)                ! Error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- !call system_clock(time1)
- !write(*,'(a,1x,1PG15.7,A)') 'reach_list: elapsed time = ', real(time1-time0,kind(dp))/real(cr), ' s'
- !call system_clock(time0)
 
  ! ---------- Compute routing parameters  --------------------------------------------------------------------
  ! compute channel geometry parameters (width, depth, Manning's n, and floodplain slope)
@@ -226,10 +211,6 @@ CONTAINS
                                                        bankDepth=structSEG(iSeg)%var(ixSEG%depth)%dat(1))
  end do
 
- !call system_clock(time1)
- !write(*,'(a,1x,1PG15.7,A)') 'river geometry: elapsed time = ', real(time1-time0,kind(dp))/real(cr), ' s'
- !call system_clock(time0)
-
  ! get the channel unit hydrograph
  if(topoNetworkOption==compute)then
 
@@ -256,10 +237,6 @@ CONTAINS
     enddo
   end if ! if using the impulse response function
 
-  !call system_clock(time1)
-  !write(*,'(a,1x,1PG15.7,A)') 'reach parameters: elapsed time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-  !call system_clock(time0)
-
  endif ! if there is a need to compute the channel unit hydrograph
 
  ! ---------- get the mask of all upstream reaches above a given reach ---------------------------------------
@@ -278,9 +255,6 @@ CONTAINS
                  ixSeg_desired_tmp, &  ! output: indices of desired reaches
                  ierr, cmessage )      ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- !call system_clock(time1)
- !write(*,'(a,1x,1PG15.7,A)') 'reach_mask: elapsed time = ', real(time1-time0,kind(dp))/real(cr), ' s'
 
  ! for optional output
  if (present(tot_hru))       tot_hru=tot_hru_tmp
