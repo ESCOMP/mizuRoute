@@ -189,11 +189,13 @@ CONTAINS
   if (.not.dimCheck(jDim)) cycle
 
   ! define the start index
-  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_start', 'start index in ragged array', '-', nf90_int, ixDims%seg, ierr, cmessage)
+  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_start', 'start index in ragged array', '-', &
+                 & nf90_int, ixDims%seg, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! define the count
-  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_count', 'count of spatial element in ragged array', '-', nf90_int, ixDims%seg, ierr, cmessage)
+  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_count', 'count of spatial element in ragged array', '-', &
+                 & nf90_int, ixDims%seg, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end do  ! looping through dimensions

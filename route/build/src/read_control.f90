@@ -393,7 +393,8 @@ CONTAINS
 
  ! ---------- restart option  ---------------------------------------------------------------------
  if (trim(runMode)=='standalone' .or. .not. continue_run) then
-   if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
+   if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' &
+      .or. lower(trim(fname_state_in))=='coldstart') then
      isColdStart=.true.
    else
      isColdStart=.false.
@@ -467,7 +468,8 @@ CONTAINS
    case('h','hr','hour');    time_conv = 1._dp/secprhour
    case('s','sec','second'); time_conv = 1._dp
    case default
-     message=trim(message)//'expect the time units of runoff to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
+     message=trim(message)//'expect the time units of runoff to be "day"("d"), "hour"("h") or "second"("s") &
+             & [time units = '//trim(cTime)//']'
      err=81; return
  end select
 
@@ -499,7 +501,8 @@ CONTAINS
      case('h','hr','hour');    time_conv_solute = 1._dp/secprhour
      case('s','sec','second'); time_conv_solute = 1._dp
      case default
-       message=trim(message)//'expect the time units of mass flux to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
+       message=trim(message)//'expect the time units of mass flux to be "day"("d"), "hour"("h") or "second"("s") &
+             & [time units = '//trim(cTime)//']'
        err=81; return
    end select
  end if
@@ -530,7 +533,9 @@ CONTAINS
    case default
      read(outputFrequency,'(I5)',iostat=err) nOutFreq
      if (err/=0) then
-       message=trim(message)//'<outputFrequency> is invalid: must be "daily", "monthly", "yearly" or positive integer (number of time steps)'; return
+       message=trim(message)//'<outputFrequency> is invalid: must be "daily", "monthly", "yearly" &
+             & or positive integer (number of time steps)'
+       return
      end if
      if (nOutFreq<0) then
        message=trim(message)//'<outputFrequency> is invalid: must be positive integer'; return
@@ -667,7 +672,7 @@ CONTAINS
  ! Control routing method dependent variable name - routedRunoff, volume, elevation etc.
  ! use generic name if outputNameOption is set to 'generic' AND only one routing method is activated w or w/o accumRunoff
  isGeneric = trim(lower(outputNameOption))=='generic'
- onlyOneRouting = ((nRoutes==2 .and. any(routeMethods==accumRunoff) .or. nRoutes==1))
+ onlyOneRouting = ((nRoutes==2 .and. any(routeMethods==accumRunoff)) .or. nRoutes==1)
  if (onlyOneRouting .and. isGeneric) then
    do iRoute = 1, nRoutes
      select case(routeMethods(iRoute))
@@ -712,7 +717,7 @@ CONTAINS
  ! if routing methods are not including DW and tracer is on, execution is aborted and instruct user to include 5(DW) in route_opt
  if (all(routeMethods/=diffusiveWave)) then
    if (tracer) then
-     message=trim(message)//'Tracer is on without DW routig method included. Please include 5 (==DW method) in route_opt when tracer is on.'
+     message=trim(message)//'Tracer is on w/o DW routig method. Please include 5 (==DW method) in route_opt when tracer is on.'
      err=20; return
    end if
    meta_rflx(ixRFLX%DWsoluteFlux)%varFile = .false.

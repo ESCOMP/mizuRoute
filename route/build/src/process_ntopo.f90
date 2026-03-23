@@ -300,11 +300,12 @@ END SUBROUTINE augment_ntopo
 
   ! check reach
   do iSeg = 1,nSeg
-    associate(segId => structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1))
+    associate(segId  => structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1), &
+              length => structSEG(iSeg)%var(ixSEG%length)%dat(1))
     ! Check reach length
-    if (structSEG(iSeg)%var(ixSEG%length)%dat(1)<=0) then
-      write(iulog,'(a,i0,a,1PG15.7, a)') 'WARNING: length for reach id ',segId,' is ',structSEG(iSeg)%var(ixSEG%length)%dat(1),'<0. Corrected to 100 m'
-      structSEG(iSeg)%var(ixSEG%length)%dat(1)=100._dp
+    if (length<=0) then
+      write(iulog,'(a,i0,a,1PG15.7, a)') 'WARNING: length for reach id ',segId,' is ',length,'<0. Corrected to 100 m'
+      length=100._dp
     end if
     ! Check reach slope
     end associate

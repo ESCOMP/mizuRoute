@@ -122,8 +122,9 @@ CONTAINS
  if (total_intersects == nData) then
    write(iulog,'(a)') ' 1) and 2) identical. Should be good to go'
  else
-   write(iulog,'(a)')    ' 1) and 2) differ'
-   write(iulog,'(3a)')   ' Correct ',trim(dname_data_remap),' dimension variables at routing HRUs without any interesected hydrologic model hrus'
+   write(iulog,'(a)')  ' 1) and 2) differ'
+   write(iulog,'(3a)') ' Correct ',trim(dname_data_remap), &
+                     & ' dimension variables at routing HRUs without any interesected hydrologic model hrus'
 
    nZero=count(remap_data_in%num_qhru==0)
 

@@ -132,10 +132,14 @@ CONTAINS
 
  ! check size of output arguments and number of dimensions in the variable
  if (present(dlen)) then
-   if(nDims/=size(dlen)) then; ierr=10;  message=trim(message)//': '//trim(vname)//' number of dimensions mismatch with dlen size'; return; endif
+   if(nDims/=size(dlen)) then
+     ierr=10; message=trim(message)//': '//trim(vname)//' number of dimensions mismatch with dlen size'; return
+   endif
  end if
  if (present(dname)) then
-   if(nDims/=size(dname)) then; ierr=10; message=trim(message)//': '//trim(vname)//' number of dimensions mismatch with dname size'; return; endif
+   if(nDims/=size(dname)) then
+     ierr=10; message=trim(message)//': '//trim(vname)//' number of dimensions mismatch with dname size'; return
+   endif
  end if
 
  allocate(ncDimIDs(nDims), stat=ierr)

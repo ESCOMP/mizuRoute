@@ -303,7 +303,7 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     else
       if (trim(time_units_in)==charMissing) then
-        write(cmessage, '(2A)')  trim(time_var_name), '. No units attribute exist nor provided by user in ro_time_units in control file'
+        write(cmessage,'(2A)') trim(time_var_name),'. No units in time attribute nor provided in <ro_time_units> in control file'
         ierr=10; message=trim(message)//trim(cmessage); return
       end if
       inputFileInfo(iFile)%unit = time_units_in
@@ -317,7 +317,7 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     else
       if (trim(calendar_in)==charMissing) then
-        write(cmessage, '(2A)')  trim(time_var_name), '. No calendar attribute exist nor provided by user in ro_calendar in control file'
+        write(cmessage,'(2A)') trim(time_var_name),'. No calendar in time attribute nor provided in <ro_calendar> in control file'
         ierr=10; message=trim(message)//trim(cmessage); return
       end if
       inputFileInfo(iFile)%calendar = calendar_in
@@ -346,13 +346,15 @@ CONTAINS
       case('hours'  ,'hour'  ,'hr' ,'h'); convTime2sec=secprhour
       case('days'   ,'day'   ,'d');       convTime2sec=secprday
       case default
-        ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
+        ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'
+        return
     end select
     ! convert timeValue unit to second
     inputFileInfo(iFile)%timeVar(:) = inputFileInfo(iFile)%timeVar(:)*convTime2sec
 
     ! get the reference datetime from the nc file
-    call inputFileInfo(iFile)%refDatetime%str2datetime(trim(inputFileInfo(iFile)%unit), inputFileInfo(iFile)%calendar, ierr, message)
+    call inputFileInfo(iFile)%refDatetime%str2datetime(trim(inputFileInfo(iFile)%unit), inputFileInfo(iFile)%calendar, &
+                                                      & ierr, message)
     if(ierr/=0) then; message=trim(message)//trim(cmessage)//' inputFileInfo%refDatetime%str2datetime'; return; endif
 
     ! populated the index of the iTimebound for each nc file
@@ -427,30 +429,30 @@ CONTAINS
   implicit none
 
   ! Argument variables
-  integer(i4b),              intent(out)   :: ierr                ! error code
-  character(*),              intent(out)   :: message             ! error message
+  integer(i4b),   intent(out)  :: ierr              ! error code
+  character(*),   intent(out)  :: message           ! error message
   ! local variables
-  integer(i4b)                             :: ix
-  integer(i4b)                             :: counter
-  integer(i4b)                             :: nTime
-  integer(i4b)                             :: nTime_wm
-  integer(i4b)                             :: nt
-  integer(i4b)                             :: nFile               ! number of nc files
-  integer(i4b)                             :: nFile_wm            ! number of nc files
-  character(len=strLen)                    :: t_unit              ! time units. "<time_step> since yyyy-MM-dd hh:mm:ss"
-  integer(i4b)                             :: iFile               ! for loop over the nc files
-  type(datetime), allocatable              :: roCal(:)            ! datetime in runoff data
-  type(datetime), allocatable              :: wmCal(:)            ! datetime in water-management data
-  type(datetime)                           :: roDatetime_end      ! end of datetime in runoff data
-  type(datetime)                           :: refDatetime         ! reference datetime from unit time based on "time_units"
-  type(datetime)                           :: dummyDatetime       ! temp datetime
-  integer(i4b)                             :: nDays               ! number of days in a month
-  real(dp), allocatable                    :: roTimeVar(:)        ! elapsed seconds from reference datetime in runoff data
-  real(dp), allocatable                    :: roTimeVar_diff(:)   ! time difference in second between two concequative runoff time step
-  real(dp), allocatable                    :: wmTimeVar(:)        ! elapsed seconds from reference datetime in water management
-  real(dp), allocatable                    :: wmTimeVar_diff(:)   ! time difference in second between two concequative water-management time step
-  character(len=strLen)                    :: cmessage            ! error message of downwind routine
-  character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
+  integer(i4b)                 :: ix
+  integer(i4b)                 :: counter
+  integer(i4b)                 :: nTime
+  integer(i4b)                 :: nTime_wm
+  integer(i4b)                 :: nt
+  integer(i4b)                 :: nFile             ! number of nc files
+  integer(i4b)                 :: nFile_wm          ! number of nc files
+  character(len=strLen)        :: t_unit            ! time units. "<time_step> since yyyy-MM-dd hh:mm:ss"
+  integer(i4b)                 :: iFile             ! for loop over the nc files
+  type(datetime), allocatable  :: roCal(:)          ! datetime in runoff data
+  type(datetime), allocatable  :: wmCal(:)          ! datetime in water-management data
+  type(datetime)               :: roDatetime_end    ! end of datetime in runoff data
+  type(datetime)               :: refDatetime       ! reference datetime from unit time based on "time_units"
+  type(datetime)               :: dummyDatetime     ! temp datetime
+  integer(i4b)                 :: nDays             ! number of days in a month
+  real(dp), allocatable        :: roTimeVar(:)      ! elapsed seconds from reference datetime in runoff data
+  real(dp), allocatable        :: roTimeVar_diff(:) ! time difference in second between two concequative runoff time step
+  real(dp), allocatable        :: wmTimeVar(:)      ! elapsed seconds from reference datetime in water management
+  real(dp), allocatable        :: wmTimeVar_diff(:) ! time difference in second between two concequative water-management time step
+  character(len=strLen)        :: cmessage          ! error message of downwind routine
+  character(len=50)            :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
 
   ierr=0; message='init_time/'
 
@@ -490,7 +492,8 @@ CONTAINS
     roTimeVar_diff = roTimeVar(2:nTime)-roTimeVar(1:nTime-1)
     ! check if the difference are identical otherwise error and terminate
     if ( any(abs(roTimeVar_diff-roTimeVar_diff(1)) > maxTimeDiff) ) then
-      write(iulog,'(2a)') new_line('a'),'ERROR: time spacing in netCDF input(s) is not consistent within tolerance maxTimeDiff = ',maxTimeDiff
+      write(iulog,'(2a)') new_line('a'), &
+                        & 'ERROR: time spacing in netCDF input(s) is not consistent within tolerance maxTimeDiff = ',maxTimeDiff
       ierr=20; message=trim(message)//'make sure the input netCDF files do not have time overlaps or gaps'; return
     end if
   endif
@@ -520,23 +523,29 @@ CONTAINS
 
   ! check that the dates are aligned
   if(endDatetime < begDatetime) then
-    write(cmessage,'(7a)') 'simulation end is before simulation start:', new_line('a'), '<sim_start>= ', trim(simStart), new_line('a'), '<sim_end>= ', trim(simEnd)
+    write(cmessage,'(7a)') 'simulation end is before simulation start:', &
+                          & new_line('a'), '<sim_start>= ', trim(simStart), &
+                          & new_line('a'), '<sim_end>= ', trim(simEnd)
     ierr=20; message=trim(message)//trim(cmessage); return
   endif
 
   ! check sim_start is after the last time step in runoff data
   if (begDatetime > roDatetime_end) then
     write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the last time step in input runoff'
-    write(iulog,fmt1)  ' runoff_end  : ', roDatetime_end%year(),'-',roDatetime_end%month(),'-',roDatetime_end%day(), roDatetime_end%hour(),':', roDatetime_end%minute(),':',roDatetime_end%sec()
-    write(iulog,fmt1)  ' <sim_start> : ', begDatetime%year(),'-',begDatetime%month(),'-',begDatetime%day(), begDatetime%hour(),':', begDatetime%minute(),':',begDatetime%sec()
+    write(iulog,fmt1) ' runoff_end  : ', roDatetime_end%year(),'-',roDatetime_end%month(),'-',roDatetime_end%day(), &
+                                       & roDatetime_end%hour(),':', roDatetime_end%minute(),':',roDatetime_end%sec()
+    write(iulog,fmt1) ' <sim_start> : ', begDatetime%year(),'-',begDatetime%month(),'-',begDatetime%day(), &
+                                       & begDatetime%hour(),':', begDatetime%minute(),':',begDatetime%sec()
     ierr=20; message=trim(message)//'check <sim_start> against runoff input time'; return
   endif
 
   ! Compare sim_start vs. time at first time step in runoff data
   if (begDatetime < roBegDatetime) then
     write(iulog,'(2a)') new_line('a'),'WARNING: <sim_start> is before the first time step in input runoff'
-    write(iulog,fmt1)  ' runoff_start: ', roBegDatetime%year(),'-',roBegDatetime%month(),'-',roBegDatetime%day(), roBegDatetime%hour(),':', roBegDatetime%minute(),':',roBegDatetime%sec()
-    write(iulog,fmt1)  ' <sim_start> : ', begDatetime%year(),'-',begDatetime%month(),'-',begDatetime%day(), begDatetime%hour(),':', begDatetime%minute(),':',begDatetime%sec()
+    write(iulog,fmt1) ' runoff_start: ', roBegDatetime%year(),'-',roBegDatetime%month(),'-',roBegDatetime%day(), &
+                                       & roBegDatetime%hour(),':', roBegDatetime%minute(),':',roBegDatetime%sec()
+    write(iulog,fmt1) ' <sim_start> : ', begDatetime%year(),'-',begDatetime%month(),'-',begDatetime%day(), &
+                                       & begDatetime%hour(),':', begDatetime%minute(),':',begDatetime%sec()
     write(iulog,'(a)') ' Reset <sim_start> to runoff_start'
     begDatetime = roBegDatetime
   endif
@@ -544,9 +553,11 @@ CONTAINS
   ! Compare sim_end vs. time at last time step in runoff data
   if (endDatetime > roDatetime_end) then
     write(iulog,'(2a)')  new_line('a'),'WARNING: <sim_end> is after the last time step in input runoff'
-    write(iulog,fmt1)   ' runoff_end: ', roDatetime_end%year(),'-',roDatetime_end%month(),'-',roDatetime_end%day(), roDatetime_end%hour(),':', roDatetime_end%minute(),':',roDatetime_end%sec()
-    write(iulog,fmt1)   ' <sim_end> : ', endDatetime%year(),'-',endDatetime%month(),'-',endDatetime%day(), endDatetime%hour(),':', endDatetime%minute(),':',endDatetime%sec()
-    write(iulog,'(a)')  ' Reset <sim_end> to runoff_end'
+    write(iulog,fmt1) ' runoff_end: ', roDatetime_end%year(),'-',roDatetime_end%month(),'-',roDatetime_end%day(), &
+                                       & roDatetime_end%hour(),':', roDatetime_end%minute(),':',roDatetime_end%sec()
+    write(iulog,fmt1) ' <sim_end> : ', endDatetime%year(),'-',endDatetime%month(),'-',endDatetime%day(), &
+                                       & endDatetime%hour(),':', endDatetime%minute(),':',endDatetime%sec()
+    write(iulog,'(a)') ' Reset <sim_end> to runoff_end'
     endDatetime = roDatetime_end
   endif
 
@@ -579,8 +590,11 @@ CONTAINS
       wmTimeVar_diff = wmTimeVar(2:nTime_wm) - wmTimeVar(1:nTime_wm-1)
       ! check if the difference are identical otherwise error and terminate
       if ( any(abs(wmTimeVar_diff-wmTimeVar_diff(1)) > maxTimeDiff) ) then
-        write(iulog,'(2a)') new_line('a'),'ERROR: time spacing in water management netCDF input(s) is not consistent within tolerance maxTimeDiff = ',maxTimeDiff
-        ierr=20; message=trim(message)//'make sure the water management input netCDF files do not have time overlaps or gaps'; return
+        write(iulog,'(2a)') new_line('a'), &
+                          & 'ERROR: time spacing in water management netCDF input(s) &
+                          & is not consistent within tolerance maxTimeDiff = ',maxTimeDiff
+        ierr=20; message=trim(message)//'make sure the water management input netCDF files do not have time overlaps or gaps'
+        return
       end if
     endif
 
@@ -666,7 +680,9 @@ CONTAINS
     case('never')
       dropDatetime = datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
-      ierr=20; message=trim(message)//'Accepted <restart_write> options (case insensitive): last, never, specified, yearly, monthly, or daily '; return
+      message=trim(message)//'Accepted <restart_write> options: last, never, specified, yearly, monthly, or daily'
+      ierr=20
+      return
   end select
 
  END SUBROUTINE init_time
@@ -793,7 +809,8 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      if (debug) then
-       write(iulog,'(2a)') new_line('a'), 'DEBUG: Corresponding between River-Network(RN) hru in mapping data and RN hru in river network data'
+       write(iulog,'(2a)') new_line('a'), &
+                           'DEBUG: Corresponding between River-Network(RN) hru in mapping data and RN hru in river network data'
        write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
        write(iulog,'(2x,a,I15)') '(2) number of RN hru in mapping       = ', size(remap_data%hru_id)
        write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(remap_data%hru_ix/=integerMissing)
@@ -810,7 +827,8 @@ CONTAINS
 
        if (debug) then
          call unique(remap_data%qhru_id, unq_qhru_id, unq_idx)
-         write(iulog,'(2a)') new_line('a'),'DEBUG: corresponding between Hydro-Model (HM) hru in mapping data and HM hru in runoff data'
+         write(iulog,'(2a)') new_line('a'), &
+                            'DEBUG: corresponding between Hydro-Model (HM) hru in mapping data and HM hru in runoff data'
          write(iulog,'(2x,a,I15)') '(1) number of HM hru in hyrdo-model  = ', size(runoff_data%hru_id)
          write(iulog,'(2x,a,I15)') '(2) number of HM hru in mapping      = ', size(unq_qhru_id)
          write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two = ', count(remap_data%qhru_ix(unq_idx)/=integerMissing)
@@ -827,7 +845,8 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      if (debug) then
-       write(iulog,'(2a)') new_line('a'), 'DEBUG: corresponding between River-Network (RN) hru in runoff data and RN hru in river network data'
+       write(iulog,'(2a)') new_line('a'), &
+                          'DEBUG: corresponding between River-Network (RN) hru in runoff data and RN hru in river network data'
        write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
        write(iulog,'(2x,a,I15)') '(2) number of RN hru in hyrdo-model   = ', size(runoff_data%hru_id)
        write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(runoff_data%hru_ix/=integerMissing)
