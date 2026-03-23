@@ -10,12 +10,11 @@ MODULE RtmMod
   USE shr_sys_mod,  ONLY: shr_sys_flush, shr_sys_abort
   USE RtmVar,       ONLY: river_depth_minimum, &
                           nsrContinue, nsrBranch, nsrStartup, nsrest, &
-                          cfile_name, coupling_period, nsub, &
+                          coupling_period, nsub, &
                           caseid, brnch_retain_casename, inst_name, &
                           barrier_timers, &
                           ctl         ! rof control data objects
   ! mizuRoute share routines
-  USE public_var,   ONLY: secprday                   ! second per day
   USE public_var,   ONLY: dt                         ! routing time step
   USE public_var,   ONLY: iulog
   USE public_var,   ONLY: qgwl_runoff_option
@@ -56,7 +55,6 @@ CONTAINS
     USE globalData,          ONLY: hru_per_proc                ! number of hrus assigned to each proc (size = num of procs
     USE globalData,          ONLY: nRch_mainstem               ! scalar data: number of mainstem reaches
     USE globalData,          ONLY: nHRU_mainstem               ! scalar data: number of mainstem hrus
-    USE globalData,          ONLY: nHRU_trib                   ! scalar data: number of tributary hrus
     USE globalData,          ONLY: nRch_trib                   ! scalar data: number of tributary reaches
     USE globalData,          ONLY: nTribOutlet                 ! scalar data: number of tributaries flowing to mainstem
     USE globalData,          ONLY: RCHFLX_trib                 ! data structure: Reach flux variables (per proc, tributary)
@@ -78,7 +76,7 @@ CONTAINS
     ! Argument variables:
     ! Local variables:
     integer                    :: ierr                      ! error code
-    integer                    :: nt, ix, ix1, ix2
+    integer                    :: nt, ix1, ix2
     integer                    :: lwr,upr                   ! lower and upper bounds for array slicing
     character(len= 7)          :: runtyp(4)                 ! run type
     character(len=CL)          :: rof_tracers(2) = (/'LIQ','ICE'/) ! now hard-corded - this should be coming from mizuRoute control variables
@@ -128,7 +126,7 @@ CONTAINS
     !-------------------------------------------------------
     ! mizuRoute time initialize based on time from coupler
     call init_time(ierr, cmessage)
-    if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); call shr_sys_flush(iulog); call shr_sys_abort( subname//cmessage ); endif
+    if(ierr/=0) then; cmessage=trim(subname)//trim(cmessage); call shr_sys_flush(iulog); call shr_sys_abort(trim(cmessage)); endif
 
     if (masterproc) then
       write(iulog,*) 'define run:'
@@ -216,7 +214,7 @@ CONTAINS
       end if
     endif
 
-    call ctl%init(ctl%begr, ctl%endr, ctl%numr)
+    call ctl%init(ctl%begr, ctl%endr)
 
     ! index wrt global domain
     ctl%gindex(ctl%begr:ctl%endr) = ixHRU_order(ix1:ix2)
@@ -306,7 +304,6 @@ CONTAINS
         integer                   :: ix
         integer                   :: iRch, iHru
         integer                   :: nRch, nCatch
-        real(r8)                  :: area_hru
 
         if (present(verbose)) then
           verb=verbose
@@ -365,27 +362,23 @@ CONTAINS
     USE globalData,          ONLY: nHRU_trib        ! scalar data: number of tributary HRUs
     USE globalData,          ONLY: nRch_trib        ! scalar data: number of tributary reaches
     USE globalData,          ONLY: nTribOutlet      ! scalar data: number of tributaries flowing to mainstem
-    USE globalData,          ONLY: hru_per_proc     ! array data: number of hrus assigned to each proc (i.e., node)
-    USE globalData,          ONLY: rch_per_proc     ! array data: number of reaches assigned to each proc (i.e., node)
     USE globalData,          ONLY: basinRunoff_main ! array data: mainstem only HRU runoff
     USE globalData,          ONLY: basinRunoff_trib ! array data: tributary only HRU runoff
     USE globalData,          ONLY: flux_wm_main     ! array data: mainstem only irrigation demand (water abstract/injection)
     USE globalData,          ONLY: flux_wm_trib     ! array data: tributary only irrigation demand (water abstract/injection)
     USE globalData,          ONLY: commRch          ! deriv.data: send-recieve river segment pair
-    USE mpi_utils,           ONLY: shr_mpi_send     ! subroutine: point-to-point communication
     USE mpi_process,         ONLY: mpi_route        ! subroutine: MPI routing call
     USE write_simoutput_pio, ONLY: main_new_file    ! subroutine: create new history files if desired
     USE write_simoutput_pio, ONLY: output           ! subroutine: write out history files
     USE write_restart_pio,   ONLY: restart_output   ! subroutine: write out restart file
     USE init_model_data,     ONLY: update_time      ! subroutine: increment time
     USE process_remap_module,ONLY: basin2reach      ! subroutine: mapping variables in hru domain to reach domian
-    USE nr_utils,            ONLY: arth             ! utility: equivalent to python range function
 
     implicit none
     ! Arguments:
     logical ,         intent(in) :: rstwr                  ! true => write restart file this step)
     ! Local variables:
-    integer                      :: ix, nr, ns, nt         ! loop indices
+    integer                      :: ix, nr, ns             ! loop indices
     integer                      :: lwr,upr                ! lower and upper bounds for array slicing
     real(r8)                     :: qgwl_depth             ! depth of qgwl runoff during time step [mm]
     real(r8)                     :: irrig_depth            ! depth of irrigation demand during time step [mm]
@@ -724,7 +717,6 @@ CONTAINS
     ! Local variables:
     character(CL)      :: path           ! full pathname of netcdf restart file
     integer            :: status         ! return status
-    integer            :: length         ! temporary
     character(len=256) :: ftest,ctest    ! temporaries
 
     ! Continue run:
@@ -780,7 +772,6 @@ CONTAINS
     integer :: nio                  ! restart unit
     integer :: sec_in_day           ! time in second
     character(len=17) :: timestamp  ! datetime string in yyyy-mm-dd-sssss
-    integer :: status               ! substring check status
     logical :: lexist               ! If local file exists
     character(len=256) :: locfn     ! Restart pointer file name
     !--------------------------------------------------------

@@ -213,7 +213,6 @@ CONTAINS
  integer(i4b)      , intent(out)                :: ierr             ! error code
  character(*)      , intent(out)                :: message          ! error message
  ! local variables
- logical(lgt),parameter          :: checkMap=.true.     ! flag to check the mapping
  logical(lgt)                    :: checkDownID         ! flag to invalid downstream id
  character(len=strLen)           :: cmessage            ! error message of downwind routine
  integer(i4b)                    :: iRch                ! reach index
@@ -836,7 +835,7 @@ CONTAINS
  ! check if we actually want the mask
  if(desireId<0)then
 
-  ! ---------- case 1: no mask desired ---------------------------------------------------------------------------------------------------
+  ! ---------- case 1: no mask desired ---------------------------------------------------------------------------------------------
 
   ! allocate space
   allocate(ixHRU_desired(nHRU), ixSeg_desired(nRch), stat=ierr)
@@ -850,7 +849,7 @@ CONTAINS
  ! mask is desired
  else
 
-  ! ---------- case 2: mask desired ------------------------------------------------------------------------------------------------------
+  ! ---------- case 2: mask desired ------------------------------------------------------------------------------------------------
 
   ! initialize the HRU map
   ixHRU_map(:) = integerMissing
@@ -1095,7 +1094,7 @@ CONTAINS
   ! skip if we have already tested krch
   if(isTested(kRch)) cycle
 
-  ! ---------- get a vector of reaches downstream of a given reach -----------------------------------------------------------------------
+  ! ---------- get a vector of reaches downstream of a given reach -----------------------------------------------------------------
 
   ! initialise the reach array
   nDown = 0        ! initialize the number of upstream reaches
@@ -1145,7 +1144,7 @@ CONTAINS
    print*, trim(message)//'pause: '; read(*,*)
   endif
 
-  ! ---------- extract the vector from the linked list -----------------------------------------------------------------------------------
+  ! ---------- extract the vector from the linked list -----------------------------------------------------------------------------
 
   ! allocate space
   allocate(ixDownstream(nDown),stat=ierr)
@@ -1191,7 +1190,7 @@ CONTAINS
 
  END DO  ! assess each reach
 
- ! ---------- check for errors ----------------------------------------------------------------------------------------------------------
+ ! ---------- check for errors -----------------------------------------------------------------------------------------------------
 
  nRch_desire = count(isDesired)
 
@@ -1207,7 +1206,7 @@ CONTAINS
   ierr=20; return
  endif
 
- ! ---------- get the subset of indices -------------------------------------------------------------------------------------------------
+ ! ---------- get the subset of indices --------------------------------------------------------------------------------------------
 
  allocate(ixSeg_desired(nRch_desire), stat=ierr)
  if(ierr/=0) message=trim(message)//'unable to allocate space for the vectors of desired reaches'
@@ -1232,7 +1231,7 @@ CONTAINS
  ! pack the desired indices into the HRU vector
  ixHRU_desired(:) = pack(ixHRU_map, ixHRU_map/=integerMissing)
 
- ! --------- update the dimension lengths ---------------------------------------------------------------------------------------------
+ ! --------- update the dimension lengths ------------------------------------------------------------------------------------------
 
 
  tot_hru       = 0_i4b  ! total number of all the upstream hrus for all stream segments

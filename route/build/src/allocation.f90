@@ -2,7 +2,6 @@ MODULE allocation
 
 ! data types
 USE nrtype,    ONLY: i4b,dp,lgt
-USE nrtype,    ONLY: strLen               ! string length
 USE dataTypes, ONLY: var_ilength          ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_dlength          ! double precision type: var(:)%dat
 USE dataTypes, ONLY: var_clength          ! character type:        var(:)%dat

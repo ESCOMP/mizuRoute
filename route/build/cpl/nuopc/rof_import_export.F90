@@ -1,11 +1,11 @@
 module rof_import_export
 
-  use ESMF            , only : ESMF_GridComp, ESMF_State, ESMF_Mesh, ESMF_StateGet
-  use ESMF            , only : ESMF_KIND_R8, ESMF_SUCCESS, ESMF_MAXSTR, ESMF_LOGMSG_INFO
+  use ESMF            , only : ESMF_GridComp, ESMF_State, ESMF_StateGet
+  use ESMF            , only : ESMF_SUCCESS, ESMF_LOGMSG_INFO
   use ESMF            , only : ESMF_LogWrite, ESMF_LOGMSG_ERROR, ESMF_LogFoundError
   use ESMF            , only : ESMF_STATEITEM_NOTFOUND, ESMF_StateItem_Flag
   use ESMF            , only : operator(/=), operator(==)
-  use NUOPC           , only : NUOPC_CompAttributeGet, NUOPC_Advertise, NUOPC_IsConnected
+  use NUOPC           , only : NUOPC_Advertise
   use NUOPC_Model     , only : NUOPC_ModelGet
   use shr_kind_mod    , only : r8 => shr_kind_r8
   use shr_sys_mod     , only : shr_sys_abort, shr_sys_flush
@@ -64,9 +64,7 @@ contains
     ! local variables
     type(ESMF_State)       :: importState
     type(ESMF_State)       :: exportState
-    character(ESMF_MAXSTR) :: cvalue          ! Character string read from driver attribute
-    integer                :: n, num
-    character(len=128)     :: fldname
+    integer                :: n
     character(len=*), parameter :: subname='(rof_import_export:advertise_fields)'
     !-------------------------------------------------------------------------------
 
@@ -377,7 +375,6 @@ contains
     character(len=*),           intent(in)    :: stdname
 
     ! local variables
-    integer :: rc
     character(len=*), parameter :: subname='(rof_import_export:fldlist_add)'
     !-------------------------------------------------------------------------------
 
@@ -399,9 +396,9 @@ contains
 
     use NUOPC , only : NUOPC_IsConnected, NUOPC_Realize
     use ESMF  , only : ESMF_MeshLoc_Element, ESMF_FieldCreate, ESMF_TYPEKIND_R8
-    use ESMF  , only : ESMF_MAXSTR, ESMF_Field, ESMF_State, ESMF_Mesh, ESMF_StateRemove
+    use ESMF  , only : ESMF_Field, ESMF_State, ESMF_Mesh, ESMF_StateRemove
     use ESMF  , only : ESMF_LogFoundError, ESMF_LOGMSG_INFO, ESMF_SUCCESS
-    use ESMF  , only : ESMF_LogWrite, ESMF_LOGMSG_ERROR, ESMF_LOGERR_PASSTHRU
+    use ESMF  , only : ESMF_LogWrite, ESMF_LOGERR_PASSTHRU
 
     type(ESMF_State)    , intent(inout) :: state
     type(fld_list_type) , intent(in)    :: fldList(:)

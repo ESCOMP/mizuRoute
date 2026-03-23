@@ -1,7 +1,7 @@
 MODULE RtmTimeManager
 
   USE shr_kind_mod, ONLY: r8 => shr_kind_r8
-  USE shr_sys_mod , ONLY: shr_sys_abort, shr_sys_flush
+  USE shr_sys_mod , ONLY: shr_sys_flush
   USE public_var  , ONLY: iulog
   USE public_var  , ONLY: debug
   USE public_var  , ONLY: integerMissing
@@ -13,18 +13,6 @@ MODULE RtmTimeManager
   private
   public :: init_time                 ! setup startup values
   public :: shr_timeStr
-
-  !--------------------------------------------------------------------------
-  ! Private module data
-  !--------------------------------------------------------------------------
-
-  ! Input from CESM driver
-  integer             :: start_ymd             = integerMissing, & ! starting date for run in yearmmdd format
-                         start_tod             = 0,              & ! starting time of day for run in seconds
-                         stop_ymd              = integerMissing, & ! stopping date for run in yearmmdd format
-                         stop_tod              = 0,              & ! stopping time of day for run in seconds
-                         ref_ymd               = integerMissing, & ! reference date for time coordinate in yearmmdd format
-                         ref_tod               = 0                 ! reference time of day for time coordinate in seconds
 
 CONTAINS
 

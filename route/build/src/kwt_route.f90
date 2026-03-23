@@ -167,7 +167,7 @@ CONTAINS
 
       q_upstream = 0._dp
       do iUps = 1,nUps
-        if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach which does not any flow due to zero total contributory areas
+        if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach w/o any flow due to zero total contributory areas
         iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
         q_upstream = q_upstream + RCHFLX_out(iRch_ups)%ROUTE(idxKWT)%REACH_Q
       end do
@@ -322,7 +322,7 @@ CONTAINS
     ! ***
     ! remove flow particles from the most downstream reach
     ! if the last reach or lake inlet (and lakes are enabled), remove routed elements from memory
-    if ((NETOPO_in(segIndex)%DREACHK<=0 ).or. &  ! if the last reach (down reach ID:DREACHK is negative), then there is no downstream reach
+    if ((NETOPO_in(segIndex)%DREACHK<=0 ).or. &  ! if downstream reach ID:DREACHK is negative, this is the most downstream reach
         (is_lake_sim.and.NETOPO_in(segIndex)%LAKINLT)) then ! if lake inlet
       ! copy data to a temporary wave
       if (allocated(NEW_WAVE)) then

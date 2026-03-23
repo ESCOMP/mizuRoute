@@ -3,9 +3,7 @@ MODULE RtmVar
   ! Public variables used for only coupled version mizuRoute
   USE RunoffMod,     ONLY: rof_control
   USE shr_kind_mod , ONLY: r8 => shr_kind_r8, CL => SHR_KIND_CL
-  USE shr_sys_mod  , ONLY: shr_sys_abort, shr_sys_flush
-  USE globalData   , ONLY: masterproc
-  USE public_var   , ONLY: iulog, integerMissing
+  USE public_var   , ONLY: integerMissing
 
   implicit none
 

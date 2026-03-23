@@ -157,7 +157,6 @@ CONTAINS
  integer(i4b)                        :: ncid             ! NetCDF file ID
  integer(i4b)                        :: jDim             ! dimension index
  integer(i4b)                        :: iStruct          ! structure index
- integer(i4b),parameter              :: nVars=30         ! number of variables
  character(len=strLen)               :: cmessage         ! error message of downwind routine
 
  ierr=0; message='createFile/'

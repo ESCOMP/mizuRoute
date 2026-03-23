@@ -95,8 +95,6 @@ contains
      integer,          intent(in)  :: iflag   !0=>abort if file not found 1=>do not abort
 
      ! !LOCAL VARIABLES:
-     integer i               !loop index
-     integer klen            !length of fulpath character string
      logical lexist          !true if local file exists
      !--------------------------------------------------
 
