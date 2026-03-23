@@ -68,7 +68,8 @@ CONTAINS
 
   ierr=0; message='get_hru_runoff/'
 
-  if ((abs(scale_factor_runoff)<verySmall) .and. ((abs(offset_value_runoff)<verySmall) .or. (abs(offset_value_runoff-realmissing)<verySmall))) then  ! not reading runoff data
+  if (abs(scale_factor_runoff)<verySmall .and. &
+     (abs(offset_value_runoff)<verySmall .or. abs(offset_value_runoff-realmissing)<verySmall)) then  ! not reading runoff data
     runoff_data%basinRunoff = 0._dp ! replacing with zeros
   else
     ! time step mapping from runoff time step to simulation time step
