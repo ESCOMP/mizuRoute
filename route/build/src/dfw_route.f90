@@ -119,7 +119,7 @@ CONTAINS
 
  ! Water management - water injection or abstraction (irrigation or industrial/domestic water usage)
  ! For water abstraction, water is extracted from the following priorities:
- ! 1. existing storage(REACH_VOL(0), 2. upstream inflow , 3 lateral flow (BASIN_QR)
+ ! 1. existing storage(REACH_VOL(0)), 2. upstream inflow , 3 lateral flow (BASIN_QR)
  if((RCHFLX_out(segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
    if (Qabs > 0) then ! positive == abstraction
      if (RCHFLX_out(segIndex)%ROUTE(idxDW)%REACH_VOL(1)/dt > Qabs) then ! take out all abstraction from strorage
@@ -242,6 +242,8 @@ CONTAINS
  real(dp), allocatable           :: Qlocal(:,:)    ! sub-reach & sub-time step discharge at previous and current time step [m3/s]
  real(dp), allocatable           :: Qprev(:)       ! sub-reach discharge at previous time step [m3/s]
  real(dp)                        :: dTsub          ! time inteval for sub time-step [sec]
+ real(dp)                        :: qoutTmp        ! temporary scalar for discharge from reach
+ real(dp)                        :: volTmp         ! temporary scalar for reach volume
  real(dp)                        :: pcntReduc      ! flow profile adjustment based on storage [-]
  integer(i4b)                    :: it             ! loop index
  integer(i4b)                    :: ntSub          ! number of sub time-step
@@ -309,7 +311,9 @@ CONTAINS
 
    ! For very low flow condition, outflow - inflow may exceed current storage, so limit outflow and adjust flow profile
    if (abs(Qlocal(nMolecule%DW_ROUTE-1,1))>0._dp) then
-     pcntReduc = min((max(0._dp, rflux%ROUTE(idxDW)%REACH_VOL(1)) + dt*Qupstream)*0.999_dp/(Qlocal(nMolecule%DW_ROUTE-1,1)*dt), 1._dp)
+     volTmp = max(0._dp, rflux%ROUTE(idxDW)%REACH_VOL(1))
+     qoutTmp = Qlocal(nMolecule%DW_ROUTE-1,1)*dt
+     pcntReduc = min((volTmp + dt*Qupstream)*0.999_dp/qoutTmp, 1._dp)
      Qlocal(2:nMolecule%DW_ROUTE,1) = Qlocal(2:nMolecule%DW_ROUTE,1)*pcntReduc
    end if
 
