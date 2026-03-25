@@ -1,10 +1,9 @@
 MODULE process_ntopo
 
-USE nrtype,    ONLY: i4b,dp,lgt          ! variable types, etc.
+USE nrtype,    ONLY: i4b,dp              ! variable types, etc.
 USE nrtype,    ONLY: strLen              ! length of characters
 ! data types
 USE dataTypes, ONLY: var_ilength         ! integer type:          var(:)%dat
-USE dataTypes, ONLY: var_clength         ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_dlength,dlength ! double precision type: var(:)%dat, or dat
 ! global vars
 USE globalData, ONLY: onRoute               ! logical to indicate which routing method(s) is on
@@ -15,20 +14,13 @@ USE public_var, ONLY: idSegOut              ! ID for stream segment at the botto
 USE public_var, ONLY: topoNetworkOption     ! option to compute network topology
 USE public_var, ONLY: computeReachList      ! option to compute reach list
 USE public_var, ONLY: impulseResponseFunc   ! option for routing methods - IRF
-USE public_var, ONLY: kinematicWaveTracking ! option for routing methods - Lagrangian kinematic wave
-USE public_var, ONLY: kinematicWave         ! option for routing methods - kinematic wave
-USE public_var, ONLY: muskingumCunge        ! option for routing methods - muskingum-cunge
-USE public_var, ONLY: diffusiveWave         ! option for routing methods - diffusive wave
 ! named variables
 USE public_var, ONLY: true,false         ! named integers for true/false
 ! named variables
 USE var_lookup, ONLY: ixSEG              ! index of variables for the stream segments
 USE var_lookup, ONLY: ixNTOPO            ! index of variables for the network topology
-USE var_lookup, ONLY: ixPFAF             ! index of variables for the pfafstetter code
 ! common variables
 USE public_var, ONLY: compute            ! compute given variable
-USE public_var, ONLY: doNotCompute       ! do not compute given variable
-USE public_var, ONLY: readFromFile       ! read given variable from a file
 USE public_var, ONLY: realMissing        ! missing value for real
 USE public_var, ONLY: integerMissing     ! missing value for integers
 
@@ -106,12 +98,8 @@ CONTAINS
  integer(i4b)                                      :: iSeg                 ! indices for stream segment
  real(dp)     , allocatable                        :: seg_length(:)        ! temporal array for segment length
  type(dlength), allocatable                        :: temp_dat(:)          ! temporal storage for dlength data structure
- integer*8                                         :: time0,time1,cr       ! for timing
 
  ierr=0; message='augment_ntopo/'
-
- call system_clock(count_rate=cr)
- call system_clock(time0)
 
  ! ---------- get the mapping between HRUs and segments ------------------------------------------------------
 
@@ -129,10 +117,6 @@ CONTAINS
                    ierr, cmessage)  ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! get timing
-  call system_clock(time1)
-  !write(*,'(a,1x,1PG15.7,A)') 'after hru2segment: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-
  endif  ! if need to compute network topology
 
  ! ---------- get the mapping between upstream and downstream segments ---------------------------------------
@@ -147,10 +131,6 @@ CONTAINS
                       ierr, cmessage)  ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! get timing
-  call system_clock(time1)
-  !write(*,'(a,1x,1PG15.7,A)') 'after up2downSegment: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-
  endif  ! if need to compute network topology
 
  ! ---------- get the processing order -----------------------------------------------------------------------
@@ -163,10 +143,6 @@ CONTAINS
                   structNTOPO,  &   ! input:output: network topology
                   ierr, cmessage)   ! output:       error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! get timing
-  call system_clock(time1)
-  !write(*,'(a,1x,1PG15.7,A)') 'after reachOrder: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
 
  endif  ! if need to compute network topology
 
@@ -181,10 +157,6 @@ CONTAINS
                       ierr, cmessage)   ! output:       error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! get timing
-  call system_clock(time1)
-  !write(*,'(a,1x,1PG15.7,A)') 'after streamOrder: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-
  endif  ! if need to compute network topology
 
  ! ---------- get the list of all upstream reaches above a given reach ---------------------------------------
@@ -197,10 +169,6 @@ CONTAINS
                  tot_upstream_tmp,            & ! Total number of upstream reaches for all reaches
                  ierr, cmessage)                ! Error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! get timing
- call system_clock(time1)
- !write(*,'(a,1x,1PG15.7,A)') 'after reach_list: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
 
  ! ---------- Compute routing parameters  --------------------------------------------------------------------
  ! compute channel geometry parameters (width, depth, Manning's n, and floodplain slope)
@@ -234,10 +202,6 @@ CONTAINS
                                                        bankDepth=structSEG(iSeg)%var(ixSEG%depth)%dat(1))
  end do
 
- ! get timing
- call system_clock(time1)
- !write(*,'(a,1x,1PG15.7,A)') 'after river geometry: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-
  ! get the channel unit hydrograph
  if(topoNetworkOption==compute)then
 
@@ -264,10 +228,6 @@ CONTAINS
     enddo
   end if ! if using the impulse response function
 
-  ! get timing
-  call system_clock(time1)
-  !write(*,'(a,1x,1PG15.7,A)') 'after reach parameters: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-
  endif ! if there is a need to compute the channel unit hydrograph
 
  ! ---------- get the mask of all upstream reaches above a given reach ---------------------------------------
@@ -286,10 +246,6 @@ CONTAINS
                  ixSeg_desired_tmp, &  ! output: indices of desired reaches
                  ierr, cmessage )      ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! get timing
- call system_clock(time1)
- !write(*,'(a,1x,1PG15.7,A)') 'after reach_mask: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
 
  ! for optional output
  if (present(tot_hru))       tot_hru=tot_hru_tmp
@@ -335,11 +291,12 @@ END SUBROUTINE augment_ntopo
 
   ! check reach
   do iSeg = 1,nSeg
-    associate(segId => structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1))
+    associate(segId  => structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1), &
+              length => structSEG(iSeg)%var(ixSEG%length)%dat(1))
     ! Check reach length
-    if (structSEG(iSeg)%var(ixSEG%length)%dat(1)<=0) then
-      write(iulog,'(a,i0,a,1PG15.7, a)') 'WARNING: length for reach id ',segId,' is ',structSEG(iSeg)%var(ixSEG%length)%dat(1),'<0. Corrected to 100 m'
-      structSEG(iSeg)%var(ixSEG%length)%dat(1)=100._dp
+    if (length<=0) then
+      write(iulog,'(a,i0,a,1PG15.7, a)') 'WARNING: length for reach id ',segId,' is ',length,'<0. Corrected to 100 m'
+      length=100._dp
     end if
     ! Check reach slope
     end associate

@@ -44,14 +44,14 @@ MODULE RunoffMod
 
 CONTAINS
 
-  SUBROUTINE init(this, begr, endr, numr)
+  SUBROUTINE init(this, begr, endr)
 
     ! DESCRIPTION:
     ! Initialize rof_control derived data variables
 
     implicit none
     class(rof_control)  :: this
-    integer, intent(in) :: begr, endr, numr
+    integer, intent(in) :: begr, endr
     integer :: nt
     integer :: ierr
 

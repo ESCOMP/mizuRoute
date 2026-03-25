@@ -5,7 +5,7 @@ USE nrtype
 
 USE var_lookup,        ONLY: ixRFLX, nVarsRFLX
 USE var_lookup,        ONLY: ixHFLX, nVarsHFLX
-USE var_lookup,        ONLY: ixStateDims, nStateDims
+USE var_lookup,        ONLY: ixStateDims
 USE var_lookup,        ONLY: ixIRFbas, nVarsIRFbas
 USE var_lookup,        ONLY: ixIRF, nVarsIRF
 USE var_lookup,        ONLY: ixKWT, nVarsKWT
@@ -28,7 +28,6 @@ USE public_var,        ONLY: realMissing
 USE public_var,        ONLY: tracer            ! tracer logical
 ! variable meta data - see popMeta.f90
 USE globalData,        ONLY: meta_stateDims    ! states output dimensions
-USE globalData,        ONLY: meta_qDims        ! history output dimensions
 USE globalData,        ONLY: meta_irf_bas      ! h2o catchment routing variables
 USE globalData,        ONLY: meta_bas_solute   ! solute catchment (hru) routing variables
 USE globalData,        ONLY: meta_basinQ       ! catchment runoff variables
@@ -41,9 +40,8 @@ USE globalData,        ONLY: meta_solute       ! reach solute variables
 USE globalData,        ONLY: meta_rflx         ! reach history output variables
 USE globalData,        ONLY: meta_hflx         ! hru history output variables
 ! pio stuff
-USE globalData,        ONLY: pid, nNodes
+USE globalData,        ONLY: pid
 USE globalData,        ONLY: masterproc
-USE globalData,        ONLY: mpicom_route
 USE globalData,        ONLY: pioSystem
 USE public_var,        ONLY: pio_netcdf_format
 USE public_var,        ONLY: pio_typename
@@ -210,7 +208,6 @@ CONTAINS
 
    USE public_var, ONLY: restart_dir
    USE public_var, ONLY: case_name      ! simulation name ==> output filename head
-   USE public_var, ONLY: secprday
    USE globalData, ONLY: simDatetime    ! current model datetime
 
    implicit none

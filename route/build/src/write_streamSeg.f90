@@ -22,11 +22,6 @@ USE globalData, ONLY: meta_PFAF           ! network topology
 ! named variables
 USE var_lookup, ONLY: ixStruct, nStructures  ! index of data structures
 USE var_lookup, ONLY: ixDims,   nDimensions  ! index of dimensions
-USE var_lookup, ONLY: ixHRU,    nVarsHRU     ! index of variables for the HRUs
-USE var_lookup, ONLY: ixSEG,    nVarsSEG     ! index of variables for the stream segments
-USE var_lookup, ONLY: ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-USE var_lookup, ONLY: ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
-USE var_lookup, ONLY: ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
 
 ! netcdf modules
 USE netcdf
@@ -162,7 +157,6 @@ CONTAINS
  integer(i4b)                        :: ncid             ! NetCDF file ID
  integer(i4b)                        :: jDim             ! dimension index
  integer(i4b)                        :: iStruct          ! structure index
- integer(i4b),parameter              :: nVars=30         ! number of variables
  character(len=strLen)               :: cmessage         ! error message of downwind routine
 
  ierr=0; message='createFile/'
@@ -194,11 +188,13 @@ CONTAINS
   if (.not.dimCheck(jDim)) cycle
 
   ! define the start index
-  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_start', 'start index in ragged array', '-', nf90_int, ixDims%seg, ierr, cmessage)
+  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_start', 'start index in ragged array', '-', &
+                 & nf90_int, ixDims%seg, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! define the count
-  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_count', 'count of spatial element in ragged array', '-', nf90_int, ixDims%seg, ierr, cmessage)
+  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_count', 'count of spatial element in ragged array', '-', &
+                 & nf90_int, ixDims%seg, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end do  ! looping through dimensions

@@ -40,10 +40,10 @@ USE globalData, ONLY: meta_dw        ! diffusive wave routing fluxes and states 
 USE globalData, ONLY: meta_solute    ! tracer state variables
 
 ! indices of named variables
-USE var_lookup, ONLY: ixStruct   , nStructures
-USE var_lookup, ONLY: ixDims     , nDimensions
-USE var_lookup, ONLY: ixStateDims, nStateDims
-USE var_lookup, ONLY: ixQdims    , nQdims
+USE var_lookup, ONLY: ixStruct
+USE var_lookup, ONLY: ixDims
+USE var_lookup, ONLY: ixStateDims
+USE var_lookup, ONLY: ixQdims
 USE var_lookup, ONLY: ixHRU      , nVarsHRU
 USE var_lookup, ONLY: ixHRU2SEG  , nVarsHRU2SEG
 USE var_lookup, ONLY: ixSEG      , nVarsSEG

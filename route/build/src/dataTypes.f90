@@ -3,7 +3,6 @@ MODULE dataTypes
 ! used to create specific data types
 
 USE nrtype
-USE public_var, ONLY: realMissing
 USE public_var, ONLY: integerMissing
 USE datetime_data, ONLY: datetime
 
@@ -427,7 +426,6 @@ END MODULE dataTypes
 MODULE objTypes
 
  USE nrtype
- USE public_var, only: realMissing
  USE public_var, only: integerMissing
 
  ! define derived type for model variables, including name, description, and units

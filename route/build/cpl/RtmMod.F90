@@ -7,15 +7,14 @@ MODULE RtmMod
   USE shr_pio_mod,  ONLY: shr_pio_getiotype, shr_pio_getioformat, &
                           shr_pio_getrearranger, shr_pio_getioroot, shr_pio_getiosys
   USE shr_kind_mod, ONLY: r8 => shr_kind_r8, CL => SHR_KIND_CL
-  USE shr_sys_mod,  ONLY: shr_sys_flush, shr_sys_abort
+  USE shr_sys_mod,  ONLY: shr_sys_abort
   USE RtmVar,       ONLY: river_depth_minimum, &
                           nsrContinue, nsrBranch, nsrStartup, nsrest, &
-                          cfile_name, coupling_period, nsub, &
+                          coupling_period, nsub, &
                           caseid, brnch_retain_casename, inst_name, &
                           barrier_timers, &
                           ctl         ! rof control data objects
   ! mizuRoute share routines
-  USE public_var,   ONLY: secprday                   ! second per day
   USE public_var,   ONLY: dt                         ! routing time step
   USE public_var,   ONLY: iulog
   USE public_var,   ONLY: qgwl_runoff_option
@@ -56,7 +55,6 @@ CONTAINS
     USE globalData,          ONLY: hru_per_proc                ! number of hrus assigned to each proc (size = num of procs
     USE globalData,          ONLY: nRch_mainstem               ! scalar data: number of mainstem reaches
     USE globalData,          ONLY: nHRU_mainstem               ! scalar data: number of mainstem hrus
-    USE globalData,          ONLY: nHRU_trib                   ! scalar data: number of tributary hrus
     USE globalData,          ONLY: nRch_trib                   ! scalar data: number of tributary reaches
     USE globalData,          ONLY: nTribOutlet                 ! scalar data: number of tributaries flowing to mainstem
     USE globalData,          ONLY: RCHFLX_trib                 ! data structure: Reach flux variables (per proc, tributary)
@@ -78,7 +76,7 @@ CONTAINS
     ! Argument variables:
     ! Local variables:
     integer                    :: ierr                      ! error code
-    integer                    :: nt, ix, ix1, ix2
+    integer                    :: nt, ix1, ix2
     integer                    :: lwr,upr                   ! lower and upper bounds for array slicing
     character(len= 7)          :: runtyp(4)                 ! run type
     character(len=CL)          :: rof_tracers(2) = (/'LIQ','ICE'/) ! now hard-corded - this should be coming from mizuRoute control variables
@@ -128,25 +126,23 @@ CONTAINS
     !-------------------------------------------------------
     ! mizuRoute time initialize based on time from coupler
     call init_time(ierr, cmessage)
-    if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); call shr_sys_flush(iulog); call shr_sys_abort( subname//cmessage ); endif
+    if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     if (masterproc) then
       write(iulog,*) 'define run:'
       write(iulog,*) '   run type              = ',runtyp(nsrest+1)
       write(iulog,*) '   coupling_frequency    = ',coupling_period, '[day]'
       write(iulog,*) '   mizuRoute timestep    = ',dt, '[sec]'
-      call shr_sys_flush(iulog)
+      flush(iulog)
     endif
 
     if (coupling_period <= 0) then
        write(iulog,*) subname,' ERROR mizuRoute coupling_period invalid',coupling_period
-       call shr_sys_flush(iulog)
        call shr_sys_abort( subname//' ERROR: coupling_period invalid' )
     endif
 
     if (dt <= 0) then
       write(iulog,*) subname,' ERROR mizuRoute dt invalid',dt
-      call shr_sys_flush(iulog)
       call shr_sys_abort( subname//' ERROR: mizuRoute dt invalid' )
     endif
 
@@ -156,7 +152,7 @@ CONTAINS
     select case(shr_pio_getioformat(inst_name))
       case(PIO_64BIT_OFFSET); pio_netcdf_format = '64bit_offset'
       case(PIO_64BIT_DATA);   pio_netcdf_format = '64bit_data'
-      case default; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//'unexpected netcdf format index')
+      case default; call shr_sys_abort(trim(subname)//'unexpected netcdf format index')
     end select
 
     select case(shr_pio_getiotype(inst_name))
@@ -164,7 +160,7 @@ CONTAINS
       case(pio_iotype_pnetcdf);  pio_typename = 'pnetcdf'
       case(pio_iotype_netcdf4c); pio_typename = 'netcdf4c'
       case(pio_iotype_NETCDF4p); pio_typename = 'netcdf4p'
-      case default; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//'unexpected netcdf io type index')
+      case default; call shr_sys_abort(trim(subname)//'unexpected netcdf io type index')
     end select
 
     !pio_numiotasks    = shr_pio_(inst_name)    ! there is no function to extract pio_numiotasks in cime/src/drivers/nuops/nems/util/shr_pio_mod.F90
@@ -185,7 +181,7 @@ CONTAINS
     !-------------------------------------------------------
 
     call init_ntopo_data(iam, npes, mpicom_rof, ierr, cmessage)
-    if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+    if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     !-------------------------------------------------------
     ! 4. Define Decomposed domain
@@ -216,7 +212,7 @@ CONTAINS
       end if
     endif
 
-    call ctl%init(ctl%begr, ctl%endr, ctl%numr)
+    call ctl%init(ctl%begr, ctl%endr)
 
     ! index wrt global domain
     ctl%gindex(ctl%begr:ctl%endr) = ixHRU_order(ix1:ix2)
@@ -234,11 +230,9 @@ CONTAINS
     end if
 
     if ( any(ctl%gindex(ctl%begr:ctl%endr) < 1) )then
-      call shr_sys_flush(iulog)
       call shr_sys_abort(trim(subname)//"bad gindex < 1")
     endif
     if ( any(ctl%gindex(ctl%begr:ctl%endr) > ctl%numr) )then
-      call shr_sys_flush(iulog)
       call shr_sys_abort(trim(subname)//"bad gindex > max")
     endif
 
@@ -250,7 +244,7 @@ CONTAINS
       call RtmRestGetfile()
       isColdStart=.false.
       call init_histFile(ierr, cmessage)
-      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+      if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
     endif
 
     !-------------------------------------------------------
@@ -258,7 +252,7 @@ CONTAINS
     !-------------------------------------------------------
 
     call init_state_data(iam, npes, mpicom_rof, ierr, cmessage)
-    if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+    if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     ! put reach flux variables to associated HRUs
     if (.not. isColdStart) then
@@ -306,7 +300,6 @@ CONTAINS
         integer                   :: ix
         integer                   :: iRch, iHru
         integer                   :: nRch, nCatch
-        real(r8)                  :: area_hru
 
         if (present(verbose)) then
           verb=verbose
@@ -365,27 +358,23 @@ CONTAINS
     USE globalData,          ONLY: nHRU_trib        ! scalar data: number of tributary HRUs
     USE globalData,          ONLY: nRch_trib        ! scalar data: number of tributary reaches
     USE globalData,          ONLY: nTribOutlet      ! scalar data: number of tributaries flowing to mainstem
-    USE globalData,          ONLY: hru_per_proc     ! array data: number of hrus assigned to each proc (i.e., node)
-    USE globalData,          ONLY: rch_per_proc     ! array data: number of reaches assigned to each proc (i.e., node)
     USE globalData,          ONLY: basinRunoff_main ! array data: mainstem only HRU runoff
     USE globalData,          ONLY: basinRunoff_trib ! array data: tributary only HRU runoff
     USE globalData,          ONLY: flux_wm_main     ! array data: mainstem only irrigation demand (water abstract/injection)
     USE globalData,          ONLY: flux_wm_trib     ! array data: tributary only irrigation demand (water abstract/injection)
     USE globalData,          ONLY: commRch          ! deriv.data: send-recieve river segment pair
-    USE mpi_utils,           ONLY: shr_mpi_send     ! subroutine: point-to-point communication
     USE mpi_process,         ONLY: mpi_route        ! subroutine: MPI routing call
     USE write_simoutput_pio, ONLY: main_new_file    ! subroutine: create new history files if desired
     USE write_simoutput_pio, ONLY: output           ! subroutine: write out history files
     USE write_restart_pio,   ONLY: restart_output   ! subroutine: write out restart file
     USE init_model_data,     ONLY: update_time      ! subroutine: increment time
     USE process_remap_module,ONLY: basin2reach      ! subroutine: mapping variables in hru domain to reach domian
-    USE nr_utils,            ONLY: arth             ! utility: equivalent to python range function
 
     implicit none
     ! Arguments:
     logical ,         intent(in) :: rstwr                  ! true => write restart file this step)
     ! Local variables:
-    integer                      :: ix, nr, ns, nt         ! loop indices
+    integer                      :: ix, nr, ns             ! loop indices
     integer                      :: lwr,upr                ! lower and upper bounds for array slicing
     real(r8)                     :: qgwl_depth             ! depth of qgwl runoff during time step [mm]
     real(r8)                     :: irrig_depth            ! depth of irrigation demand during time step [mm]
@@ -397,7 +386,7 @@ CONTAINS
     character(len=12),parameter  :: subname = '(route_run) '
 
     call t_startf('mizuRoute_tot')
-    call shr_sys_flush(iulog)
+    flush(iulog)
 
     associate(nt_liq => ctl%nt_liq, &
               nt_ice => ctl%nt_ice)
@@ -408,7 +397,7 @@ CONTAINS
     call t_startf('mizuRoute_histinit')
 
     call main_new_file(ierr, cmessage)
-    if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+    if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     call t_stopf('mizuRoute_histinit')
 
@@ -497,10 +486,9 @@ CONTAINS
         ! Distribute "direct runoff to ocean" to targe reach (i.e., outlet of river network)
         call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct(:,nt_liq), fillvalue=0._r8)
 
-        call shr_mpi_barrier(mpicom_rof, cmessage)
-        if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+        call shr_mpi_barrier(mpicom_rof)
 
-      case default; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//'unexpected bypass_routing_option')
+      case default; call shr_sys_abort(trim(subname)//'unexpected bypass_routing_option')
     end select
 
     call t_stopf('mizuRoute_bypass_route')
@@ -515,8 +503,7 @@ CONTAINS
     ! Distribute "direct runoff to ocean" to targe reach (i.e., outlet of river network)
     call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct(:,nt_ice), fillvalue=0._r8)
 
-    call shr_mpi_barrier(mpicom_rof, cmessage)
-    if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//"mpi_barrier error"); endif
+    call shr_mpi_barrier(mpicom_rof)
 
     ! Set ctl%qsur, ctl%qsub and ctl%qgwl to zero for nt_ice
     ctl%qsur(:,nt_ice) = 0._r8
@@ -533,16 +520,16 @@ CONTAINS
       if (nRch_mainstem > 0) then ! mainstem
         call basin2reach(ctl%qirrig_actual(1:nHRU_mainstem), NETOPO_main, RPARAM_main, flux_wm_main, &
                          ierr, cmessage, limitRunoff=.false.)
-        if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+        if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
       end if
       if (nRch_trib > 0) then ! tributaries in main processor
         call basin2reach(ctl%qirrig_actual(nHRU_mainstem+1:ctl%lnumr), NETOPO_trib, RPARAM_trib, flux_wm_trib, &
                          ierr, cmessage, limitRunoff=.false.)
-        if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+        if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
       end if
     else ! other processors (tributary)
       call basin2reach(ctl%qirrig_actual, NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, cmessage, limitRunoff=.false.)
-      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+      if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
     end if
 
     if (masterproc) then
@@ -565,8 +552,7 @@ CONTAINS
 
     if (barrier_timers) then
       call t_startf('mizuRoute_SMdirect_barrier')
-      call shr_mpi_barrier(mpicom_rof, cmessage)
-      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//"mpi_barrier error"); endif
+      call shr_mpi_barrier(mpicom_rof)
       call t_stopf ('mizuRoute_SMdirect_barrier')
     endif
 
@@ -578,7 +564,7 @@ CONTAINS
       call t_startf('mizuRoute_subcycling')
 
       call mpi_route(iam, npes, mpicom_rof, ierr, cmessage, scatter_ro=.false.)
-      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+      if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
       call t_stopf('mizuRoute_subcycling')
 
@@ -588,7 +574,7 @@ CONTAINS
       call t_startf('mizuRoute_htapes')
 
       call output(ierr, cmessage)
-      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+      if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
       call t_stopf('mizuRoute_htapes')
 
@@ -599,14 +585,14 @@ CONTAINS
         call t_startf('mizuRoute_rest')
 
         call restart_output(ierr, cmessage)
-        if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+        if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
         call t_stopf('mizuRoute_rest')
       end if
 
       ! increment mizuRoute time step
       call update_time(finished, ierr, cmessage)
-      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+      if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
     end do
 
     !-----------------------------------
@@ -636,7 +622,7 @@ CONTAINS
     !-----------------------------------
     ! Done
     !-----------------------------------
-    call shr_sys_flush(iulog)
+    flush(iulog)
     call t_stopf('mizuRoute_tot')
 
   END SUBROUTINE route_run
@@ -724,8 +710,8 @@ CONTAINS
     ! Local variables:
     character(CL)      :: path           ! full pathname of netcdf restart file
     integer            :: status         ! return status
-    integer            :: length         ! temporary
     character(len=256) :: ftest,ctest    ! temporaries
+    character(len=27),parameter  :: subname = '(RtmRestGetfile) '
 
     ! Continue run:
     ! Restart file pathname is read restart pointer file
@@ -749,8 +735,7 @@ CONTAINS
          write(iulog,*) 'previous case filename= ',trim(fname_state_in), &
                         ' current case = ',trim(caseid), ' ctest = ',trim(ctest), &
                         ' ftest = ',trim(ftest)
-         call shr_sys_flush(iulog)
-         call shr_sys_abort()
+         call shr_sys_abort(trim(subname))
        end if
     end if
 
@@ -780,7 +765,6 @@ CONTAINS
     integer :: nio                  ! restart unit
     integer :: sec_in_day           ! time in second
     character(len=17) :: timestamp  ! datetime string in yyyy-mm-dd-sssss
-    integer :: status               ! substring check status
     logical :: lexist               ! If local file exists
     character(len=256) :: locfn     ! Restart pointer file name
     !--------------------------------------------------------

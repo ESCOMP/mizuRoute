@@ -8,7 +8,6 @@ USE dataTypes,         ONLY: RCHPRP            ! reach/lake property parameter
 USE dataTypes,         ONLY: irfRCH            ! irf specific state data structure
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: realMissing       ! missing value for real number
-USE public_var,        ONLY: integerMissing    ! missing value for integer number
 USE public_var,        ONLY: desireId          ! ID or reach where detailed reach state is print in log
 USE public_var,        ONLY: dt                ! simulation time step [sec]
 USE public_var,        ONLY: qmodOption        ! qmod option (use 1==direct insertion)
@@ -194,7 +193,7 @@ CONTAINS
                           RCHFLX_out,     & ! inout: reach fluxes datq structure
                           ierr, cmessage)   ! output: error control
     if(ierr/=0)then
-      write(message,'(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
+      write(message,'(A,1X,I12,1X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
     endif
   end if
 

@@ -12,7 +12,6 @@ USE public_var,    ONLY: desireId          ! ID or reach where detailed reach st
 USE public_var,    ONLY: is_lake_sim       ! logical if lakes are activated in simulation
 USE public_var,    ONLY: verySmall         ! a very small value
 USE public_var,    ONLY: realMissing       ! missing value for real number
-USE public_var,    ONLY: integerMissing    ! missing value for integer number
 USE globalData,    ONLY: idxKWT            ! routing method index for lagrangian kinematic wave method
 USE nr_utils,      ONLY: arth              ! Num. Recipies utilities
 USE base_route,    ONLY: base_route_rch    ! base (abstract) reach routing method class
@@ -168,7 +167,7 @@ CONTAINS
 
       q_upstream = 0._dp
       do iUps = 1,nUps
-        if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach which does not any flow due to zero total contributory areas
+        if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach w/o any flow due to zero total contributory areas
         iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
         q_upstream = q_upstream + RCHFLX_out(iRch_ups)%ROUTE(idxKWT)%REACH_Q
       end do
@@ -251,7 +250,8 @@ CONTAINS
     if(verbose)then
       write(fmt1,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,G15.4))'
       write(fmt2,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,L))'
-      write(iulog,'(a)') ' * After routed: wave discharge (Q_JRCH) [m2/s], isExit(FROUTE), entry time (TENTRY) [s], and exit time (T_EXIT) [s]:'
+      write(iulog,'(a)') ' * After routed: &
+                       & wave discharge (Q_JRCH) [m2/s], isExit(FROUTE), entry time (TENTRY) [s], and exit time (T_EXIT) [s]:'
       write(iulog,fmt1)  ' Q_JRCH=',(Q_JRCH(IWV), IWV=0,NQ1)
       write(iulog,fmt1)  ' TENTRY=',(TENTRY(IWV), IWV=0,NQ1)
       write(iulog,fmt1)  ' T_EXIT=',(T_EXIT(IWV), IWV=0,NQ1)
@@ -273,7 +273,8 @@ CONTAINS
     RCHFLX_out(segIndex)%ROUTE(idxKWT)%REACH_Q = QNEW(1)*RPARAM_in(segIndex)%R_WIDTH + RCHFLX_out(segIndex)%BASIN_QR(1)
 
     if(verbose)then
-      write(iulog,'(a)')          ' * Time-ave. wave discharge that exit (QNEW(1)) [m2/s], local-area discharge (RCHFLX_out%BASIN_QR(1)) [m3/s] and Final discharge (RCHFLX_out%REACH_Q) [m3/s]:'
+      write(iulog,'(a)') ' * Time-ave. wave discharge that exit (QNEW(1)) [m2/s], &
+                       & local-area discharge (RCHFLX_out%BASIN_QR(1)) [m3/s] and Final discharge (RCHFLX_out%REACH_Q) [m3/s]:'
       write(iulog,"(A,1x,G15.4)") ' QNEW(1)                =', QNEW(1)
       write(iulog,"(A,1x,G15.4)") ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(segIndex)%BASIN_QR(1)
       write(iulog,"(A,1x,G15.4)") ' RCHFLX_out%REACH_Q     =', RCHFLX_out(segIndex)%ROUTE(idxKWT)%REACH_Q
@@ -294,9 +295,9 @@ CONTAINS
       ierr=20; message=trim(message)//'RCHSTA_out is not associated'; return
     else
       deallocate(RCHSTA_out(segIndex)%LKW_ROUTE%KWAVE, STAT=ierr)
-      if(ierr/=0)then; message=trim(message)//'problem deallocating space for RCHSTA_out(segIndex)%LKW_ROUTE%KWAVE'; return; endif
+      if(ierr/=0)then; message=trim(message)//'problem deallocating RCHSTA_out(segIndex)%LKW_ROUTE%KWAVE'; return; endif
       allocate(RCHSTA_out(segIndex)%LKW_ROUTE%KWAVE(0:NQ2+1),STAT=ierr)   ! NQ2 is number of points for kinematic routing
-      if(ierr/=0)then; message=trim(message)//'problem allocating space for RCHSTA_out(segIndex)%LKW_ROUTE%KWAVE(0:NQ2+1)'; return; endif
+      if(ierr/=0)then; message=trim(message)//'problem allocating RCHSTA_out(segIndex)%LKW_ROUTE%KWAVE(0:NQ2+1)'; return; endif
     endif
     ! insert the interpolated point (TI is irrelevant, as the point is "routed")
     RCHSTA_out(segIndex)%LKW_ROUTE%KWAVE(NR+1)%QF=Q_END;   RCHSTA_out(segIndex)%LKW_ROUTE%KWAVE(NR+1)%TI=TIMEI
@@ -321,7 +322,7 @@ CONTAINS
     ! ***
     ! remove flow particles from the most downstream reach
     ! if the last reach or lake inlet (and lakes are enabled), remove routed elements from memory
-    if ((NETOPO_in(segIndex)%DREACHK<=0 ).or. &  ! if the last reach (down reach ID:DREACHK is negative), then there is no downstream reach
+    if ((NETOPO_in(segIndex)%DREACHK<=0 ).or. &  ! if downstream reach ID:DREACHK is negative, this is the most downstream reach
         (is_lake_sim.and.NETOPO_in(segIndex)%LAKINLT)) then ! if lake inlet
       ! copy data to a temporary wave
       if (allocated(NEW_WAVE)) then
@@ -427,7 +428,7 @@ CONTAINS
     Q_jrch_abs = Q_JRCH - Q_jrch_mod
     call interp_rch(TENTRY(0:NR-1),Q_jrch_abs(0:NR-1), TP, Qavg, ierr,cmessage)
     Qabs = Qavg(1)*RPARAM_in(JRCH)%R_WIDTH
-    write(*,'(a)')         ' * Target abstraction (Qtake) [m3/s], Available discharge (totQ) [m3/s], Actual abstraction (Qabs) [m3/s] '
+    write(*,'(a)') ' * Target abstraction (Qtake) [m3/s], Available discharge (totQ) [m3/s], Actual abstraction (Qabs) [m3/s]'
     write(*,'(a,1x,G15.4)') ' Qtake =', Qtake
     write(*,'(a,1x,G15.4)') ' totQ  =', totQ
     write(*,'(a,1x,G15.4)') ' Qabs  =', Qabs

@@ -1,9 +1,6 @@
 MODULE process_param
 
 USE nrtype
-! global parameters
-USE public_var, ONLY: realMissing    ! missing value for real number
-USE public_var, ONLY: integerMissing ! missing value for integer number
 
 implicit none
 

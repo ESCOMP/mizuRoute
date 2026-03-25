@@ -6,10 +6,9 @@ module rof_comp_nuopc
 
   use ESMF
   use NUOPC                 , only : NUOPC_CompDerive, NUOPC_CompSetEntryPoint, NUOPC_CompSpecialize
-  use NUOPC                 , only : NUOPC_CompFilterPhaseMap, NUOPC_CompAttributeGet, NUOPC_CompAttributeSet
+  use NUOPC                 , only : NUOPC_CompFilterPhaseMap, NUOPC_CompAttributeGet
   use NUOPC_Model           , only : model_routine_SS           => SetServices
   use NUOPC_Model           , only : model_label_Advance        => label_Advance
-  use NUOPC_Model           , only : model_label_DataInitialize => label_DataInitialize
   use NUOPC_Model           , only : model_label_SetRunClock    => label_SetRunClock
   use NUOPC_Model           , only : model_label_Finalize       => label_Finalize
   use NUOPC_Model           , only : NUOPC_ModelGet
@@ -40,11 +39,11 @@ module rof_comp_nuopc
   use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
   use RtmVar                , only : coupling_period !sec
 
-  use perf_mod              , only : t_startf, t_stopf, t_barrierf
+  use perf_mod              , only : t_startf, t_stopf
   use rof_import_export     , only : advertise_fields, realize_fields
   use rof_import_export     , only : import_fields, export_fields
   use rof_shr_methods       , only : chkerr, state_setscalar, state_diagnose, alarmInit
-  use rof_shr_methods       , only : set_component_logging, get_component_instance, log_clock_advance
+  use rof_shr_methods       , only : set_component_logging, get_component_instance
 
 !$ use omp_lib              , only : omp_set_num_threads
   implicit none
@@ -67,7 +66,7 @@ module rof_comp_nuopc
   integer                 :: flds_scalar_num = 0
   integer                 :: flds_scalar_index_nx = 0
   integer                 :: flds_scalar_index_ny = 0
-  integer                 :: flds_scalar_index_nextsw_cday = 0._r8
+  integer                 :: flds_scalar_index_nextsw_cday = 0
   integer                 :: nthrds
 
   character(*), parameter :: F00   = "('(mizuRoute_comp_nuopc) ',8a)"
@@ -162,7 +161,6 @@ contains
     integer           :: mpicom
     character(CL)     :: cvalue
     integer           :: shrlogunit
-    integer           :: n
     character(len=CL) :: logmsg
     logical           :: isPresent, isSet
     character(len=*), parameter :: subname=trim(modName)//':(InitializeAdvertise) '
@@ -334,7 +332,6 @@ contains
     character(len=CL)           :: cmessage              ! error message
     character(len=CL)           :: simRef                ! date string defining the reference time
     character(len=CL)           :: starttype             ! start-type (startup, continue, branch, hybrid)
-    character(len=CL)           :: stdname, shortname    ! needed for advertise
     integer                     :: localPet,localPeCount ! mpi task and thread count variables
     character(len=CL)           :: cvalue
     character(ESMF_MAXSTR)      :: convCIM, purpComp
@@ -701,11 +698,9 @@ contains
     ! local variables:
     type(ESMF_Clock)  :: clock
     type(ESMF_Alarm)  :: alarm
-    type(ESMF_Time)   :: currTime
     type(ESMF_Time)   :: nextTime
     type(ESMF_State)  :: importState
     type(ESMF_State)  :: exportState
-    character(CL)     :: cvalue
     integer           :: shrlogunit    ! original log unit
     integer           :: ymd_sync, ymd ! current date (YYYYMMDD)
     integer           :: yr_sync, yr   ! current year

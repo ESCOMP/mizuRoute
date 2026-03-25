@@ -3,7 +3,6 @@ MODULE water_balance
 USE nrtype
 ! data type
 USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
-USE dataTypes, ONLY: RCHTOPO        ! Network topology
 ! global parameters
 USE public_var, ONLY: iulog         ! i/o logical unit number
 USE public_var, ONLY: dt            ! simulation time step

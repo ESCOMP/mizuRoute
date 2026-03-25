@@ -2,15 +2,13 @@ MODULE write_simoutput_pio
 
 ! Moudle wide shared data/routines
 USE nrtype
-USE var_lookup,     ONLY: ixRFLX, nVarsRFLX
-USE dataTypes,      ONLY: STRFLX
 USE datetime_data,  ONLY: datetime
 USE public_var,     ONLY: iulog
 USE public_var,     ONLY: integerMissing
 USE globalData,     ONLY: runMode           ! 'standalone' or 'cesm-coupling'
-USE globalData,     ONLY: pid, nNodes
+USE globalData,     ONLY: pid
 USE globalData,     ONLY: masterproc
-USE globalData,     ONLY: hfileout, hfileout_gage, rfileout
+USE globalData,     ONLY: hfileout, hfileout_gage
 USE globalData,     ONLY: initHvars
 USE historyFile,    ONLY: histFile
 USE histVars_data,  ONLY: histVars
@@ -141,21 +139,21 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE output(ierr, message)
 
-   USE public_var, ONLY: outputAtGage                 ! ascii containing last restart and history files
-   USE public_var, ONLY: nOutFreq                     ! integer output frequency, i.e, written at every "nOutFreq" of simulation step
-   USE public_var, ONLY: outputFrequency              ! writing frequency
-   USE public_var, ONLY: histTimeStamp_offset         ! history time stamp offset from the start of time step [sec]
-   USE globalData, ONLY: simDatetime                  ! previous,current and next model datetime
-   USE globalData, ONLY: timeVar                      ! current simulation time variable
-   USE globalData, ONLY: sec2tunit                    ! seconds per time unit
-   USE globalData, ONLY: RCHFLX_trib                  ! reach flux data structure containing current flux variables
-   USE globalData, ONLY: rch_per_proc                 ! number of reaches assigned to each proc (size = num of procs+1)
-   USE globalData, ONLY: nRch_mainstem                ! number of mainstem reach
-   USE globalData, ONLY: nTribOutlet                  ! number of
-   USE globalData, ONLY: index_write_gage             ! reach index (w.r.t. global domain) corresponding gauge location
-   USE globalData, ONLY: ioDesc_hru_float             ! pio decomposition descriptor for hru
-   USE globalData, ONLY: ioDesc_rch_float             ! pio decomposition descriptor for reaches
-   USE globalData, ONLY: ioDesc_gauge_float           ! pio decomposition descriptor for gauges
+   USE public_var, ONLY: outputAtGage             ! ascii containing last restart and history files
+   USE public_var, ONLY: nOutFreq                 ! integer output frequency, i.e, written at every "nOutFreq" of simulation step
+   USE public_var, ONLY: outputFrequency          ! writing frequency
+   USE public_var, ONLY: histTimeStamp_offset     ! history time stamp offset from the start of time step [sec]
+   USE globalData, ONLY: simDatetime              ! previous,current and next model datetime
+   USE globalData, ONLY: timeVar                  ! current simulation time variable
+   USE globalData, ONLY: sec2tunit                ! seconds per time unit
+   USE globalData, ONLY: RCHFLX_trib              ! reach flux data structure containing current flux variables
+   USE globalData, ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
+   USE globalData, ONLY: nRch_mainstem            ! number of mainstem reach
+   USE globalData, ONLY: nTribOutlet              ! number of
+   USE globalData, ONLY: index_write_gage         ! reach index (w.r.t. global domain) corresponding gauge location
+   USE globalData, ONLY: ioDesc_hru_float         ! pio decomposition descriptor for hru
+   USE globalData, ONLY: ioDesc_rch_float         ! pio decomposition descriptor for reaches
+   USE globalData, ONLY: ioDesc_gauge_float       ! pio decomposition descriptor for gauges
    USE nr_utils,   ONLY: arth
 
    implicit none
@@ -348,7 +346,6 @@ CONTAINS
    integer(i4b)                :: sec_in_day      ! second within day
    character(len=strLen)       :: timeString
    character(len=27),parameter :: fmtYMDS='(I0.4,a,I0.2,a,I0.2,a,I0.5)'
-   character(len=20),parameter :: fmtYMD ='(I0.4,a,I0.2,a,I0.2)'
    character(len=13),parameter :: fmtYM  ='(I0.4,a,I0.2)'
    character(len=6),parameter  :: fmtY   ='(I0.4)'
 
@@ -387,7 +384,9 @@ CONTAINS
        if (outputAtGage) then
          write(hfileout_gage, '(a)') trim(output_dir)//trim(case_name)//'.h_gauge.'//trim(timeString)//'.nc'
        end if
-     case default; ierr=20; message=trim(message)//'unable to identify the run option. Avaliable options are standalone and cesm-coupling'; return
+     case default
+       ierr=20; message=trim(message)//'unable to identify the run option. Avaliable options are standalone and cesm-coupling'
+       return
    end select
 
  END SUBROUTINE get_hfilename

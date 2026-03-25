@@ -4,18 +4,10 @@ MODULE process_remap_module
   USE nrtype
   USE dataTypes, ONLY: remap                ! remapping data type
   USE dataTypes, ONLY: runoff               ! runoff data type
-  USE dataTypes, ONLY: var_ilength          ! integer type:          var(:)%dat
-  USE dataTypes, ONLY: var_dlength          ! double precision type: var(:)%dat
 
   ! parameter structures
   USE dataTypes,  ONLY: RCHPRP              ! Reach parameters (properties)
   USE dataTypes,  ONLY: RCHTOPO             ! Network topology
-
-  ! look-up variables
-  USE var_lookup, ONLY: ixHRU,    nVarsHRU     ! index of variables for the HRUs
-  USE var_lookup, ONLY: ixSEG,    nVarsSEG     ! index of variables for the stream segments
-  USE var_lookup, ONLY: ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-  USE var_lookup, ONLY: ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 
   ! global data
   USE public_var, ONLY: iulog                  ! i/o logical unit number
@@ -117,13 +109,19 @@ MODULE process_remap_module
 
     ! check i-indices
     if(ii < lbound(runoff_data_in%sim2d,1) .or. ii > ubound(runoff_data_in%sim2d,1))then
-     if(printWarn) write(iulog,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, i-index ', ii,' was not found in runoff grid data.'
+     if(printWarn) then
+       write(iulog,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', &
+                                & jHRU, 'th-HRU, i-index ', ii,' was not found in runoff grid data.'
+     endif
      ixOverlap = ixOverlap + 1; cycle
     endif
 
     ! check j-indices
     if(jj < lbound(runoff_data_in%sim2d,2) .or. jj > ubound(runoff_data_in%sim2d,2))then
-     if(printWarn) write(iulog,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, j-index ', jj, 'was not found in runoff grid data.'
+     if(printWarn) then
+       write(iulog,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', &
+                                & jHRU, 'th-HRU, j-index ', jj, 'was not found in runoff grid data.'
+     end if
      ixOverlap = ixOverlap + 1; cycle
     endif
 
@@ -135,9 +133,10 @@ MODULE process_remap_module
 
     ! check
     if(remap_data_in%i_index(iHRU)==ixCheck .and. remap_data_in%j_index(iHRU)==jxCheck)then
-     write(iulog,*) 'remap_data_in%i_index(iHRU),remap_data_in%j_index(iHRU) = ', remap_data_in%i_index(iHRU), remap_data_in%j_index(iHRU)
-     write(iulog,*) 'remap_data_in%num_qhru(iHRU)                            = ', remap_data_in%num_qhru(iHRU)
-     write(iulog,*) 'runoff_data_in%sim2d(ii,jj)                             = ', runoff_data_in%sim2d(ii,jj)
+     write(iulog,*) 'remap_data_in%i_index(iHRU)  = ', remap_data_in%i_index(iHRU)
+     write(iulog,*) 'remap_data_in%j_index(iHRU)  = ', remap_data_in%j_index(iHRU)
+     write(iulog,*) 'remap_data_in%num_qhru(iHRU) = ', remap_data_in%num_qhru(iHRU)
+     write(iulog,*) 'runoff_data_in%sim2d(ii,jj)  = ', runoff_data_in%sim2d(ii,jj)
     endif
 
     ! increment the overlap index
@@ -237,9 +236,9 @@ MODULE process_remap_module
 
     ! check
     if(remap_data_in%hru_id(iHRU)==ixCheck)then
-     write(iulog,*) 'remap_data_in%hru_id(iHRU)                         = ', remap_data_in%hru_id(iHRU)
-     write(iulog,*) 'remap_data_in%num_qhru(iHRU)                       = ', remap_data_in%num_qhru(iHRU)
-     write(iulog,*) 'ixRunoff, runoff_data_in%sim(ixRunoff)             = ', ixRunoff, runoff_data_in%sim(ixRunoff)
+     write(iulog,*) 'remap_data_in%hru_id(iHRU)             = ', remap_data_in%hru_id(iHRU)
+     write(iulog,*) 'remap_data_in%num_qhru(iHRU)           = ', remap_data_in%num_qhru(iHRU)
+     write(iulog,*) 'ixRunoff, runoff_data_in%sim(ixRunoff) = ', ixRunoff, runoff_data_in%sim(ixRunoff)
     endif
 
     !write(*,*) 'remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%sim(ixRunoff) = ', &
@@ -393,7 +392,7 @@ MODULE process_remap_module
      ! error check - runoff depth cannot be negative (no missing value)
      if (limit) then
        if( basinRunoff( hruContribIx(iHRU) ) < negRunoffTol )then
-        write(iulog,*) 'Exceeded negative runoff tolerance: HRU = ', hruContribId(iHRU), ' runoff = ', basinRunoff( hruContribIx(iHRU) )
+        write(iulog,*) 'Exceeded negative RO tolerance: HRU = ', hruContribId(iHRU), ' runoff = ', basinRunoff(hruContribIx(iHRU))
         write(message,'(a,i12, g12.2)') trim(message)//'exceeded negative runoff tolerance for HRU ', hruContribId(iHRU)
         ierr=20; return
        endif
@@ -486,8 +485,8 @@ MODULE process_remap_module
       do iHRU=1,nContrib
         ! error check - runoff depth cannot be negative (no missing value)
         if( basinSolute( hruContribIx(iHRU) ) < 0._dp )then
-         write(iulog,*) 'Negative solute mass flux: HRU = ', hruContribId(iHRU), ' basin solute mass flux = ', basinSolute( hruContribIx(iHRU) )
-         write(message,'(a,i12, g12.2)') trim(message)//'Negative solute mass flux for HRU ', hruContribId(iHRU)
+         write(message,'(a,i12,a,g12.2)') trim(message)//'Negative solute mass flux: HRU = ', hruContribId(iHRU), &
+                                         ' lateral solute mass flux = ', basinSolute(hruContribIx(iHRU))
          ierr=20; return
         endif
         ! compute the weighted average mass (mg/s)

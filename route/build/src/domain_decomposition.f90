@@ -493,8 +493,6 @@ CONTAINS
    integer(i4b), allocatable                             :: HRUindex(:)         ! local array for HRU indices
    integer(i4b), allocatable                             :: ixEndorheic(:)      ! local array for endorheic HRU indices
    integer(i4b), allocatable                             :: index_array(:)      ! local index array
-   integer(i4b)                                          :: segIndex(nSeg)      ! reach index for all the reaches
-   integer(i4b)                                          :: downIndex(nSeg)     ! downstream reach index for all the reacheds
    logical(lgt)                                          :: majorMainstem(nSeg) ! logical to indicate reach is "major" mainstem
    integer(i4b)                                          :: nUpSeg              ! number of upstream reaches for a reach
    integer(i4b)                                          :: sumHruLocal         ! sum of hrus that contribute to the segments
@@ -516,9 +514,7 @@ CONTAINS
 
    ! put ntopo data structure components into a separate array
    do iSeg = 1, nSeg
-     segIndex(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
-     downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
-     nUpSeg          = size(structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat)
+     nUpSeg = size(structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat)
      if (nUpSeg > maxSegs) majorMainstem(iSeg) = .true.
    enddo
 

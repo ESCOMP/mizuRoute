@@ -24,7 +24,7 @@ CONTAINS
  USE ncio_utils, ONLY: check_variable
  USE dataTypes,  ONLY: states
  ! meta data
- USE var_lookup, ONLY: ixStateDims, nStateDims
+ USE var_lookup, ONLY: ixStateDims
  USE globalData, ONLY: meta_stateDims            ! dimension for state variables
  USE globalData, ONLY: idxDW                     ! DW routing method index (now tracer use only dw method)
  USE globalData, ONLY: RCHFLX                    ! reach flux data structure for the entire domain
@@ -172,13 +172,13 @@ CONTAINS
         case(ixBasinQ%q); allocate(state%var(iVar)%array_1d_dp(nSeg), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
       end select
-      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for reach inflow:'//trim(meta_basinQ(iVar)%varName); return; endif
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating reach inflow:'//trim(meta_basinQ(iVar)%varName); return; endif
     end do
 
     do iVar=1,nVarsBasinQ
       select case(iVar)
         case(ixBasinQ%q); call get_nc(fname, meta_basinQ(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
-        case default; ierr=20; message1=trim(message1)//'unable to identify previous time step reach inflow variable index for nc writing'; return
+        case default; ierr=20; message1=trim(message1)//'unable to identify reach inflow variable index for nc writing'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_basinQ(iVar)%varName); return; endif
     enddo
@@ -188,7 +188,7 @@ CONTAINS
       do iVar=1,nVarsBasinQ
         select case(iVar)
           case(ixBasinQ%q); RCHFLX(jSeg)%BASIN_QR(1) = state%var(iVar)%array_1d_dp(iSeg)
-          case default; ierr=20; message1=trim(message1)//'unable to identify previous time step reach inflow variable index'; return
+          case default; ierr=20; message1=trim(message1)//'unable to identify reach inflow variable index'; return
         end select
       enddo
     enddo
@@ -223,12 +223,15 @@ CONTAINS
         case(ixIRFbas%qfuture); allocate(state%var(iVar)%array_2d_dp(nSeg, ntdh), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
       end select
-      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin IRF routing state:'//trim(meta_irf_bas(iVar)%varName); return; endif
+      if(ierr/=0)then
+        message1=trim(message1)//'problem allocating basin IRF routing state:'//trim(meta_irf_bas(iVar)%varName); return
+      endif
     end do
 
     do iVar=1,nVarsIRFbas
       select case(iVar)
-        case(ixIRFbas%qfuture); call get_nc(fname, meta_irf_bas(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,ntdh], ierr, cmessage1)
+        case(ixIRFbas%qfuture)
+          call get_nc(fname, meta_irf_bas(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,ntdh], ierr, cmessage1)
         case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF variable index for nc writing'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_irf_bas(iVar)%varName); return; endif
@@ -276,12 +279,15 @@ CONTAINS
         case(ixBasTracer%tfuture); allocate(state%var(iVar)%array_2d_dp(nSeg, ntdh), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
       end select
-      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin tracer state:'//trim(meta_bas_solute(iVar)%varName); return; endif
+      if(ierr/=0)then
+        message1=trim(message1)//'problem allocating basin tracer state:'//trim(meta_bas_solute(iVar)%varName); return
+      endif
     end do
 
     do iVar=1,nVarsBasTracer
       select case(iVar)
-        case(ixBasTracer%tfuture); call get_nc(fname, meta_bas_solute(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,ntdh], ierr, cmessage1)
+        case(ixBasTracer%tfuture)
+          call get_nc(fname, meta_bas_solute(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,ntdh], ierr, cmessage1)
         case default; ierr=20; message1=trim(message1)//'unable to identify basin tracer variable index for nc writing'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_bas_solute(iVar)%varName); return; endif
@@ -318,7 +324,6 @@ CONTAINS
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
     integer(i4b), allocatable     :: numQF(:)       ! number of future Q time steps for each segment
     integer(i4b)                  :: ntdh_irf       ! dimenion sizes
-    integer(i4b)                  :: nTbound=2      ! dimenion sizes
 
     ierr=0; message1='read_IRF_state/'
 
@@ -338,7 +343,7 @@ CONTAINS
         case(ixIRF%qerror); allocate(state%var(iVar)%array_1d_dp(nSeg), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
-      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for IRF routing state:'//trim(meta_irf(iVar)%varName); return; endif
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating IRF routing state:'//trim(meta_irf(iVar)%varName); return; endif
     end do
 
     call get_nc(fname,'numQF',numQF,1,nSeg,ierr,cmessage1)
@@ -346,8 +351,10 @@ CONTAINS
 
     do iVar=1,nVarsIRF
       select case(iVar)
-        case(ixIRF%qfuture); call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,ntdh_irf], ierr, cmessage1)
-        case(ixIRF%vol);     call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
+        case(ixIRF%qfuture)
+          call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,ntdh_irf], ierr, cmessage1)
+        case(ixIRF%vol)
+          call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
         case(ixIRF%qerror)
           call open_nc(fname, 'r', ncidRestart, ierr, cmessage1)
           if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
@@ -416,7 +423,7 @@ CONTAINS
         case(ixKWT%vol);  allocate(state%var(iVar)%array_1d_dp(nSeg), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
-      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for KWT routing state:'//trim(meta_kwt(iVar)%varName); return; endif
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating KWT routing state:'//trim(meta_kwt(iVar)%varName); return; endif
     end do
 
     call get_nc(fname,'numWaves',numWaves, 1, nSeg, ierr, cmessage1)
@@ -440,11 +447,16 @@ CONTAINS
       allocate(RCHSTA(jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iSeg)-1), stat=ierr)
       do iVar=1,nVarsKWT
         select case(iVar)
-          case(ixKWT%tentry);    RCHSTA(jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iSeg)-1)%TI = state%var(iVar)%array_2d_dp(iSeg,1:numWaves(iSeg))
-          case(ixKWT%texit);     RCHSTA(jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iSeg)-1)%TR = state%var(iVar)%array_2d_dp(iSeg,1:numWaves(iSeg))
-          case(ixKWT%qwave);     RCHSTA(jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iSeg)-1)%QF = state%var(iVar)%array_2d_dp(iSeg,1:numWaves(iSeg))
-          case(ixKWT%qwave_mod); RCHSTA(jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iSeg)-1)%QM = state%var(iVar)%array_2d_dp(iSeg,1:numWaves(iSeg))
-          case(ixKWT%vol);       RCHFLX(jSeg)%ROUTE(idxKWT)%REACH_VOL(1) = state%var(iVar)%array_1d_dp(iSeg)
+          case(ixKWT%tentry)
+            RCHSTA(jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iSeg)-1)%TI = state%var(iVar)%array_2d_dp(iSeg,1:numWaves(iSeg))
+          case(ixKWT%texit)
+            RCHSTA(jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iSeg)-1)%TR = state%var(iVar)%array_2d_dp(iSeg,1:numWaves(iSeg))
+          case(ixKWT%qwave)
+            RCHSTA(jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iSeg)-1)%QF = state%var(iVar)%array_2d_dp(iSeg,1:numWaves(iSeg))
+          case(ixKWT%qwave_mod)
+            RCHSTA(jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iSeg)-1)%QM = state%var(iVar)%array_2d_dp(iSeg,1:numWaves(iSeg))
+          case(ixKWT%vol)
+            RCHFLX(jSeg)%ROUTE(idxKWT)%REACH_VOL(1) = state%var(iVar)%array_1d_dp(iSeg)
           case(ixKWT%routed) ! this is suppposed to be logical variable, but put it as 0 or 1 in double now
             if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
             allocate(RFvec(0:numWaves(iSeg)-1),stat=ierr)
@@ -489,13 +501,15 @@ CONTAINS
         case(ixKW%vol : ixKW%qerror);  allocate(state%var(iVar)%array_1d_dp(nSeg), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
-      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for KW routing state:'//trim(meta_kw(iVar)%varName); return; endif
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating KW routing state:'//trim(meta_kw(iVar)%varName); return; endif
     end do
 
     do iVar=1,nVarsKW
       select case(iVar)
-        case(ixKW%qsub); call get_nc(fname, meta_kw(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,nMolecule%KW_ROUTE], ierr, cmessage1)
-        case(ixKW%vol);  call get_nc(fname, meta_kw(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
+        case(ixKW%qsub)
+          call get_nc(fname, meta_kw(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,nMolecule%KW_ROUTE], ierr, cmessage1)
+        case(ixKW%vol)
+          call get_nc(fname, meta_kw(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
         case(ixKW%qerror)
           call open_nc(fname, 'r', ncidRestart, ierr, cmessage1)
           if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
@@ -516,9 +530,12 @@ CONTAINS
       allocate(RCHSTA(jSeg)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage1)
       do iVar=1,nVarsKW
         select case(iVar)
-          case(ixKW%qsub); RCHSTA(jSeg)%KW_ROUTE%molecule%Q(1:nMolecule%KW_ROUTE) = state%var(iVar)%array_2d_dp(iSeg,1:nMolecule%KW_ROUTE)
-          case(ixKW%vol);  RCHFLX(jSeg)%ROUTE(idxKW)%REACH_VOL(1) = state%var(iVar)%array_1d_dp(iSeg)
-          case(ixKW%qerror); RCHFLX(iSeg)%ROUTE(idxKW)%Qerror = state%var(iVar)%array_1d_dp(iSeg)
+          case(ixKW%qsub)
+            RCHSTA(jSeg)%KW_ROUTE%molecule%Q(1:nMolecule%KW_ROUTE) = state%var(iVar)%array_2d_dp(iSeg,1:nMolecule%KW_ROUTE)
+          case(ixKW%vol)
+            RCHFLX(jSeg)%ROUTE(idxKW)%REACH_VOL(1) = state%var(iVar)%array_1d_dp(iSeg)
+          case(ixKW%qerror)
+            RCHFLX(iSeg)%ROUTE(idxKW)%Qerror = state%var(iVar)%array_1d_dp(iSeg)
           case default; ierr=20; message1=trim(message1)//'unable to identify KW routing state variable index'; return
         end select
       enddo
@@ -557,13 +574,15 @@ CONTAINS
         case(ixMC%vol : ixMC%qerror); allocate(state%var(iVar)%array_1d_dp(nSeg), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
-      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for MC routing state:'//trim(meta_mc(iVar)%varName); return; endif
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating MC routing state:'//trim(meta_mc(iVar)%varName); return; endif
     end do
 
     do iVar=1,nVarsMC
       select case(iVar)
-        case(ixMC%qsub); call get_nc(fname, meta_mc(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,nMolecule%MC_ROUTE], ierr, cmessage1)
-        case(ixMC%vol);  call get_nc(fname, meta_mc(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
+        case(ixMC%qsub)
+          call get_nc(fname, meta_mc(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,nMolecule%MC_ROUTE], ierr, cmessage1)
+        case(ixMC%vol)
+          call get_nc(fname, meta_mc(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
         case(ixMC%qerror)
           call open_nc(fname, 'r', ncidRestart, ierr, cmessage1)
           if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
@@ -584,9 +603,12 @@ CONTAINS
       allocate(RCHSTA(jSeg)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage1)
       do iVar=1,nVarsMC
         select case(iVar)
-          case(ixMC%qsub); RCHSTA(jSeg)%MC_ROUTE%molecule%Q(1:nMolecule%MC_ROUTE) = state%var(iVar)%array_2d_dp(iSeg,1:nMolecule%MC_ROUTE)
-          case(ixMC%vol);  RCHFLX(jSeg)%ROUTE(idxMC)%REACH_VOL(1) = state%var(iVar)%array_1d_dp(iSeg)
-          case(ixMC%qerror); RCHFLX(iSeg)%ROUTE(idxMC)%Qerror = state%var(iVar)%array_1d_dp(iSeg)
+          case(ixMC%qsub)
+            RCHSTA(jSeg)%MC_ROUTE%molecule%Q(1:nMolecule%MC_ROUTE) = state%var(iVar)%array_2d_dp(iSeg,1:nMolecule%MC_ROUTE)
+          case(ixMC%vol)
+            RCHFLX(jSeg)%ROUTE(idxMC)%REACH_VOL(1) = state%var(iVar)%array_1d_dp(iSeg)
+          case(ixMC%qerror)
+            RCHFLX(iSeg)%ROUTE(idxMC)%Qerror = state%var(iVar)%array_1d_dp(iSeg)
           case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
         end select
       enddo
@@ -625,13 +647,15 @@ CONTAINS
         case(ixDW%vol : ixDW%qerror); allocate(state%var(iVar)%array_1d_dp(nSeg), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
-      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for DW routing state:'//trim(meta_dw(iVar)%varName); return; endif
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating DW routing state:'//trim(meta_dw(iVar)%varName); return; endif
     end do
 
     do iVar=1,nVarsDW
       select case(iVar)
-        case(ixDW%qsub); call get_nc(fname, meta_dw(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,nMolecule%DW_ROUTE], ierr, cmessage1)
-        case(ixDW%vol);  call get_nc(fname, meta_dw(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
+        case(ixDW%qsub)
+          call get_nc(fname, meta_dw(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,nMolecule%DW_ROUTE], ierr, cmessage1)
+        case(ixDW%vol)
+          call get_nc(fname, meta_dw(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
         case(ixDW%qerror)
           call open_nc(fname, 'r', ncidRestart, ierr, cmessage1)
           if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
@@ -652,9 +676,12 @@ CONTAINS
       allocate(RCHSTA(jSeg)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage1)
       do iVar=1,nVarsDW
         select case(iVar)
-          case(ixDW%qsub); RCHSTA(jSeg)%DW_ROUTE%molecule%Q(1:nMolecule%DW_ROUTE) = state%var(iVar)%array_2d_dp(iSeg,1:nMolecule%DW_ROUTE)
-          case(ixDW%vol);  RCHFLX(jSeg)%ROUTE(idxDW)%REACH_VOL(1) = state%var(iVar)%array_1d_dp(iSeg)
-          case(ixDW%qerror); RCHFLX(iSeg)%ROUTE(idxDW)%Qerror = state%var(iVar)%array_1d_dp(iSeg)
+          case(ixDW%qsub)
+            RCHSTA(jSeg)%DW_ROUTE%molecule%Q(1:nMolecule%DW_ROUTE) = state%var(iVar)%array_2d_dp(iSeg,1:nMolecule%DW_ROUTE)
+          case(ixDW%vol)
+            RCHFLX(jSeg)%ROUTE(idxDW)%REACH_VOL(1) = state%var(iVar)%array_1d_dp(iSeg)
+          case(ixDW%qerror)
+            RCHFLX(iSeg)%ROUTE(idxDW)%Qerror = state%var(iVar)%array_1d_dp(iSeg)
           case default; ierr=20; message1=trim(message1)//'unable to identify DW routing state variable index'; return
         end select
       enddo
@@ -686,7 +713,7 @@ CONTAINS
         case(ixTracer%mass);  allocate(state%var(iVar)%array_1d_dp(nSeg), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
-      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for tracer state:'//trim(meta_solute(iVar)%varName); return; endif
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating tracer state:'//trim(meta_solute(iVar)%varName); return; endif
     end do
 
     do iVar=1,nVarsTracer

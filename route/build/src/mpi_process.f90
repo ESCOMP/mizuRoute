@@ -18,18 +18,15 @@ USE globalData, ONLY: meta_HRU
 USE dataTypes, ONLY: var_ilength              ! integer type:     var(:)%dat
 USE dataTypes, ONLY: var_dlength              ! double precision type: var(:)%dat
 USE dataTypes, ONLY: var_clength              ! character type:        var(:)%dat
-USE dataTypes, ONLY: subbasin_omp             ! openMP domain data structure
 ! named variables
-USE var_lookup, ONLY:ixHRU,    nVarsHRU       ! index of variables for the HRUs
-USE var_lookup, ONLY:ixSEG,    nVarsSEG       ! index of variables for the stream segments
-USE var_lookup, ONLY:ixHRU2SEG,nVarsHRU2SEG   ! index of variables for the hru2segment mapping
+USE var_lookup, ONLY:nVarsHRU       ! index of variables for the HRUs
+USE var_lookup, ONLY:nVarsSEG       ! index of variables for the stream segments
+USE var_lookup, ONLY:nVarsHRU2SEG   ! index of variables for the hru2segment mapping
 USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO     ! index of variables for the network topology
-USE var_lookup, ONLY:ixPFAF,   nVarsPFAF      ! index of variables for the pfafstetter code
 ! general utility
 USE nr_utils,  ONLY: indexx           ! create sorted index array
 USE nr_utils,  ONLY: arth             ! build a vector of regularly spaced numbers
 USE nr_utils,  ONLY: sizeo            ! get size of allocatable array (if not allocated, zero)
-USE nr_utils,  ONLY: findIndex        ! find index within a vector
 USE nr_utils,  ONLY: match_index      !
 USE perf_mod,  ONLY: t_startf         ! timing start
 USE perf_mod,  ONLY: t_stopf          ! timing stop
@@ -38,7 +35,6 @@ USE mpi_utils, ONLY: shr_mpi_bcast
 USE mpi_utils, ONLY: shr_mpi_gatherV
 USE mpi_utils, ONLY: shr_mpi_scatterV
 USE mpi_utils, ONLY: shr_mpi_allgather
-USE mpi_utils, ONLY: shr_mpi_abort
 
 implicit none
 
@@ -748,7 +744,6 @@ CONTAINS
   ! local variables
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
   integer(i4b)                          :: iSeg,jSeg                ! loop indices
-  integer(i4b)                          :: nTbound = 2
   real(dp),     allocatable             :: flux_global(:)           ! basin runoff (m/s) for entire reaches
   real(dp),     allocatable             :: vol_global_tmp(:)        ! temporary reach/lake volume (m3) for entire network
   real(dp),     allocatable             :: flux_local(:)            ! basin runoff (m/s) for tributaries

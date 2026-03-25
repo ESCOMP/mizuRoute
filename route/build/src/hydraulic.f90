@@ -32,7 +32,6 @@ public::diffusivity
 logical(lgt), parameter :: useFrictionSlope = .true.    ! .false. -> approximate friction slope with channel slope
 real(dp),     parameter :: const13=1._dp/3._dp          ! constant
 real(dp),     parameter :: const23=2._dp/3._dp          ! constant
-real(dp),     parameter :: const43=4._dp/3._dp          ! constant
 real(dp),     parameter :: const53=5._dp/3._dp          ! constant
 real(dp),     parameter :: const103=10._dp/3._dp        ! constant
 real(dp),     parameter :: err_thresh=0.005_dp          ! newton method convergence threshold
@@ -173,6 +172,7 @@ CONTAINS
    real(dp)                          :: A_bank       ! channel bankful area [m2]
    real(dp)                          :: zf1          ! floodplain slope: horizontal:vertcal=1:zf [-]
    real(dp)                          :: bankDepth1   ! bankfull depth [m]
+   real(dp)                          :: discriminant ! discriminant (the square root part of quadratic forumla)
 
    if (present(bankDepth)) then
      bankDepth1 = bankDepth
@@ -187,14 +187,15 @@ CONTAINS
    end if
 
    A_bank = flow_area(bankDepth1, b, zc, zf=zf1, bankDepth=bankDepth1)
-   if (flowArea>A_bank) then
-     Bt_bank = Btop(bankDepth1, b, zc, zf=zf1, bankDepth=bankDepth1)
-     water_height = bankDepth1 + (sqrt(Bt_bank*Bt_bank/zf1/zf1 + 4._dp*flowArea/zf1 - 4._dp*bankDepth1*(b+bankDepth1*zc)/zf1)-Bt_bank/zf1)/2._dp
+   if (flowArea>A_bank) then ! water is above bankfull depth
+     Bt_bank = Btop(bankDepth1, b, zc, zf=zf1, bankDepth=bankDepth1) ! top width of channel
+     discriminant  = Bt_bank*Bt_bank - 4.0_dp*zf1*(A_bank - flowArea)
+     water_height = bankDepth1 + (-Bt_bank + sqrt(discriminant)) / (2.0_dp*zf1)
    else
      if (zc==0) then
        water_height = flowArea/b
      else
-       water_height = (sqrt(b*b + 4._dp*flowArea*zc)-b)/2._dp/zc
+       water_height = (-b + sqrt(b*b + 4._dp*flowArea*zc))/(2._dp*zc)
      end if
    end if
 

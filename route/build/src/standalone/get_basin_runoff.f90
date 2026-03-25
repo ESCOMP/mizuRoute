@@ -68,7 +68,8 @@ CONTAINS
 
   ierr=0; message='get_hru_runoff/'
 
-  if ((abs(scale_factor_runoff)<verySmall) .and. ((abs(offset_value_runoff)<verySmall) .or. (abs(offset_value_runoff-realmissing)<verySmall))) then  ! not reading runoff data
+  if (abs(scale_factor_runoff)<verySmall .and. &
+     (abs(offset_value_runoff)<verySmall .or. abs(offset_value_runoff-realmissing)<verySmall)) then  ! not reading runoff data
     runoff_data%basinRunoff = 0._dp ! replacing with zeros
   else
     ! time step mapping from runoff time step to simulation time step
@@ -136,7 +137,8 @@ CONTAINS
   ! while global parameter for LakeInputOption is either 0 or 2 (and not only runff which is 1)
   if (is_lake_sim .and. ((LakeInputOption == 0) .or. (LakeInputOption == 2))) then
 
-    if ((abs(scale_factor_Ep)<verySmall) .and. ((abs(offset_value_Ep)<verySmall) .or. (abs(offset_value_Ep-realmissing)<verySmall))) then  ! not reading evaporation
+    if (abs(scale_factor_Ep)<verySmall .and. &
+       (abs(offset_value_Ep)<verySmall .or. abs(offset_value_Ep-realmissing)<verySmall)) then  ! not reading evaporation
       runoff_data%basinEvapo  = 0._dp ! set evaporation to zero
     else
       ! get the actual evaporation - runoff_data%sim(:) or %sim2D(:,:)
@@ -171,7 +173,8 @@ CONTAINS
       end if ! is_remap
     end if ! supress evaporation
 
-    if ((abs(scale_factor_prec)<verySmall) .and. ((abs(offset_value_prec)<verySmall) .or. (abs(offset_value_prec-realmissing)<verySmall))) then  ! not reading precipitation
+    if (abs(scale_factor_prec)<verySmall .and. &
+       (abs(offset_value_prec)<verySmall .or. abs(offset_value_prec-realmissing)<verySmall)) then  ! not reading precipitation
       runoff_data%basinPrecip  = 0._dp ! set precipitation to zero
     else
       ! get the precepitation - runoff_data%sim(:) or %sim2D(:,:)
