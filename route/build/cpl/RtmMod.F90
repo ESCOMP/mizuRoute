@@ -7,7 +7,7 @@ MODULE RtmMod
   USE shr_pio_mod,  ONLY: shr_pio_getiotype, shr_pio_getioformat, &
                           shr_pio_getrearranger, shr_pio_getioroot, shr_pio_getiosys
   USE shr_kind_mod, ONLY: r8 => shr_kind_r8, CL => SHR_KIND_CL
-  USE shr_sys_mod,  ONLY: shr_sys_flush, shr_sys_abort
+  USE shr_sys_mod,  ONLY: shr_sys_abort
   USE RtmVar,       ONLY: river_depth_minimum, &
                           nsrContinue, nsrBranch, nsrStartup, nsrest, &
                           coupling_period, nsub, &
@@ -126,25 +126,23 @@ CONTAINS
     !-------------------------------------------------------
     ! mizuRoute time initialize based on time from coupler
     call init_time(ierr, cmessage)
-    if(ierr/=0) then; cmessage=trim(subname)//trim(cmessage); call shr_sys_flush(iulog); call shr_sys_abort(trim(cmessage)); endif
+    if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     if (masterproc) then
       write(iulog,*) 'define run:'
       write(iulog,*) '   run type              = ',runtyp(nsrest+1)
       write(iulog,*) '   coupling_frequency    = ',coupling_period, '[day]'
       write(iulog,*) '   mizuRoute timestep    = ',dt, '[sec]'
-      call shr_sys_flush(iulog)
+      flush(iulog)
     endif
 
     if (coupling_period <= 0) then
        write(iulog,*) subname,' ERROR mizuRoute coupling_period invalid',coupling_period
-       call shr_sys_flush(iulog)
        call shr_sys_abort( subname//' ERROR: coupling_period invalid' )
     endif
 
     if (dt <= 0) then
       write(iulog,*) subname,' ERROR mizuRoute dt invalid',dt
-      call shr_sys_flush(iulog)
       call shr_sys_abort( subname//' ERROR: mizuRoute dt invalid' )
     endif
 
@@ -154,7 +152,7 @@ CONTAINS
     select case(shr_pio_getioformat(inst_name))
       case(PIO_64BIT_OFFSET); pio_netcdf_format = '64bit_offset'
       case(PIO_64BIT_DATA);   pio_netcdf_format = '64bit_data'
-      case default; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//'unexpected netcdf format index')
+      case default; call shr_sys_abort(trim(subname)//'unexpected netcdf format index')
     end select
 
     select case(shr_pio_getiotype(inst_name))
@@ -162,7 +160,7 @@ CONTAINS
       case(pio_iotype_pnetcdf);  pio_typename = 'pnetcdf'
       case(pio_iotype_netcdf4c); pio_typename = 'netcdf4c'
       case(pio_iotype_NETCDF4p); pio_typename = 'netcdf4p'
-      case default; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//'unexpected netcdf io type index')
+      case default; call shr_sys_abort(trim(subname)//'unexpected netcdf io type index')
     end select
 
     !pio_numiotasks    = shr_pio_(inst_name)    ! there is no function to extract pio_numiotasks in cime/src/drivers/nuops/nems/util/shr_pio_mod.F90
@@ -183,7 +181,7 @@ CONTAINS
     !-------------------------------------------------------
 
     call init_ntopo_data(iam, npes, mpicom_rof, ierr, cmessage)
-    if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+    if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     !-------------------------------------------------------
     ! 4. Define Decomposed domain
@@ -232,11 +230,9 @@ CONTAINS
     end if
 
     if ( any(ctl%gindex(ctl%begr:ctl%endr) < 1) )then
-      call shr_sys_flush(iulog)
       call shr_sys_abort(trim(subname)//"bad gindex < 1")
     endif
     if ( any(ctl%gindex(ctl%begr:ctl%endr) > ctl%numr) )then
-      call shr_sys_flush(iulog)
       call shr_sys_abort(trim(subname)//"bad gindex > max")
     endif
 
@@ -248,7 +244,7 @@ CONTAINS
       call RtmRestGetfile()
       isColdStart=.false.
       call init_histFile(ierr, cmessage)
-      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+      if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
     endif
 
     !-------------------------------------------------------
@@ -256,7 +252,7 @@ CONTAINS
     !-------------------------------------------------------
 
     call init_state_data(iam, npes, mpicom_rof, ierr, cmessage)
-    if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+    if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     ! put reach flux variables to associated HRUs
     if (.not. isColdStart) then
@@ -390,7 +386,7 @@ CONTAINS
     character(len=12),parameter  :: subname = '(route_run) '
 
     call t_startf('mizuRoute_tot')
-    call shr_sys_flush(iulog)
+    flush(iulog)
 
     associate(nt_liq => ctl%nt_liq, &
               nt_ice => ctl%nt_ice)
@@ -401,7 +397,7 @@ CONTAINS
     call t_startf('mizuRoute_histinit')
 
     call main_new_file(ierr, cmessage)
-    if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+    if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     call t_stopf('mizuRoute_histinit')
 
@@ -490,10 +486,9 @@ CONTAINS
         ! Distribute "direct runoff to ocean" to targe reach (i.e., outlet of river network)
         call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct(:,nt_liq), fillvalue=0._r8)
 
-        call shr_mpi_barrier(mpicom_rof, cmessage)
-        if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+        call shr_mpi_barrier(mpicom_rof)
 
-      case default; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//'unexpected bypass_routing_option')
+      case default; call shr_sys_abort(trim(subname)//'unexpected bypass_routing_option')
     end select
 
     call t_stopf('mizuRoute_bypass_route')
@@ -508,8 +503,7 @@ CONTAINS
     ! Distribute "direct runoff to ocean" to targe reach (i.e., outlet of river network)
     call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct(:,nt_ice), fillvalue=0._r8)
 
-    call shr_mpi_barrier(mpicom_rof, cmessage)
-    if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//"mpi_barrier error"); endif
+    call shr_mpi_barrier(mpicom_rof)
 
     ! Set ctl%qsur, ctl%qsub and ctl%qgwl to zero for nt_ice
     ctl%qsur(:,nt_ice) = 0._r8
@@ -526,16 +520,16 @@ CONTAINS
       if (nRch_mainstem > 0) then ! mainstem
         call basin2reach(ctl%qirrig_actual(1:nHRU_mainstem), NETOPO_main, RPARAM_main, flux_wm_main, &
                          ierr, cmessage, limitRunoff=.false.)
-        if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+        if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
       end if
       if (nRch_trib > 0) then ! tributaries in main processor
         call basin2reach(ctl%qirrig_actual(nHRU_mainstem+1:ctl%lnumr), NETOPO_trib, RPARAM_trib, flux_wm_trib, &
                          ierr, cmessage, limitRunoff=.false.)
-        if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+        if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
       end if
     else ! other processors (tributary)
       call basin2reach(ctl%qirrig_actual, NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, cmessage, limitRunoff=.false.)
-      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+      if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
     end if
 
     if (masterproc) then
@@ -558,8 +552,7 @@ CONTAINS
 
     if (barrier_timers) then
       call t_startf('mizuRoute_SMdirect_barrier')
-      call shr_mpi_barrier(mpicom_rof, cmessage)
-      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//"mpi_barrier error"); endif
+      call shr_mpi_barrier(mpicom_rof)
       call t_stopf ('mizuRoute_SMdirect_barrier')
     endif
 
@@ -571,7 +564,7 @@ CONTAINS
       call t_startf('mizuRoute_subcycling')
 
       call mpi_route(iam, npes, mpicom_rof, ierr, cmessage, scatter_ro=.false.)
-      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+      if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
       call t_stopf('mizuRoute_subcycling')
 
@@ -581,7 +574,7 @@ CONTAINS
       call t_startf('mizuRoute_htapes')
 
       call output(ierr, cmessage)
-      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+      if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
       call t_stopf('mizuRoute_htapes')
 
@@ -592,14 +585,14 @@ CONTAINS
         call t_startf('mizuRoute_rest')
 
         call restart_output(ierr, cmessage)
-        if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+        if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
         call t_stopf('mizuRoute_rest')
       end if
 
       ! increment mizuRoute time step
       call update_time(finished, ierr, cmessage)
-      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+      if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
     end do
 
     !-----------------------------------
@@ -629,7 +622,7 @@ CONTAINS
     !-----------------------------------
     ! Done
     !-----------------------------------
-    call shr_sys_flush(iulog)
+    flush(iulog)
     call t_stopf('mizuRoute_tot')
 
   END SUBROUTINE route_run
@@ -718,6 +711,7 @@ CONTAINS
     character(CL)      :: path           ! full pathname of netcdf restart file
     integer            :: status         ! return status
     character(len=256) :: ftest,ctest    ! temporaries
+    character(len=27),parameter  :: subname = '(RtmRestGetfile) '
 
     ! Continue run:
     ! Restart file pathname is read restart pointer file
@@ -741,8 +735,7 @@ CONTAINS
          write(iulog,*) 'previous case filename= ',trim(fname_state_in), &
                         ' current case = ',trim(caseid), ' ctest = ',trim(ctest), &
                         ' ftest = ',trim(ftest)
-         call shr_sys_flush(iulog)
-         call shr_sys_abort()
+         call shr_sys_abort(trim(subname))
        end if
     end if
 
