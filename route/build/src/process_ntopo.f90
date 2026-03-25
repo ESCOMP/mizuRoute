@@ -101,15 +101,6 @@ CONTAINS
 
  ierr=0; message='augment_ntopo/'
 
- ! To time each process, these are what to do
- !  integer(i8b)                                      :: time0,time1,cr       ! for timing
- !  call system_clock(count_rate=cr)
- !  call system_clock(time0)
- !  call subroutine
- !  call system_clock(time1)
- !  write(*,'(a,1x,1PG15.7,A)') 'hru2segment: elapsed time = ', real(time1-time0,kind(dp))/real(cr), ' s'
- !  call system_clock(time0)
-
  ! ---------- get the mapping between HRUs and segments ------------------------------------------------------
 
  ! check the need to compute network topology
