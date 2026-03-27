@@ -725,6 +725,8 @@ CONTAINS
   USE globalData, ONLY: nTribOutlet      !
   USE globalData, ONLY: ixRch_order      ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
   USE globalData, ONLY: global_ix_comm   ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
+  USE globalData, ONLY: NETOPO_trib      ! tributary reach parameter structure
+  USE globalData, ONLY: NETOPO_main      ! mainstem reach parameter structure
   USE globalData, ONLY: RPARAM_trib      ! tributary reach parameter structure
   USE globalData, ONLY: RPARAM_main      ! mainstem reach parameter structure
   USE globalData, ONLY: RCHFLX_trib      ! tributary reach flux structure
@@ -977,6 +979,7 @@ CONTAINS
       if (nRch_mainstem>0) then ! populate flood volume (NOTE channel volume is already populated) for mainstem
         do iSeg = 1, nRch_mainstem
           RCHFLX_trib(iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+          if (is_lake_sim .and. NETOPO_main(iSeg)%isLake) cycle ! if lake keep 0 for flood_vol
           if (RCHFLX_trib(iSeg)%ROUTE(idxDW)%REACH_VOL(1) > RPARAM_main(iSeg)%R_STORAGE) then
             RCHFLX_trib(iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = RCHFLX_trib(iSeg)%ROUTE(idxDW)%REACH_VOL(1) - RPARAM_main(iSeg)%R_STORAGE
           end if
@@ -986,6 +989,7 @@ CONTAINS
         RCHFLX_trib(nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxDW)%REACH_VOL(1) = vol_local(iSeg)
         ! populate flood volume
         RCHFLX_trib(nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+        if (is_lake_sim .and. NETOPO_trib(iSeg)%isLake) cycle ! if lake keep 0 for flood_vol
         if (vol_local(iSeg) > RPARAM_trib(iSeg)%R_STORAGE) then
           RCHFLX_trib(nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = vol_local(iSeg)-RPARAM_trib(iSeg)%R_STORAGE
         end if
@@ -995,6 +999,7 @@ CONTAINS
         RCHFLX_trib(iSeg)%ROUTE(idxDW)%REACH_VOL(1) = vol_local(iSeg)
         ! populate flood volume
         RCHFLX_trib(iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+        if (is_lake_sim .and. NETOPO_trib(iSeg)%isLake) cycle ! if lake keep 0 for flood_vol
         if (vol_local(iSeg) > RPARAM_trib(iSeg)%R_STORAGE) then
           RCHFLX_trib(iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) =  vol_local(iSeg)-RPARAM_trib(iSeg)%R_STORAGE
         end if

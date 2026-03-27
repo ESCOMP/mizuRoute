@@ -463,19 +463,29 @@ CONTAINS
               ctl%qgwl(nr,nt_liq) = 0._r8
             end if
           end if
-          ! --- Transfer qsub to ocean [mm/s]
+          ! --- Transfer negative qsub to ocean [mm/s]
           if(ctl%qsub(nr,nt_liq) < 0._r8) then
             ctl%direct(nr,nt_liq) = ctl%direct(nr,nt_liq)+ ctl%qsub(nr,nt_liq)
             ctl%qsub(nr,nt_liq) = 0._r8
           endif
+          ! --- Transfer negative qsur to ocean [mm/s]
+          if(ctl%qsur(nr,nt_liq) < 0._r8) then
+            ctl%direct(nr,nt_liq) = ctl%direct(nr,nt_liq)+ ctl%qsur(nr,nt_liq)
+            ctl%qsur(nr,nt_liq) = 0._r8
+          endif
         end do
       case('direct_to_outlet')
-        allocate(qSend(ctl%lnumr))
-        qSend(:) = 0._r8     ! total negative q [mm/s] to be sent to the outlet (converted to +)
+        ! total negative q [mm/s] to be sent to the outlet (converted to +)
+        allocate(qSend(ctl%lnumr), source=0._r8)
         do nr = ctl%begr,ctl%endr
-          if(ctl%qgwl(nr,nt_liq) < 0._r8) then
+          if (trim(qgwl_runoff_option) == 'all') then ! send all qgwl flow to ocean
             qSend(nr) = ctl%qgwl(nr,nt_liq)
             ctl%qgwl(nr,nt_liq) = 0._r8
+          else if (trim(qgwl_runoff_option) == 'negative') then
+            if(ctl%qgwl(nr,nt_liq) < 0._r8) then
+              qSend(nr) = ctl%qgwl(nr,nt_liq)
+              ctl%qgwl(nr,nt_liq) = 0._r8
+            end if
           end if
           if(ctl%qsub(nr,nt_liq) < 0._r8) then
             qSend(nr) = qSend(nr) + ctl%qsub(nr,nt_liq)
