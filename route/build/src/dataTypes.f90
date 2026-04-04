@@ -356,7 +356,7 @@ implicit none
    real(dp)              :: REACH_WM_FLUX_actual     ! water management fluxes to and from each reach [m3/s]
    real(dp)              :: WB                       ! reach water balance error [m3]
    real(dp)              :: Qerror                   ! simulated discharge error compared to obs [m3/s] -- only for data assimilation
-   real(dp),allocatable  :: reach_solute_mass(0:1,:) ! mass of constituent(s) in channel [mg]
+   real(dp),allocatable  :: reach_solute_mass(:,:)   ! mass of constituent(s) in channel [mg]
    real(dp),allocatable  :: reach_solute_flux(:)     ! mass flux of constituent(s) from reach outlet [mg/s]
  end type hydraulic
 
@@ -366,7 +366,7 @@ implicit none
   real(dp), allocatable                :: QFUTURE_IRF(:)         ! runoff volume in future time steps for IRF routing [m3/s]
   real(dp), allocatable                :: QPASTUP_IRF(:,:)       ! runoff volume in the past time steps for lake upstream [m3/s]
   real(dp), allocatable                :: DEMANDPAST_IRF(:,:)    ! demand volume for lake [m3/s]
-  real(dp), allocatable                :: solute_future(:)       ! lateral solute mass in future time steps [mg/s]
+  real(dp), allocatable                :: solute_future(:,:)     ! lateral solute mass in future time steps [mg/s]
   real(dp), allocatable                :: BASIN_solute(:)        ! mass of instantaneous constituent(s) from the local basin [mg/s]
   real(dp), allocatable                :: BASIN_solute_inst(:)   ! mass of instantaneous constituent(s) from the local basin [mg/s]
   real(dp)                             :: BASIN_QI               ! instantaneous runoff volume from the local basin [m3/s]
