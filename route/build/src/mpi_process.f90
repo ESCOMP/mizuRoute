@@ -721,6 +721,7 @@ CONTAINS
                         ierr, message)    ! output: error control
   ! shared data
   USE globalData, ONLY: nRch             ! number of reaches in the whoel river network
+  USE globalData, ONLY: nTracer          ! number of tracers
   USE globalData, ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
   USE globalData, ONLY: nRch_mainstem    ! number of mainstem reaches
   USE globalData, ONLY: nTribOutlet      !
@@ -745,6 +746,7 @@ CONTAINS
   ! local variables
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
   integer(i4b)                          :: iSeg,jSeg                ! loop indices
+  integer(i4b)                          :: iTrace
   real(dp),     allocatable             :: flux_global(:)           ! basin runoff (m/s) for entire reaches
   real(dp),     allocatable             :: vol_global_tmp(:)        ! temporary reach/lake volume (m3) for entire network
   real(dp),     allocatable             :: flux_local(:)            ! basin runoff (m/s) for tributaries
@@ -1045,32 +1047,34 @@ CONTAINS
 
   if (tracer) then
     ! tracer mass  communication
-    if (masterproc) then
-      do iSeg = 1, nRch
-        vol_global_tmp(iSeg) = RCHFLX(iSeg)%ROUTE(idxDW)%reach_solute_mass(1)
-      enddo
-    else
-      vol_global_tmp(:) = realMissing
-    endif
-    call mpi_comm_single_flux(pid, nNodes,                              &
-                              vol_global_tmp,                           &
-                              vol_local,                                &
-                              rch_per_proc(root:nNodes-1),              &
-                              ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                              arth(1,1,rch_per_proc(pid)),              &
-                              scatter,                                  &
-                              ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    do iTrace=1, nTracer
+      if (masterproc) then
+        do iSeg = 1, nRch
+          vol_global_tmp(iSeg) = RCHFLX(iSeg)%ROUTE(idxDW)%reach_solute_mass(1,iTrace)
+        enddo
+      else
+        vol_global_tmp(:) = realMissing
+      endif
+      call mpi_comm_single_flux(pid, nNodes,                              &
+                                vol_global_tmp,                           &
+                                vol_local,                                &
+                                rch_per_proc(root:nNodes-1),              &
+                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                arth(1,1,rch_per_proc(pid)),              &
+                                scatter,                                  &
+                                ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    if (masterproc) then
-      do iSeg = 1, rch_per_proc(pid)
-        RCHFLX_trib(nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxDW)%reach_solute_mass(1) = vol_local(iSeg)
-      enddo
-    else
-      do iSeg = 1, rch_per_proc(pid)
-        RCHFLX_trib(iSeg)%ROUTE(idxDW)%reach_solute_mass(1) = vol_local(iSeg)
-      end do
-    end if
+      if (masterproc) then
+        do iSeg = 1, rch_per_proc(pid)
+          RCHFLX_trib(nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxDW)%reach_solute_mass(1,iTrace) = vol_local(iSeg)
+        enddo
+      else
+        do iSeg = 1, rch_per_proc(pid)
+          RCHFLX_trib(iSeg)%ROUTE(idxDW)%reach_solute_mass(1,iTrace) = vol_local(iSeg)
+        end do
+      end if
+    end do
   end if ! (tracer)
 
   ! no need for the entire domain flux/state data strucure
@@ -1348,6 +1352,7 @@ CONTAINS
   USE globalData, ONLY: nTracer           ! number of tracers
   USE globalData, ONLY: runoff_data       ! runoff data structure
   USE globalData, ONLY: hru_per_proc      ! number of hrus assigned to each proc (i.e., node)
+  USE globalData, ONLY: nHRU_trib         ! number of tributary hrus (number depending on tasks)
   USE globalData, ONLY: basinRunoff_main  ! HRU runoff holder for mainstem
   USE globalData, ONLY: basinRunoff_trib  ! HRU runoff holder for tributary
   USE globalData, ONLY: basinEvapo_main   ! HRU evaporation holder for mainstem
@@ -1365,7 +1370,8 @@ CONTAINS
   integer(i4b),           intent(out)     :: ierr                      ! error code
   character(len=strLen),  intent(out)     :: message                   ! error message
   ! local variables
-  integer(i4b)                            :: iTracer                   ! tracer loop index
+  integer(i4b)                            :: iTrace                    ! tracer loop index
+  real(dp),allocatable                    :: array_dp(:)               ! temporal array
   real(dp)                                :: basinRunoff_local(nHRU)   ! temporal basin runoff (m/s) for whole domain
   real(dp)                                :: basinEvapo_local(nHRU)    ! temporal basin evaporation (m/s) for whole domain
   real(dp)                                :: basinPrecip_local(nHRU)   ! temporal basin precipitation (m/s) for whole domain
@@ -1443,12 +1449,19 @@ CONTAINS
   end if
 
   if (tracer) then
-    do iTracer=1,nTracer
-      call shr_mpi_scatterV(basinSolute_local(nHRU_mainstem+1:nHRU,iTracer), &
-                            hru_per_proc(0:nNodes-1),                        &
-                            basinSolute_trib(:,iTracer),                     &
+    if (.not. allocated(basinSolute_trib)) then
+      allocate(basinSolute_trib(nHRU_trib, nTracer), source=0.0_dp, stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+    do iTrace=1,nTracer
+      associate(vec_in => basinSolute_local(nHRU_mainstem+1:nHRU,iTrace))
+      call shr_mpi_scatterV(vec_in,                   &
+                            hru_per_proc(0:nNodes-1), &
+                            array_dp, &
                             ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      basinSolute_trib(:,iTrace) = array_dp
+      end associate
     end do
   end if
 
@@ -1756,6 +1769,7 @@ CONTAINS
   USE globalData, ONLY: nRch_mainstem
   USE globalData, ONLY: nTribOutlet
   USE globalData, ONLY: nRoutes
+  USE globalData, ONLY: nTracer
   USE globalData, ONLY: routeMethods
 
   implicit none
@@ -1773,11 +1787,12 @@ CONTAINS
   character(len=strLen)                   :: cmessage              ! error message from a subroutine
   real(dp),     allocatable               :: flux(:,:)             !
   real(dp),     allocatable               :: flux_local(:,:)       !
-  real(dp),     allocatable               :: mass(:,:)             ! solute mass flux in main task
-  real(dp),     allocatable               :: mass_local(:,:)       ! solute mass flux in tasks
+  real(dp),     allocatable               :: mass(:,:,:)           ! solute mass flux in main task
+  real(dp),     allocatable               :: mass_local(:,:,:)     ! solute mass flux in tasks
   real(dp),     allocatable               :: vec_out(:)            ! output vector from mpi gather/scatter routine
   integer(i4b)                            :: nSeg                  ! number of reaches
   integer(i4b)                            :: iSeg, jSeg            ! reach looping index
+  integer(i4b)                            :: iTrace                ! tracer looping index
   integer(i4b)                            :: ix                    ! general looping index
 
   ierr=0; message='mpi_comm_river_flux/'
@@ -1789,7 +1804,7 @@ CONTAINS
     if (masterproc) then
       allocate(flux(nSeg, nRoutes), stat=ierr)
       if (tracer) then
-        allocate(mass(nSeg, nRoutes), stat=ierr)
+        allocate(mass(nSeg, nRoutes, nTracer), stat=ierr)
       end if
       if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux]'; return; endif
 
@@ -1807,12 +1822,12 @@ CONTAINS
           end select
           if (tracer) then
             select case(routeMethods(ix))
-              case(accumRunoff);           mass(iSeg,ix) = RCHFLX_dist(jSeg)%ROUTE(idxSUM)%reach_solute_flux
-              case(impulseResponseFunc);   mass(iSeg,ix) = RCHFLX_dist(jSeg)%ROUTE(idxIRF)%reach_solute_flux
-              case(kinematicWaveTracking); mass(iSeg,ix) = RCHFLX_dist(jSeg)%ROUTE(idxKWT)%reach_solute_flux
-              case(kinematicWave);         mass(iSeg,ix) = RCHFLX_dist(jSeg)%ROUTE(idxKW)%reach_solute_flux
-              case(muskingumCunge);        mass(iSeg,ix) = RCHFLX_dist(jSeg)%ROUTE(idxMC)%reach_solute_flux
-              case(diffusiveWave);         mass(iSeg,ix) = RCHFLX_dist(jSeg)%ROUTE(idxDW)%reach_solute_flux
+              case(accumRunoff);           mass(iSeg,ix,:) = RCHFLX_dist(jSeg)%ROUTE(idxSUM)%reach_solute_flux
+              case(impulseResponseFunc);   mass(iSeg,ix,:) = RCHFLX_dist(jSeg)%ROUTE(idxIRF)%reach_solute_flux
+              case(kinematicWaveTracking); mass(iSeg,ix,:) = RCHFLX_dist(jSeg)%ROUTE(idxKWT)%reach_solute_flux
+              case(kinematicWave);         mass(iSeg,ix,:) = RCHFLX_dist(jSeg)%ROUTE(idxKW)%reach_solute_flux
+              case(muskingumCunge);        mass(iSeg,ix,:) = RCHFLX_dist(jSeg)%ROUTE(idxMC)%reach_solute_flux
+              case(diffusiveWave);         mass(iSeg,ix,:) = RCHFLX_dist(jSeg)%ROUTE(idxDW)%reach_solute_flux
               case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
             end select
           end if
@@ -1831,14 +1846,16 @@ CONTAINS
       end associate
     end do
     if (tracer) then
-      allocate(mass_local(nReach(pid),nRoutes), stat=ierr)
-      if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_local]'; return; endif
+      allocate(mass_local(nReach(pid),nRoutes, nTracer), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [mass_local]'; return; endif
       do ix = 1, nRoutes
-        associate(vec_in => reshape(mass(:,ix),[nSeg]))
-        call shr_mpi_scatterV(vec_in, nReach, vec_out, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-        mass_local(:,ix) = vec_out(:)
-        end associate
+        do iTrace=1, nTracer
+          associate(vec_in => reshape(mass(:,ix,iTrace),[nSeg]))
+          call shr_mpi_scatterV(vec_in, nReach, vec_out, ierr, cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          mass_local(:,ix,iTrace) = vec_out(:)
+          end associate
+        end do
       end do
     end if
 
@@ -1859,15 +1876,17 @@ CONTAINS
           case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
         end select
         if (tracer) then
-          select case(routeMethods(ix))
-            case(accumRunoff);           RCHFLX_dist(jSeg)%ROUTE(idxSUM)%reach_solute_flux = mass_local(iSeg,ix)
-            case(impulseResponseFunc);   RCHFLX_dist(jSeg)%ROUTE(idxIRF)%reach_solute_flux = mass_local(iSeg,ix)
-            case(kinematicWaveTracking); RCHFLX_dist(jSeg)%ROUTE(idxKWT)%reach_solute_flux = mass_local(iSeg,ix)
-            case(kinematicWave);         RCHFLX_dist(jSeg)%ROUTE(idxKW)%reach_solute_flux  = mass_local(iSeg,ix)
-            case(muskingumCunge);        RCHFLX_dist(jSeg)%ROUTE(idxMC)%reach_solute_flux  = mass_local(iSeg,ix)
-            case(diffusiveWave);         RCHFLX_dist(jSeg)%ROUTE(idxDW)%reach_solute_flux  = mass_local(iSeg,ix)
-            case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
-          end select
+          do iTrace=1, nTracer
+            select case(routeMethods(ix))
+              case(accumRunoff);           RCHFLX_dist(jSeg)%ROUTE(idxSUM)%reach_solute_flux(iTrace) = mass_local(iSeg,ix,iTrace)
+              case(impulseResponseFunc);   RCHFLX_dist(jSeg)%ROUTE(idxIRF)%reach_solute_flux(iTrace) = mass_local(iSeg,ix,iTrace)
+              case(kinematicWaveTracking); RCHFLX_dist(jSeg)%ROUTE(idxKWT)%reach_solute_flux(iTrace) = mass_local(iSeg,ix,iTrace)
+              case(kinematicWave);         RCHFLX_dist(jSeg)%ROUTE(idxKW)%reach_solute_flux(iTrace)  = mass_local(iSeg,ix,iTrace)
+              case(muskingumCunge);        RCHFLX_dist(jSeg)%ROUTE(idxMC)%reach_solute_flux(iTrace)  = mass_local(iSeg,ix,iTrace)
+              case(diffusiveWave);         RCHFLX_dist(jSeg)%ROUTE(idxDW)%reach_solute_flux(iTrace)  = mass_local(iSeg,ix,iTrace)
+              case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
+            end select
+          end do
         end if
       end do
     end do
@@ -1877,7 +1896,7 @@ CONTAINS
     allocate(flux_local(nReach(pid),nRoutes), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_local]'; return; endif
     if (tracer) then
-      allocate(mass_local(nReach(pid),nRoutes), stat=ierr)
+      allocate(mass_local(nReach(pid),nRoutes,nTracer), stat=ierr)
       if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [mass_local]'; return; endif
     end if
     ! Transfer reach fluxes to 2D arrays
@@ -1898,12 +1917,12 @@ CONTAINS
         end select
         if (tracer) then
           select case(routeMethods(ix))
-            case(accumRunoff);           mass_local(iSeg,ix) = RCHFLX_dist(jSeg)%ROUTE(idxSUM)%reach_solute_flux
-            case(impulseResponseFunc);   mass_local(iSeg,ix) = RCHFLX_dist(jSeg)%ROUTE(idxIRF)%reach_solute_flux
-            case(kinematicWaveTracking); mass_local(iSeg,ix) = RCHFLX_dist(jSeg)%ROUTE(idxKWT)%reach_solute_flux
-            case(kinematicWave);         mass_local(iSeg,ix) = RCHFLX_dist(jSeg)%ROUTE(idxKW)%reach_solute_flux
-            case(muskingumCunge);        mass_local(iSeg,ix) = RCHFLX_dist(jSeg)%ROUTE(idxMC)%reach_solute_flux
-            case(diffusiveWave);         mass_local(iSeg,ix) = RCHFLX_dist(jSeg)%ROUTE(idxDW)%reach_solute_flux
+            case(accumRunoff);           mass_local(iSeg,ix,:) = RCHFLX_dist(jSeg)%ROUTE(idxSUM)%reach_solute_flux
+            case(impulseResponseFunc);   mass_local(iSeg,ix,:) = RCHFLX_dist(jSeg)%ROUTE(idxIRF)%reach_solute_flux
+            case(kinematicWaveTracking); mass_local(iSeg,ix,:) = RCHFLX_dist(jSeg)%ROUTE(idxKWT)%reach_solute_flux
+            case(kinematicWave);         mass_local(iSeg,ix,:) = RCHFLX_dist(jSeg)%ROUTE(idxKW)%reach_solute_flux
+            case(muskingumCunge);        mass_local(iSeg,ix,:) = RCHFLX_dist(jSeg)%ROUTE(idxMC)%reach_solute_flux
+            case(diffusiveWave);         mass_local(iSeg,ix,:) = RCHFLX_dist(jSeg)%ROUTE(idxDW)%reach_solute_flux
             case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
           end select
         end if
@@ -1921,14 +1940,16 @@ CONTAINS
     end do
 
     if (tracer) then
-      allocate(mass(nSeg,nRoutes), stat=ierr)
+      allocate(mass(nSeg,nRoutes,nTracer), stat=ierr)
       if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux]'; return; endif
       do ix = 1,nRoutes
-        associate(vec_in => reshape(mass_local(:,ix),[nReach(pid)]))
-        call shr_mpi_gatherV(vec_in, nReach, vec_out, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-        mass(:,ix) = vec_out(:)
-        end associate
+        do iTrace=1, nTracer
+          associate(vec_in => reshape(mass_local(:,ix,iTrace),[nReach(pid)]))
+          call shr_mpi_gatherV(vec_in, nReach, vec_out, ierr, cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          mass(:,ix,iTrace) = vec_out(:)
+          end associate
+        end do
       end do
     end if
 
@@ -1947,15 +1968,17 @@ CONTAINS
             case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
           end select
           if (tracer) then
-            select case(routeMethods(ix))
-              case(accumRunoff);           RCHFLX_dist(jSeg)%ROUTE(idxSUM)%reach_solute_flux = mass(iSeg,ix)
-              case(impulseResponseFunc);   RCHFLX_dist(jSeg)%ROUTE(idxIRF)%reach_solute_flux = mass(iSeg,ix)
-              case(kinematicWaveTracking); RCHFLX_dist(jSeg)%ROUTE(idxKWT)%reach_solute_flux = mass(iSeg,ix)
-              case(kinematicWave);         RCHFLX_dist(jSeg)%ROUTE(idxKW)%reach_solute_flux  = mass(iSeg,ix)
-              case(muskingumCunge);        RCHFLX_dist(jSeg)%ROUTE(idxMC)%reach_solute_flux  = mass(iSeg,ix)
-              case(diffusiveWave);         RCHFLX_dist(jSeg)%ROUTE(idxDW)%reach_solute_flux  = mass(iSeg,ix)
-              case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
-            end select
+            do iTrace=1, nTracer
+              select case(routeMethods(ix))
+                case(accumRunoff);           RCHFLX_dist(jSeg)%ROUTE(idxSUM)%reach_solute_flux(iTrace) = mass(iSeg,ix,iTrace)
+                case(impulseResponseFunc);   RCHFLX_dist(jSeg)%ROUTE(idxIRF)%reach_solute_flux(iTrace) = mass(iSeg,ix,iTrace)
+                case(kinematicWaveTracking); RCHFLX_dist(jSeg)%ROUTE(idxKWT)%reach_solute_flux(iTrace) = mass(iSeg,ix,iTrace)
+                case(kinematicWave);         RCHFLX_dist(jSeg)%ROUTE(idxKW)%reach_solute_flux(iTrace)  = mass(iSeg,ix,iTrace)
+                case(muskingumCunge);        RCHFLX_dist(jSeg)%ROUTE(idxMC)%reach_solute_flux(iTrace)  = mass(iSeg,ix,iTrace)
+                case(diffusiveWave);         RCHFLX_dist(jSeg)%ROUTE(idxDW)%reach_solute_flux(iTrace)  = mass(iSeg,ix,iTrace)
+                case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
+              end select
+            end do
           end if ! if-tracer end
         end do
       end do
@@ -1982,6 +2005,7 @@ CONTAINS
   USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
   USE globalData, ONLY: nRch_mainstem
   USE globalData, ONLY: nTribOutlet
+  USE globalData, ONLY: nTracer
   USE public_var, ONLY: tracer
 
   implicit none
@@ -2000,19 +2024,20 @@ CONTAINS
   ! local variables
   character(len=strLen)                   :: cmessage              ! error message from a subroutine
   type(STRFLX), allocatable               :: RCHFLX0(:)          ! temp RCHFLX data structure to hold updated states
+  real(dp),     allocatable               :: array_dp(:)
   real(dp),     allocatable               :: qfuture(:)
   real(dp),     allocatable               :: qfuture_trib(:)
-  real(dp),     allocatable               :: solute_future(:)
-  real(dp),     allocatable               :: solute_future_trib(:)
+  real(dp),     allocatable               :: solute_future(:,:)
+  real(dp),     allocatable               :: solute_future_trib(:,:)
   integer(i4b)                            :: ix1, ix2
   integer(i4b)                            :: myid
   integer(i4b)                            :: nSeg                  ! number of reaches
   integer(i4b)                            :: iSeg, jSeg
+  integer(i4b)                            :: iTrace
   integer(i4b)                            :: ixTdh
   integer(i4b), allocatable               :: ntdh(:)
   integer(i4b), allocatable               :: ntdh_trib(:)
   integer(i4b)                            :: totTdh(0:nNodes-1)
-  character(len=strLen)                   :: varType
 
   ierr=0; message='mpi_comm_irf_bas_state/'
 
@@ -2036,20 +2061,17 @@ CONTAINS
       enddo
 
       ! convert RCHFLX data strucutre to state arrays
-      varType='flow'
       call irf_bas_struc2array(RCHFLX0,         & !input: input state data structure
-                               varType,         & !input: variable type
                                qfuture,         & !output: states array
                                ntdh,            & !output: number of qfuture per reach
                                ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       if (tracer) then
-        varType='tracer'
-        call irf_bas_struc2array(RCHFLX0,       & !input: input state data structure
-                                 varType,       & !input: variable type
-                                 solute_future, & !output: states array
-                                 ntdh,          & !output: number of qfuture per reach
-                                 ierr, cmessage)
+        call irf_tracer_bas_struc2array(RCHFLX0,       & !input: input state data structure
+                                        nTracer,       & !input: variable type
+                                        solute_future, & !output: states array
+                                        ntdh,          & !output: number of qfuture per reach
+                                        ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
     endif ! end of root process
@@ -2061,7 +2083,7 @@ CONTAINS
       allocate(qfuture(sum(ntdh)),stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage)//'qfuture'; return; endif
       if (tracer) then
-        allocate(solute_future(sum(ntdh)),stat=ierr, errmsg=cmessage)
+        allocate(solute_future(sum(ntdh), nTracer),stat=ierr, errmsg=cmessage)
       end if
     end if
 
@@ -2081,8 +2103,13 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     if (tracer) then
-      call shr_mpi_scatterV(solute_future, totTdh(0:nNodes-1), solute_future_trib, ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      do iTrace=1,nTracer
+        associate(vec_in => solute_future(:,iTrace))
+        call shr_mpi_scatterV(vec_in, totTdh(0:nNodes-1), array_dp, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        solute_future_trib(:, iTrace) = array_dp
+        end associate
+      end do
     end if
 
     ! update RCHFLX_local data structure
@@ -2109,10 +2136,11 @@ CONTAINS
          if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [RCHFLX_local(jSeg)%solute_future]'; return; endif
         endif
 
-        allocate(RCHFLX_local(jSeg)%solute_future(1:ntdh_trib(iSeg)),stat=ierr)
+        allocate(RCHFLX_local(jSeg)%solute_future(1:ntdh_trib(iSeg), nTracer),stat=ierr)
         if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX_local(iRch)%solute_future]'; return; endif
-
-        RCHFLX_local(jSeg)%solute_future(1:ntdh_trib(iSeg)) = solute_future_trib(ixTdh:ixTdh+ntdh_trib(iSeg)-1)
+        do iTrace=1,nTracer
+          RCHFLX_local(jSeg)%solute_future(1:ntdh_trib(iSeg), iTrace) = solute_future_trib(ixTdh:ixTdh+ntdh_trib(iSeg)-1, iTrace)
+        end do
       end if
 
       ixTdh=ixTdh+ntdh_trib(iSeg) !update 1st idex of array
@@ -2136,9 +2164,7 @@ CONTAINS
     enddo
 
     ! Transfer KWT state data structure to flat arrays
-    varType='flow'
     call irf_bas_struc2array(RCHFLX0,            &
-                             varType,            & !input: variable type
                              qfuture_trib,       &
                              ntdh_trib,          &
                              ierr, cmessage)
@@ -2722,7 +2748,6 @@ CONTAINS
  ! private subroutine
  ! *********************************************************************
  SUBROUTINE irf_bas_struc2array(RCHFLX_in,          &  ! input:
-                                varType,            &  ! input:
                                 future_bas,         &  ! output:
                                 ntdh_bas,           &  ! output:
                                 ierr, message)
@@ -2730,7 +2755,6 @@ CONTAINS
 
   implicit none
   ! argument variables
-  character(strLen),     intent(in)              :: varType        ! variable in basin routing
   type(STRFLX),          intent(in), allocatable :: RCHFLX_in(:)   ! reach state data
   real(dp),              intent(out),allocatable :: future_bas(:)  ! flat array for wave Q
   integer(i4b),          intent(out),allocatable :: ntdh_bas(:)    ! number of waves at each reach
@@ -2760,14 +2784,61 @@ CONTAINS
 
   ixTdh = 1
   do iSeg=1,nSeg
-   select case(trim(varType))
-     case('flow'); future_bas(ixTdh:ixTdh+ntdh_bas(iSeg)-1) = RCHFLX_in(iSeg)%QFUTURE(1:ntdh_bas(iSeg))
-     case('tracer'); future_bas(ixTdh:ixTdh+ntdh_bas(iSeg)-1) = RCHFLX_in(iSeg)%solute_future(1:ntdh_bas(iSeg))
-   end select
-   ixTdh = ixTdh+ntdh_bas(iSeg)
+    future_bas(ixTdh:ixTdh+ntdh_bas(iSeg)-1) = RCHFLX_in(iSeg)%QFUTURE(1:ntdh_bas(iSeg))
+    ixTdh = ixTdh+ntdh_bas(iSeg)
   end do
 
  END SUBROUTINE irf_bas_struc2array
+
+ ! *********************************************************************
+ ! private subroutine
+ ! *********************************************************************
+ SUBROUTINE irf_tracer_bas_struc2array(RCHFLX_in,          &  ! input:
+                                       nTracers,           &  ! input: number of tracers
+                                       future_bas,         &  ! output:
+                                       ntdh_bas,           &  ! output:
+                                       ierr, message)
+  USE dataTypes, ONLY: STRFLX              ! reach flux data structure
+  implicit none
+  ! argument variables
+  type(STRFLX),          intent(in), allocatable :: RCHFLX_in(:)    ! reach state data
+  integer(i4b),          intent(in)              :: nTracers        ! number of tracers
+  real(dp),              intent(out),allocatable :: future_bas(:,:) !
+  integer(i4b),          intent(out),allocatable :: ntdh_bas(:)     ! number of waves at each reach
+  integer(i4b),          intent(out)             :: ierr           ! error code
+  character(len=strLen), intent(out)             :: message        ! error message
+  ! local variables
+  integer(i4b)                                   :: ixTdh          ! 1st indix of each reach
+  integer(i4b)                                   :: iTrace         ! tracer loop index
+  integer(i4b)                                   :: iSeg           ! loop indix
+  integer(i4b)                                   :: nSeg           ! number of reaches
+  integer(i4b)                                   :: totTdh         ! total number of waves from all the reaches
+
+  ierr=0; message='irf_tracer_bas_struc2array/'
+
+  nSeg = size(RCHFLX_in)
+  if (.not.allocated(ntdh_bas)) then
+    allocate(ntdh_bas(nSeg), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [ntdh_bas]'; return; endif
+  end if
+
+  do iSeg = 1,nSeg
+   ntdh_bas(iSeg) = size(RCHFLX_in(iSeg)%QFUTURE)
+  enddo
+
+  totTdh=sum(ntdh_bas)
+  allocate(future_bas(totTdh, nTracers), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [future_bas]'; return; endif
+
+  ixTdh = 1
+  do iSeg=1,nSeg
+    do iTrace=1,nTracers
+      future_bas(ixTdh:ixTdh+ntdh_bas(iSeg)-1,iTrace) = RCHFLX_in(iSeg)%solute_future(1:ntdh_bas(iSeg), iTrace)
+    end do
+    ixTdh = ixTdh+ntdh_bas(iSeg)
+  end do
+
+ END SUBROUTINE irf_tracer_bas_struc2array
 
  ! *********************************************************************
  ! private subroutine
