@@ -4,6 +4,8 @@ USE nrtype
 ! data type
 USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
 ! global parameters
+USE globalData, ONLY: nTracer       ! number of tracers
+USE public_var, ONLY: vname_solute  ! tracer name
 USE public_var, ONLY: iulog         ! i/o logical unit number
 USE public_var, ONLY: dt            ! simulation time step
 
@@ -134,13 +136,14 @@ CONTAINS
   ! Argument variables:
   integer(i4b), intent(in)                 :: seg_id         ! input: routing method index
   integer(i4b), intent(in)                 :: ixRoute        ! input: routing method index
-  real(dp),     intent(in)                 :: Cupstream      ! input: total inflow from upstream reaches
-  real(dp),     intent(in)                 :: Clat           ! input: lateral flow into reach
+  real(dp),     intent(in)                 :: Cupstream(:)   ! input: total inflow from upstream reaches
+  real(dp),     intent(in)                 :: Clat(:)        ! input: lateral flow into reach
   type(STRFLX), intent(inout)              :: RCHFLX_in      ! inout: Reach fluxes data structure
   logical(lgt), intent(in)                 :: lakeFlag       ! input: reach index to be examined
   logical(lgt), intent(in)                 :: verbose        ! input: reach index to be examined
   real(dp),     optional, intent(in)       :: tolerance      ! input: wb error tolerance trigering print out
   ! Local variables:
+  integer(i4b)                             :: iTrace         ! loop index
   real(dp)                                 :: MBerr          ! Mass balance error [mg]
   real(dp)                                 :: mb_tol         ! mass balance error tolerance [mg]
   real(dp)                                 :: dMass          ! mass change per time step [mg]
@@ -154,34 +157,40 @@ CONTAINS
     mb_tol=2.e-5_dp ! in mg
   end if
 
-  ! mass change
-  dMass     = RCHFLX_in%ROUTE(ixRoute)%reach_solute_mass(1)-RCHFLX_in%ROUTE(ixRoute)%reach_solute_mass(0)
-  ! in flux
-  Cin      = Cupstream *dt
-  Clateral = Clat *dt
-  ! out flux
-  Cout         = -1._dp *RCHFLX_in%ROUTE(ixRoute)%reach_solute_flux *dt
-
-  MBerr = dMass - (Cin+ Clateral+ Cout)
-
   if (verbose) then
     write(iulog,'(A)')         ' -------------------------------------'
     write(iulog,'(A)')         ' -- reach solute mass balance check --'
     write(iulog,'(A)')         ' -------------------------------------'
-    write(iulog,'(A,1PG15.7)') '  id                  = ', seg_id
-    write(iulog,'(A,1PG15.7)') '  lake                = ', lakeFlag
-    write(iulog,'(A)')         '  1 = 5-(6+7+8)'
-    write(iulog,'(A,1PG15.7)') '  1 WBerr [mg]        = ', MBerr
-    write(iulog,'(A,1PG15.7)') '  3 Mass at t0 [mg]   = ', RCHFLX_in%ROUTE(ixRoute)%reach_solute_mass(0)
-    write(iulog,'(A,1PG15.7)') '  4 Mass at t1 [mg]   = ', RCHFLX_in%ROUTE(ixRoute)%reach_solute_mass(1)
-    write(iulog,'(A,1PG15.7)') '  5 dMass [mg]        = ', dMass
-    write(iulog,'(A,1PG15.7)') '  6 influx [mg]       = ', Cin
-    write(iulog,'(A,1PG15.7)') '  7 lateral flux [mg] = ', Clateral
-    write(iulog,'(A,1PG15.7)') '  8 outflux [mg]      = ', Cout
-  endif
-  if (abs(MBerr) > mb_tol) then
-    write(iulog,'(A,1PG15.7,1X,A,1X,1PG15.7)') ' WARNING: abs. MB error [m3] = ', abs(MBerr), '>',mb_tol
   end if
+
+  do iTrace = 1, nTracer
+    ! mass change
+    dMass     = RCHFLX_in%ROUTE(ixRoute)%reach_solute_mass(1,iTrace)-RCHFLX_in%ROUTE(ixRoute)%reach_solute_mass(0,iTrace)
+    ! in flux
+    Cin      = Cupstream(iTrace) *dt
+    Clateral = Clat(iTrace) *dt
+    ! out flux
+    Cout         = -1._dp *RCHFLX_in%ROUTE(ixRoute)%reach_solute_flux(iTrace) *dt
+
+    MBerr = dMass - (Cin+ Clateral+ Cout)
+
+    if (verbose) then
+      write(iulog,'(A)')         trim(vname_solute(iTrace))
+      write(iulog,'(A,1PG15.7)') '  id                  = ', seg_id
+      write(iulog,'(A,1PG15.7)') '  lake                = ', lakeFlag
+      write(iulog,'(A)')         '  1 = 5-(6+7+8)'
+      write(iulog,'(A,1PG15.7)') '  1 WBerr [mg]        = ', MBerr
+      write(iulog,'(A,1PG15.7)') '  3 Mass at t0 [mg]   = ', RCHFLX_in%ROUTE(ixRoute)%reach_solute_mass(0,iTrace)
+      write(iulog,'(A,1PG15.7)') '  4 Mass at t1 [mg]   = ', RCHFLX_in%ROUTE(ixRoute)%reach_solute_mass(1,iTrace)
+      write(iulog,'(A,1PG15.7)') '  5 dMass [mg]        = ', dMass
+      write(iulog,'(A,1PG15.7)') '  6 influx [mg]       = ', Cin
+      write(iulog,'(A,1PG15.7)') '  7 lateral flux [mg] = ', Clateral
+      write(iulog,'(A,1PG15.7)') '  8 outflux [mg]      = ', Cout
+    endif
+    if (abs(MBerr) > mb_tol) then
+      write(iulog,'(A,1PG15.7,1X,A,1X,1PG15.7)') ' WARNING: abs. MB error [m3] = ', abs(MBerr), '>',mb_tol
+    end if
+  end do
 
   END SUBROUTINE comp_reach_mb
 

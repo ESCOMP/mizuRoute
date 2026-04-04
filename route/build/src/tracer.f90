@@ -23,6 +23,7 @@ USE public_var,    ONLY: min_length_route      ! minimum reach length for routin
 USE public_var,    ONLY: kinematicWave
 USE public_var,    ONLY: muskingumCunge
 USE public_var,    ONLY: diffusiveWave
+USE globalData,    ONLY: nTracer
 USE water_balance, ONLY: comp_reach_mb         ! compute water balance error
 USE hydraulic,     ONLY: flow_depth
 USE hydraulic,     ONLY: flow_area
@@ -63,9 +64,10 @@ CONTAINS
  logical(lgt)                                 :: isHW              ! headwater basin?
  integer(i4b)                                 :: nUps              ! number of upstream segment
  integer(i4b)                                 :: iUps              ! upstream reach index
+ integer(i4b)                                 :: iTrace            ! loop index
  integer(i4b)                                 :: iRch_ups          ! index of upstream reach in NETOPO
- real(dp)                                     :: Clat              ! lateral flow into channel [m3/s]
- real(dp)                                     :: Cupstream         ! total discharge at top of the reach [m3/s]
+ real(dp), allocatable                        :: Clat(:)           ! lateral flow into channel [m3/s]
+ real(dp), allocatable                        :: Cupstream(:)      ! total discharge at top of the reach [m3/s]
  character(len=strLen)                        :: cmessage          ! error message from subroutine
 
  ierr=0; message='constituent_rch/'
@@ -76,25 +78,26 @@ CONTAINS
  ! get mass flux from upstream
  nUps = count(NETOPO_in(segIndex)%goodBas) ! reminder: goodBas is reach with >0 total contributory area
  isHW = .true.
- Cupstream = 0.0_dp  ! mass flux from upstream mg/s
+ allocate(Cupstream(nTracer), source=0.0_dp)  ! mass flux from upstream mg/s
+ allocate(Clat(nTracer), source=0.0_dp)  ! lateral mass flux mg/s
 
  if (nUps>0) then ! this hru is not headwater
    isHW = .false.
    do iUps = 1,nUps
      if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach which does not any flow due to zero total contributory areas
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     Cupstream = Cupstream + RCHFLX_out(iRch_ups)%ROUTE(idxRoute)%reach_solute_flux   ! mass flux from upstream [mg/s]
+     Cupstream(1:nTracer) = Cupstream(1:nTracer) + &
+                            RCHFLX_out(iRch_ups)%ROUTE(idxRoute)%reach_solute_flux(1:nTracer) ! mass flux from upstream [mg/s]
    end do
-   Clat = RCHFLX_out(segIndex)%basin_solute ! lateral mass flux [mg/s]
+   Clat(1:nTracer) = RCHFLX_out(segIndex)%basin_solute(1:nTracer) ! lateral mass flux [mg/s]
  else ! headwater
    if (verbose) then
      write(iulog,'(A)')            ' This is headwater '
    endif
    if (hw_drain_point==top_reach) then ! lateral flow is poured in a reach at the top
-     Cupstream = Cupstream + RCHFLX_out(segIndex)%basin_solute
-     Clat = 0._dp
+     Cupstream(1:nTracer) = Cupstream(1:nTracer) + RCHFLX_out(segIndex)%basin_solute(1:nTracer)
    else if (hw_drain_point==bottom_reach) then ! lateral flow is poured in a reach at the top
-     Clat = RCHFLX_out(segIndex)%basin_solute
+     Clat(1:nTracer) = RCHFLX_out(segIndex)%basin_solute(1:nTracer)
    end if
  end if
 
@@ -103,11 +106,11 @@ CONTAINS
    if (nUps>0) then
      do iUps = 1,nUps
        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-       write(iulog,'(A,1X,I12,1X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps), &
-             RCHFLX_out(iRch_ups)%ROUTE(idxRoute)%reach_solute_flux
+       write(iulog,'(A,1X,I12,1X,*(G15.4,:,": "))') ' UREACHK, uprflux=', NETOPO_in(segIndex)%UREACHK(iUps), &
+             (RCHFLX_out(iRch_ups)%ROUTE(idxRoute)%reach_solute_flux(iTrace), iTrace=1,nTracer)
      enddo
    end if
-   write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(segIndex)%basin_solute=',RCHFLX_out(segIndex)%basin_solute
+   write(iulog,'(A,1X,*(G15.4,:,": "))') ' basin_solute=', (RCHFLX_out(segIndex)%basin_solute(iTrace), iTrace=1,nTracer)
  endif
 
  ! compute mass flux out and average concentration
@@ -125,13 +128,17 @@ CONTAINS
  endif
 
  if(verbose)then
-   write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(segIndex)%reach_solute_flux=', RCHFLX_out(segIndex)%ROUTE(idxRoute)%reach_solute_flux
+   write(iulog,'(A,1X,*(G15.4,:,": "))') ' reach_solute_flux=', &
+                                 (RCHFLX_out(segIndex)%ROUTE(idxRoute)%reach_solute_flux(iTrace), iTrace=1,nTracer)
  endif
 
- if (RCHFLX_out(segIndex)%ROUTE(idxRoute)%reach_solute_flux < 0) then
-   write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE MASS = ', RCHFLX_out(segIndex)%ROUTE(idxRoute)%reach_solute_flux, &
-         'at ', NETOPO_in(segIndex)%REACHID
- end if
+ do iTrace=1,nTracer
+   if (RCHFLX_out(segIndex)%ROUTE(idxRoute)%reach_solute_flux(iTrace) < 0) then
+     write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE MASS = ', &
+           RCHFLX_out(segIndex)%ROUTE(idxRoute)%reach_solute_flux(iTrace), &
+           'at ', NETOPO_in(segIndex)%REACHID
+   end if
+ end do
 
  call comp_reach_mb(NETOPO_in(segIndex)%REACHID, idxRoute, Cupstream, Clat, RCHFLX_out(segIndex), verbose, lakeFlag=.false.)
 
@@ -156,14 +163,15 @@ CONTAINS
  ! Argument variables
  integer(i4b), intent(in)        :: idxRoute       ! routing method index
  type(RCHPRP), intent(in)        :: rch_param      ! River reach parameter
- real(dp),     intent(in)        :: Cupstream      ! total discharge at top of the reach being processed
- real(dp),     intent(in)        :: Clat           ! lateral discharge into chaneel [m3/s]
+ real(dp),     intent(in)        :: Cupstream(:)   ! total mass fluxes at top of the reach being processed [mg/s]
+ real(dp),     intent(in)        :: Clat(:)        ! lateral mass fluxes into chanel [mg/s]
  logical(lgt), intent(in)        :: isHW           ! is this headwater basin?
  type(STRFLX), intent(inout)     :: rflux          ! current reach fluxes
  logical(lgt), intent(in)        :: verbose        ! reach index to be examined
  integer(i4b), intent(out)       :: ierr           ! error code
  character(*), intent(out)       :: message        ! error message
  ! Local variables
+ integer(i4b)                    :: iTrace         ! loop index
  real(dp)                        :: max_outMass    ! maximum possible constituent discharge [mg/s]
  real(dp)                        :: reach_vol      ! water volume [m3]
  real(dp)                        :: reach_mass     ! water volume [m3]
@@ -173,35 +181,34 @@ CONTAINS
 
  ierr=0; message='comp_mass_flux/'
 
- rflux%ROUTE(idxRoute)%reach_solute_mass(0) = rflux%ROUTE(idxRoute)%reach_solute_mass(1)
+ rflux%ROUTE(idxRoute)%reach_solute_mass(0,1:nTracer) = rflux%ROUTE(idxRoute)%reach_solute_mass(1,1:nTracer)
 
  if (.not. isHW .or. hw_drain_point==top_reach) then
+   do iTrace=1,nTracer
+     ! mass flux mg/s = discharge m3/s * concentration mg/m3
+     reach_mass = Cupstream(iTrace)*dt + rflux%ROUTE(idxRoute)%reach_solute_mass(1,iTrace)
+     reach_vol  = rflux%ROUTE(idxRoute)%REACH_INFLOW*dt + rflux%ROUTE(idxRoute)%REACH_VOL(0)
+     solute_per_vol=0._dp
+     if (reach_vol>0._dp) then
+       solute_per_vol = reach_mass/reach_vol
+     end if
 
-   ! mass flux mg/s = discharge m3/s * concentration mg/m3
-   reach_mass = Cupstream*dt + rflux%ROUTE(idxRoute)%reach_solute_mass(0)
-   reach_vol  = rflux%ROUTE(idxRoute)%REACH_INFLOW*dt + rflux%ROUTE(idxRoute)%REACH_VOL(0)
-   solute_per_vol=0._dp
-   if (reach_vol>0._dp) then
-     solute_per_vol = reach_mass/reach_vol
-   end if
+     solute_out = (rflux%ROUTE(idxRoute)%REACH_Q-rflux%BASIN_QR(1))*solute_per_vol
+     ! limit maximum allowable mass flux out of the reach
+     max_outMass=rflux%ROUTE(idxRoute)%reach_solute_mass(1,iTrace)/dt + Cupstream(iTrace)
+     if (solute_out>max_outMass) then
+       solute_out = max_outMass
+       rflux%ROUTE(idxRoute)%reach_solute_mass(1,iTrace) = 0
+     else
+       rflux%ROUTE(idxRoute)%reach_solute_mass(1,iTrace) = rflux%ROUTE(idxRoute)%reach_solute_mass(1, iTrace) &
+                                                         + (Cupstream(iTrace) - solute_out)*dt
+     end if
 
-   solute_out = (rflux%ROUTE(idxRoute)%REACH_Q-rflux%BASIN_QR(1))*solute_per_vol
-   ! limit maximum allowable mass flux out of the reach
-   max_outMass=rflux%ROUTE(idxRoute)%reach_solute_mass(1)/dt + Cupstream
-   if (solute_out>max_outMass) then
-     solute_out = max_outMass
-     rflux%ROUTE(idxRoute)%reach_solute_mass(1) = 0
-   else
-     rflux%ROUTE(idxRoute)%reach_solute_mass(1) = rflux%ROUTE(idxRoute)%reach_solute_mass(1) + (Cupstream - solute_out)*dt
-   end if
-
-   rflux%ROUTE(idxRoute)%reach_solute_flux = solute_out + Clat
-
+     rflux%ROUTE(idxRoute)%reach_solute_flux(iTrace) = solute_out + Clat(iTrace)
+   end do
  else ! if head-water and pour runnof to the bottom of reach
-
-   rflux%ROUTE(idxRoute)%reach_solute_flux = Clat
-   rflux%ROUTE(idxRoute)%reach_solute_mass(1) = 0._dp
-
+   rflux%ROUTE(idxRoute)%reach_solute_flux(:) = Clat(:)
+   rflux%ROUTE(idxRoute)%reach_solute_mass(1,:) = 0._dp
  endif
 
  END SUBROUTINE comp_mass_flux
