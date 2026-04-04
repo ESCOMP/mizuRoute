@@ -4,6 +4,15 @@ MODULE historyFile
   USE nrtype,            ONLY: strLen, FileStrLen, gageStrLen
   USE var_lookup,        ONLY: ixRFLX, nVarsRFLX
   USE var_lookup,        ONLY: ixHFLX, nVarsHFLX
+  USE public_var,        ONLY: accumRunoff                ! accum runoff ID = 0
+  USE public_var,        ONLY: impulseResponseFunc        ! IRF routing ID = 1
+  USE public_var,        ONLY: kinematicWaveTracking      ! KWT routing ID = 2
+  USE public_var,        ONLY: kinematicWave              ! KW routing ID = 3
+  USE public_var,        ONLY: muskingumCunge             ! MC routing ID = 4
+  USE public_var,        ONLY: diffusiveWave              ! DW routing ID = 5
+  USE public_var,        ONLY: vname_solute
+  USE public_var,        ONLY: pio_netcdf_format
+  USE public_var,        ONLY: pio_typename
   USE globalData,        ONLY: idxSUM,idxIRF,idxKWT, &
                                idxKW,idxMC,idxDW
   USE globalData,        ONLY: meta_rflx
@@ -12,8 +21,9 @@ MODULE historyFile
   USE globalData,        ONLY: masterproc
   USE globalData,        ONLY: mpicom_route
   USE globalData,        ONLY: pioSystem
-  USE public_var,        ONLY: pio_netcdf_format
-  USE public_var,        ONLY: pio_typename
+  USE globalData,        ONLY: nTracer
+  USE globalData,        ONLY: nRoutes
+  USE globalData,        ONLY: routeMethods
   USE globalData,        ONLY: sec2tunit           ! seconds per time unit
   USE globalData,        ONLY: version
   USE globalData,        ONLY: gitBranch
@@ -99,6 +109,8 @@ MODULE historyFile
       integer(i4b)                             :: dim_array(20)    ! dimension id array (max. 20 dimensions
       integer(i4b)                             :: nDims            ! number of dimension
       integer(i4b)                             :: dimId_gage_id_len
+      integer(i4b)                             :: iTrace           ! tracer index
+      character(len=strLen)                    :: varName          ! temporal variable name
 
       ierr=0; message='createNC/'
 
@@ -203,13 +215,35 @@ MODULE historyFile
           end do
 
           ! define variable
-          call def_var(this%pioFileDesc,            &                 ! pio file descriptor
-                       meta_rflx(iVar)%varName,     &                 ! variable name
-                       meta_rflx(iVar)%varType,     &                 ! variable type
-                       ierr, cmessage,              &                 ! error handling
-                       pioDimId=dim_array(1:nDims), &                 ! dimension id
-                       vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
-          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          if (trim(meta_rflx(iVar)%varName)=='soluteMass') then
+            do iTrace=1,nTracer
+              write(varName, '(a,"_mass")') trim(vname_solute(iTrace))
+              call def_var(this%pioFileDesc,            &                 ! pio file descriptor
+                           varName,                     &                 ! variable name
+                           meta_rflx(iVar)%varType,     &                 ! variable type
+                           ierr, cmessage,              &                 ! error handling
+                           pioDimId=dim_array(1:nDims), &                 ! dimension id
+                           vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
+            end do
+          else if (trim(meta_rflx(iVar)%varName)=='soluteFlux') then
+            do iTrace=1,nTracer
+              write(varName, '(a,"_flux")') trim(vname_solute(iTrace))
+              call def_var(this%pioFileDesc,            &                 ! pio file descriptor
+                           varName,                     &                 ! variable name
+                           meta_rflx(iVar)%varType,     &                 ! variable type
+                           ierr, cmessage,              &                 ! error handling
+                           pioDimId=dim_array(1:nDims), &                 ! dimension id
+                           vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
+            end do
+          else
+            call def_var(this%pioFileDesc,            &                 ! pio file descriptor
+                         meta_rflx(iVar)%varName,     &                 ! variable name
+                         meta_rflx(iVar)%varType,     &                 ! variable type
+                         ierr, cmessage,              &                 ! error handling
+                         pioDimId=dim_array(1:nDims), &                 ! dimension id
+                         vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          end if
         end do
       end if
 
@@ -427,24 +461,30 @@ MODULE historyFile
 
     END SUBROUTINE write_flux_hru
 
-
     ! ---------------------------------
     ! PIO write reach flux variables
     ! ---------------------------------
     SUBROUTINE write_flux_rch(this, hVars_local, ioDescRchFlux, index_write, ierr, message)
-
       implicit none
       ! Argument variables
       class(histFile),           intent(inout) :: this
       type(histVars),            intent(in)    :: hVars_local      ! history variable array to be written
       type(io_desc_t),           intent(inout) :: ioDescRchFlux    ! PIO domain decomposition data for reach flux [nRch]
-      integer(i4b), allocatable, intent(in)    :: index_write(:)   ! index in hVars_local to be written (size(index_write) needs to be matched with dimension of ioDescRchFlux)
+      integer(i4b), allocatable, intent(in)    :: index_write(:)   ! index in hVars_local to be written (size(index_write) needs to be matched with dimension of )
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
       ! local variables
-      integer(i4b)                             :: iVar             ! variable index
+      integer(i4b)                             :: ixRoute          ! routing method index
+      integer(i4b)                             :: iTrace           ! tracer index
+      integer(i4b)                             :: ixFlow, ixVol    ! temporal discharge, volume variable indices
+      integer(i4b)                             :: ixWaterH         ! temporal water height variable index
+      integer(i4b)                             :: ixFloodV         ! temporal flood volume variable index
+      integer(i4b)                             :: ixInflow         ! temporal inflow variable index
+      integer(i4b)                             :: ixSoluteMass     ! temporal solute mass variable index
+      integer(i4b)                             :: ixSoluteFlux     ! temporal solute flux variable index
       real(sp),    allocatable                 :: array_temp(:)
       integer(i4b)                             :: nRch_write
+      character(len=strLen)                    :: varName          ! temporal variable name
       character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
       ierr=0; message='write_flux_rch/'
@@ -462,74 +502,122 @@ MODULE historyFile
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
       end if
 
-      do iVar=1,nVarsRFLX
+      if (nRch_write>0) then
 
-        if (.not.meta_rflx(iVar)%varFile) cycle
-
-        if (nRch_write>0) then
-          select case(iVar)
-            case(ixRFLX%instRunoff)
-              array_temp(1:nRch_write) = hVars_local%instRunoff(index_write)
-            case(ixRFLX%dlayRunoff)
-              array_temp(1:nRch_write) = hVars_local%dlayRunoff(index_write)
-            case(ixRFLX%sumUpstreamRunoff)
-              array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxSUM)
-            case(ixRFLX%KWTroutedRunoff)
-              array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxKWT)
-            case(ixRFLX%IRFroutedRunoff)
-              array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxIRF)
-            case(ixRFLX%KWroutedRunoff)
-              array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxKW)
-            case(ixRFLX%MCroutedRunoff)
-              array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxMC)
-            case(ixRFLX%DWroutedRunoff)
-              array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxDW)
-            case(ixRFLX%KWTvolume)
-              array_temp(1:nRch_write) = hVars_local%volume(index_write, idxKWT)
-            case(ixRFLX%IRFvolume)
-              array_temp(1:nRch_write) = hVars_local%volume(index_write, idxIRF)
-            case(ixRFLX%KWvolume)
-              array_temp(1:nRch_write) = hVars_local%volume(index_write, idxKW)
-            case(ixRFLX%MCvolume)
-              array_temp(1:nRch_write) = hVars_local%volume(index_write, idxMC)
-            case(ixRFLX%DWvolume)
-              array_temp(1:nRch_write) = hVars_local%volume(index_write, idxDW)
-            case(ixRFLX%KWheight)
-              array_temp(1:nRch_write) = hVars_local%waterHeight(index_write, idxKW)
-            case(ixRFLX%MCheight)
-              array_temp(1:nRch_write) = hVars_local%waterHeight(index_write, idxMC)
-            case(ixRFLX%DWheight)
-              array_temp(1:nRch_write) = hVars_local%waterHeight(index_write, idxDW)
-            case(ixRFLX%KWfloodVolume)
-              array_temp(1:nRch_write) = hVars_local%floodVolume(index_write, idxKW)
-            case(ixRFLX%MCfloodVolume)
-              array_temp(1:nRch_write) = hVars_local%floodVolume(index_write, idxMC)
-            case(ixRFLX%DWfloodVolume)
-              array_temp(1:nRch_write) = hVars_local%floodVolume(index_write, idxDW)
-            case(ixRFLX%KWTinflow)
-              array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxKWT)
-            case(ixRFLX%IRFinflow)
-              array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxIRF)
-            case(ixRFLX%KWinflow)
-              array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxKW)
-            case(ixRFLX%MCinflow)
-              array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxMC)
-            case(ixRFLX%DWinflow)
-              array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxDW)
-            case(ixRFLX%DWsoluteFlux)
-              array_temp(1:nRch_write) = hVars_local%solute_flux(index_write, idxDW)
-            case(ixRFLX%DWsoluteMass)
-              array_temp(1:nRch_write) = hVars_local%solute_mass(index_write, idxDW)
-            case default
-              write(message,'(2A,1X,G0,1X,1A)') trim(message),'Invalid RFLX variable index:',iVar,'. Check ixRFLX in var_lookup.f90'
-              ierr=81; return
-          end select
+        if (meta_rflx(ixRFLX%instRunoff)%varFile) then
+          array_temp(1:nRch_write) = hVars_local%instRunoff(index_write)
+          call write_pnetcdf_recdim(this%pioFileDesc, meta_rflx(ixRFLX%instRunoff)%varName, &
+                                    array_temp, ioDescRchFlux, this%iTime, ierr, cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
         end if
 
-        call write_pnetcdf_recdim(this%pioFileDesc, meta_rflx(iVar)%varName, array_temp, ioDescRchFlux, this%iTime, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
+          array_temp(1:nRch_write) = hVars_local%dlayRunoff(index_write)
+          call write_pnetcdf_recdim(this%pioFileDesc, meta_rflx(ixRFLX%dlayRunoff)%varName, &
+                                    array_temp, ioDescRchFlux, this%iTime, ierr, cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        end if
 
-      end do
+        do ixRoute=1,nRoutes
+          select case(routeMethods(ixRoute))
+            case(accumRunoff)
+              ixFlow=ixRFLX%sumUpstreamRunoff
+            case(impulseResponseFunc)
+              ixFlow=ixRFLX%IRFroutedRunoff
+              ixVol=ixRFLX%IRFvolume
+              ixWaterH=ixRFLX%IRFheight
+              ixFloodV=ixRFLX%IRFfloodVolume
+              ixInflow=ixRFLX%IRFinflow
+            case(kinematicWaveTracking)
+              ixFlow=ixRFLX%KWTroutedRunoff
+              ixVol=ixRFLX%KWTvolume
+              ixWaterH=ixRFLX%KWTheight
+              ixFloodV=ixRFLX%KWTfloodVolume
+              ixInflow=ixRFLX%KWTinflow
+            case(kinematicWave)
+              ixFlow=ixRFLX%KWroutedRunoff
+              ixVol=ixRFLX%KWvolume
+              ixWaterH=ixRFLX%KWheight
+              ixFloodV=ixRFLX%KWfloodVolume
+              ixInflow=ixRFLX%KWinflow
+            case(muskingumCunge)
+              ixFlow=ixRFLX%MCroutedRunoff
+              ixVol=ixRFLX%MCvolume
+              ixWaterH=ixRFLX%MCheight
+              ixFloodV=ixRFLX%MCfloodVolume
+              ixInflow=ixRFLX%MCinflow
+            case(diffusiveWave)
+              ixFlow=ixRFLX%DWroutedRunoff
+              ixVol=ixRFLX%DWvolume
+              ixWaterH=ixRFLX%DWheight
+              ixFloodV=ixRFLX%DWfloodVolume
+              ixInflow=ixRFLX%DWinflow
+              ixSoluteFlux=ixRFLX%DWsoluteFlux
+              ixSoluteMass=ixRFLX%DWsoluteMass
+            case default
+              write(message,'(2A,1X,G0,1X,A)') trim(message), 'routing method index:',routeMethods(ixRoute), 'must be 0-5'
+              ierr=81; return
+          end select
+
+          if (meta_rflx(ixFlow)%varFile) then
+            array_temp(1:nRch_write) = hVars_local%discharge(index_write, ixRoute)
+            call write_pnetcdf_recdim(this%pioFileDesc, meta_rflx(ixFlow)%varName, &
+                                      array_temp, ioDescRchFlux, this%iTime, ierr, cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          end if
+
+          if (routeMethods(ixRoute)==accumRunoff) cycle  ! accumuRunoff has only discharge
+
+          if (meta_rflx(ixVol)%varFile) then
+            array_temp(1:nRch_write) = hVars_local%volume(index_write, ixRoute)
+            call write_pnetcdf_recdim(this%pioFileDesc, meta_rflx(ixVol)%varName, &
+                                      array_temp, ioDescRchFlux, this%iTime, ierr, cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          end if
+
+          if (meta_rflx(ixWaterH)%varFile) then
+            array_temp(1:nRch_write) = hVars_local%waterHeight(index_write, ixRoute)
+            call write_pnetcdf_recdim(this%pioFileDesc, meta_rflx(ixWaterH)%varName, &
+                                      array_temp, ioDescRchFlux, this%iTime, ierr, cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          end if
+
+          if (meta_rflx(ixFloodV)%varFile) then
+            array_temp(1:nRch_write) = hVars_local%floodVolume(index_write, ixRoute)
+            call write_pnetcdf_recdim(this%pioFileDesc, meta_rflx(ixFloodV)%varName, &
+                                      array_temp, ioDescRchFlux, this%iTime, ierr, cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          end if
+
+          if (meta_rflx(ixInflow)%varFile) then
+            array_temp(1:nRch_write) = hVars_local%inflow(index_write, ixRoute)
+            call write_pnetcdf_recdim(this%pioFileDesc, meta_rflx(ixInflow)%varName, &
+                                      array_temp, ioDescRchFlux, this%iTime, ierr, cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          end if
+
+          if (meta_rflx(ixSoluteFlux)%varFile) then
+            do iTrace=1,nTracer
+              array_temp(1:nRch_write) = hVars_local%solute_flux(index_write, iTrace, ixRoute)
+              write(varName, '(a,"_flux")') trim(vname_solute(iTrace))
+              call write_pnetcdf_recdim(this%pioFileDesc, varName, &
+                                        array_temp, ioDescRchFlux, this%iTime, ierr, cmessage)
+              if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+            end do
+          end if
+
+          if (meta_rflx(ixSoluteMass)%varFile) then
+            do iTrace=1,nTracer
+              array_temp(1:nRch_write) = hVars_local%solute_mass(index_write, iTrace, ixRoute)
+              write(varName, '(a,"_mass")') trim(vname_solute(iTrace))
+              call write_pnetcdf_recdim(this%pioFileDesc, varName, &
+                                        array_temp, ioDescRchFlux, this%iTime, ierr, cmessage)
+              if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+            end do
+          end if
+
+        end do
+      end if
 
     END SUBROUTINE write_flux_rch
 
