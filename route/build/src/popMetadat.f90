@@ -105,6 +105,7 @@ contains
  meta_stateDims(ixStateDims%mol_kw  ) = dim_info('mol_kw',  integerMissing, integerMissing)  ! kw finite difference computing nodes
  meta_stateDims(ixStateDims%mol_mc  ) = dim_info('mol_mc',  integerMissing, integerMissing)  ! mc finite difference computing nodes
  meta_stateDims(ixStateDims%mol_dw  ) = dim_info('mol_dw',  integerMissing, integerMissing)  ! dw finite difference computing nodes
+ meta_stateDims(ixStateDims%tracer  ) = dim_info('tracer',  integerMissing, integerMissing)  ! tracers
  meta_stateDims(ixStateDims%tdh_irf ) = dim_info('tdh_irf', integerMissing, integerMissing)  ! future time steps for irf routing
  meta_stateDims(ixStateDims%tdh     ) = dim_info('tdh',     integerMissing, integerMissing)  ! future time steps for bsasin irf routing
  meta_stateDims(ixStateDims%nchars  ) = dim_info('nchars',  integerMissing, FileStrLen)      ! number of characters for strings
@@ -303,13 +304,13 @@ contains
  call meta_irf_bas(ixIRFbas%qfuture)%init('qfuture', 'future flow series', 'm3/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh], .true.)
 
  ! Basin Impulse Response Function
- call meta_bas_solute(ixBasTracer%tfuture)%init('tfuture', 'future tracer mass series', 'mg/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh], .true.)
+ call meta_bas_solute(ixBasTracer%tfuture)%init('tfuture', 'future tracer mass series', 'mg/s' ,ncd_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%tracer], .true.)
 
  ! reach inflow from basin
  call meta_basinQ(ixBasinQ%q)%init('basin_q', 'basin routed flow', 'm3/s' ,ncd_double, [ixStateDims%seg], .true.)
 
  ! reach concentration flux from basin
- call meta_solute(ixTracer%mass)%init('solute_mass', 'mass in reach/lake', 'mg' ,ncd_double, [ixStateDims%seg], .false.)
+ call meta_solute(ixTracer%mass)%init('solute_mass', 'mass in reach/lake', 'mg' ,ncd_double, [ixStateDims%seg,ixStateDims%tracer], .false.)
 
  end subroutine popMetadat
 

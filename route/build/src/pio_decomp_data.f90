@@ -17,15 +17,16 @@ MODULE pio_decomp_data
   USE globalData, ONLY: ioDesc_mesh_kw_double
   USE globalData, ONLY: ioDesc_mesh_mc_double
   USE globalData, ONLY: ioDesc_mesh_dw_double
+  USE globalData, ONLY: ioDesc_tracer_double
   USE globalData, ONLY: ioDesc_irf_double
   USE globalData, ONLY: ioDesc_vol_double
   USE globalData, ONLY: ioDesc_irf_bas_double
+  USE globalData, ONLY: ioDesc_tracer_bas_double
   USE globalData, ONLY: index_write_gage
 
   private
 
   public::set_pio_decomp
-  public::get_compdof_all_network ! used in write_restart_pio
 
 CONTAINS
 
@@ -37,6 +38,7 @@ CONTAINS
     USE public_var, ONLY: kinematicWave
     USE public_var, ONLY: muskingumCunge
     USE public_var, ONLY: diffusiveWave
+    USE public_var, ONLY: tracer
     USE globalData, ONLY: meta_stateDims         !
     USE globalData, ONLY: meta_hflx         !
     USE globalData, ONLY: nRch                   !
@@ -51,6 +53,7 @@ CONTAINS
 
     ! populate state netCDF dimension size
     USE public_var, ONLY: MAXQPAR, outputAtGage
+    USE globalData, ONLY: nTracer
     USE globalData, ONLY: nMolecule
     USE globalData, ONLY: maxtdh           ! maximum unit-hydrogrph future time
     USE globalData, ONLY: FRAC_FUTURE      ! To get size of q future for basin IRF
@@ -61,9 +64,9 @@ CONTAINS
     character(*),   intent(out)     :: message             ! error message
     ! local variables
     integer(i4b)                    :: nGage               ! total number of gauges
-    integer(i4b), allocatable       :: compdof_rch(:)      !
-    integer(i4b), allocatable       :: compdof_rch_gage(:) !
-    integer(i4b), allocatable       :: compdof_hru(:)      !
+    integer(i4b), allocatable       :: compdof_rch(:)      ! reach decomposition [nseg]
+    integer(i4b), allocatable       :: compdof_rch_gage(:) ! gauge decomposition [nGage]
+    integer(i4b), allocatable       :: compdof_hru(:)      ! hru decomposition [nHru]
     character(len=strLen)           :: cmessage            ! error message of downwind routine
 
     ierr=0; message='set_pio_decomp/'
@@ -77,6 +80,7 @@ CONTAINS
               ndim_Mesh_kw  => meta_stateDims(ixStateDims%mol_kw)%dimLength,   & ! kw_finite difference mesh points
               ndim_Mesh_mc  => meta_stateDims(ixStateDims%mol_mc)%dimLength,   & ! mc_finite difference mesh points
               ndim_Mesh_dw  => meta_stateDims(ixStateDims%mol_dw)%dimLength,   & ! dw_finite difference mesh points
+              ndim_tracer   => meta_stateDims(ixStateDims%tracer)%dimLength,   & ! number of tracers
               ndim_Wave     => meta_stateDims(ixStateDims%wave)%dimLength)      ! maximum waves allowed in a reach
 
     ! set state file dimension length
@@ -89,6 +93,7 @@ CONTAINS
     if (onRoute(muskingumCunge))        ndim_Mesh_mc = nMolecule%MC_ROUTE
     if (onRoute(diffusiveWave))         ndim_Mesh_dw = nMolecule%DW_ROUTE
     if (onRoute(kinematicWaveTracking)) ndim_wave = MAXQPAR
+    if (tracer) ndim_tracer=nTracer
     if (outputAtGage) then
       ndim_hist_fil= 2
     else
@@ -213,6 +218,23 @@ CONTAINS
                       [ndim_seg,ndim_Mesh_dw],           & ! input: dimension length == global array size
                       compdof_rch,                       & ! input:
                       ioDesc_mesh_dw_double)
+    end if
+    if (tracer) then
+      if (doesBasinRoute==1) then
+        ! type: float dim: [dim_seg, dim_tdh_irf, dim_tracer]
+        call pio_decomp(pioSystem,                     & ! inout: pio system descriptor
+                        ncd_double,                    & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                        [ndim_seg,ndim_tdh,ndim_tracer],& ! input: dimension length == global array size
+                        compdof_rch,                   & ! input:
+                        ioDesc_tracer_bas_double)
+      end if
+      ! type: double, dim: [dim_seg, dim_mesh]
+      call pio_decomp(pioSystem,                         & ! inout: pio system descriptor
+                      ncd_double,                        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                      [ndim_seg,ndim_tracer],            & ! input: dimension length == global array size
+                      compdof_rch,                       & ! input:
+                      ioDesc_tracer_double)
+
     end if
 
     end associate
