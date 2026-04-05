@@ -66,8 +66,8 @@ CONTAINS
  integer(i4b)                                 :: iUps              ! upstream reach index
  integer(i4b)                                 :: iTrace            ! loop index
  integer(i4b)                                 :: iRch_ups          ! index of upstream reach in NETOPO
- real(dp), allocatable                        :: Clat(:)           ! lateral flow into channel [m3/s]
- real(dp), allocatable                        :: Cupstream(:)      ! total discharge at top of the reach [m3/s]
+ real(dp)                                     :: Clat(nTracer)     ! lateral flow into channel [m3/s]
+ real(dp)                                     :: Cupstream(nTracer)! total discharge at top of the reach [m3/s]
  character(len=strLen)                        :: cmessage          ! error message from subroutine
 
  ierr=0; message='constituent_rch/'
@@ -78,8 +78,8 @@ CONTAINS
  ! get mass flux from upstream
  nUps = count(NETOPO_in(segIndex)%goodBas) ! reminder: goodBas is reach with >0 total contributory area
  isHW = .true.
- allocate(Cupstream(nTracer), source=0.0_dp)  ! mass flux from upstream mg/s
- allocate(Clat(nTracer), source=0.0_dp)  ! lateral mass flux mg/s
+ Cupstream = 0._dp
+ Clat = 0._dp
 
  if (nUps>0) then ! this hru is not headwater
    isHW = .false.
