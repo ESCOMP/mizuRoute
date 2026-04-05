@@ -776,6 +776,11 @@ CONTAINS
       jSeg = ixRch_order(iSeg)
       RCHFLX_trib(iSeg) = RCHFLX(jSeg)
       RCHSTA_trib(iSeg) = RCHSTA(jSeg)
+      ! need to allocate this again, since RCHFLX(:)%ROUTE(:)%reach_solute_flux is not allocated
+      if (tracer) then
+        allocate(RCHFLX_trib(iSeg)%ROUTE(idxDW)%reach_solute_flux(nTracer))
+        RCHFLX_trib(iSeg)%ROUTE(idxDW)%reach_solute_flux =0._dp
+      end if
     end do
     ! Need to add ghost reacheas (==tributary reaches in other procs feeding into mainstem)
     ! if not multiProc (==single proc), no ghost reach. everything is mainstem.
@@ -784,6 +789,11 @@ CONTAINS
         jSeg = global_ix_comm(iSeg)
         RCHFLX_trib( iSeg+nRch_mainstem) = RCHFLX(jSeg)
         RCHSTA_trib( iSeg+nRch_mainstem) = RCHSTA(jSeg)
+        ! need to allocate this again, since RCHFLX(:)%ROUTE(:)%reach_solute_flux is not allocated
+        if (tracer) then
+          allocate(RCHFLX_trib(iSeg+nRch_mainstem)%ROUTE(idxDW)%reach_solute_flux(nTracer))
+          RCHFLX_trib(iSeg+nRch_mainstem)%ROUTE(idxDW)%reach_solute_flux = 0._dp
+        end if
       end do
     end if
   else
@@ -1983,7 +1993,6 @@ CONTAINS
         end do
       end do
     endif
-
   endif
 
  END SUBROUTINE mpi_comm_river_flux
@@ -2103,6 +2112,7 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     if (tracer) then
+      allocate(solute_future_trib(totTdh(pid),nTracer), stat=ierr)
       do iTrace=1,nTracer
         associate(vec_in => solute_future(:,iTrace))
         call shr_mpi_scatterV(vec_in, totTdh(0:nNodes-1), array_dp, ierr, cmessage)
@@ -2499,16 +2509,10 @@ CONTAINS
       end if
 
       if (routeMethod==kinematicWave) then
-        allocate(RCHSTA_local(jSeg)%KW_ROUTE%molecule%Q(nMoles),stat=ierr, errmsg=cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage)//'RCHSTA_local(jSeg)%KW_ROUTE%molecule%Q'; return; endif
         RCHSTA_local(jSeg)%KW_ROUTE%molecule%Q(1:nMoles) = Q_trib(ixMesh:ixMesh+nMoles-1)
       else if (routeMethod==muskingumCunge) then
-        allocate(RCHSTA_local(jSeg)%MC_ROUTE%molecule%Q(nMoles),stat=ierr, errmsg=cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage)//'RCHSTA_local(jSeg)%MC_ROUTE%molecule%Q'; return; endif
         RCHSTA_local(jSeg)%MC_ROUTE%molecule%Q(1:nMoles) = Q_trib(ixMesh:ixMesh+nMoles-1)
       else if (routeMethod==diffusiveWave) then
-        allocate(RCHSTA_local(jSeg)%DW_ROUTE%molecule%Q(nMoles),stat=ierr, errmsg=cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage)//'RCHSTA_local(jSeg)%DW_ROUTE%molecule%Q'; return; endif
         RCHSTA_local(jSeg)%DW_ROUTE%molecule%Q(1:nMoles) = Q_trib(ixMesh:ixMesh+nMoles-1)
       end if
       ixMesh=ixMesh+nMoles !update 1st idex of array
