@@ -388,9 +388,11 @@ CONTAINS
  end do  ! looping through lines in the control file
 
  ! ---------- Perform minor processing and checking control variables ----------------------------------------
- ! extract tracer names into vname_solute
- nTracer=size(vname_tmp)
- vname_solute(1:nTracer)=vname_tmp(:)
+ ! extract tracer names into vname_solute if tracer is on
+ if (tracer) then
+   nTracer=size(vname_tmp)
+   vname_solute(1:nTracer)=vname_tmp(:)
+ end if
 
  ! ---------- directory option  ---------------------------------------------------------------------
  if (trim(restart_dir)==charMissing) then
