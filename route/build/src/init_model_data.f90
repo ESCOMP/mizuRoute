@@ -329,7 +329,7 @@ CONTAINS
  ! *********************************************************************
  ! public subroutine: initialize channel state data
  ! *********************************************************************
- SUBROUTINE init_state_data(pid, nNodes, comm, ierr, message)
+ SUBROUTINE init_state_data(pid, nNodes, ierr, message)
 
   ! external routines
   USE read_restart, ONLY: read_state_nc     ! read netcdf state output file
@@ -372,7 +372,6 @@ CONTAINS
   ! Argument variables:
   integer(i4b),        intent(in)  :: pid              ! proc id
   integer(i4b),        intent(in)  :: nNodes           ! number of procs
-  integer(i4b),        intent(in)  :: comm             ! communicator
   integer(i4b),        intent(out) :: ierr             ! error code
   character(*),        intent(out) :: message          ! error message
   ! local variable
@@ -618,7 +617,7 @@ CONTAINS
 
     initHvars = .true.
 
-    call mpi_restart(pid, nNodes, comm, ierr, cmessage)
+    call mpi_restart(pid, nNodes, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 

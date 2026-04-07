@@ -285,7 +285,7 @@ CONTAINS
   if (trim(runMode)=='cesm-coupling' .and. &
       trim(bypass_routing_option)=='direct_to_outlet') then
 
-    call sparse_dist_data(pid, nNodes, nRch, reachID, structNTOPO, ixNode, ierr, message)
+    call sparse_dist_data(nNodes, nRch, reachID, structNTOPO, ixNode, ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end if
@@ -717,7 +717,6 @@ CONTAINS
  ! *********************************************************************
  subroutine mpi_restart(pid,           & ! input: proc id
                         nNodes,        & ! input: number of procs
-                        comm,          & ! input: communicator
                         ierr, message)    ! output: error control
   ! shared data
   USE globalData, ONLY: nRch             ! number of reaches in the whoel river network
@@ -740,7 +739,6 @@ CONTAINS
   ! argument variables
   integer(i4b),             intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),             intent(in)  :: nNodes                   ! number of processes (MPI)
-  integer(i4b),             intent(in)  :: comm                     ! communicator
   integer(i4b),             intent(out) :: ierr
   character(len=strLen),    intent(out) :: message                  ! error message
   ! local variables
@@ -823,7 +821,7 @@ CONTAINS
   end if
 
   if (doesBasinRoute == 1) then
-    call mpi_comm_irf_bas_state(pid, nNodes, comm,                        & ! MPI parameters
+    call mpi_comm_irf_bas_state(pid, nNodes,                              & ! MPI parameters
                                 rch_per_proc(root:nNodes-1),              & !
                                 RCHFLX,                                   & ! global reach flux data structure
                                 RCHFLX_trib,                              & ! local (tributary) reach flux data structure
@@ -835,7 +833,7 @@ CONTAINS
   endif
 
   if (onRoute(kinematicWaveTracking))then
-    call mpi_comm_kwt_state(pid, nNodes, comm,                        & !
+    call mpi_comm_kwt_state(pid, nNodes,                              & !
                             rch_per_proc(root:nNodes-1),              & !
                             RCHSTA,                                   & !
                             RCHSTA_trib,                              & !
@@ -1016,7 +1014,7 @@ CONTAINS
   end if ! (onRoute(diffusiveWave))
 
   if (onRoute(impulseResponseFunc))then
-    call mpi_comm_irf_state(pid, nNodes, comm,                        &
+    call mpi_comm_irf_state(pid, nNodes,                              &
                             rch_per_proc(root:nNodes-1),              &
                             RCHFLX,                                   &
                             RCHFLX_trib,                              &
@@ -1097,7 +1095,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE mpi_route(pid,           & ! input: proc id
                       nNodes,        & ! input: number of procs
-                      comm,          & ! input: communicator
                       ierr, message, & ! output: error control
                       scatter_ro   , & ! optional input: logical. .true. => scatter global hru runoff to mainstem and tributary
                       enforce_min_runoff) ! optional input: true->enforce min. runoff, false->allow any runoff (e.g., negative)
@@ -1150,7 +1147,6 @@ CONTAINS
   ! argument variables
   integer(i4b),             intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),             intent(in)  :: nNodes                   ! number of processes (MPI)
-  integer(i4b),             intent(in)  :: comm                     ! communicator
   integer(i4b),             intent(out) :: ierr
   character(len=strLen),    intent(out) :: message                  ! error message
   logical(lgt), optional,   intent(in)  :: scatter_ro               ! logical to indicate if scattering global runoff is required
@@ -1272,7 +1268,7 @@ CONTAINS
                          ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       ! KWT state communication
-      call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
+      call mpi_comm_kwt_state(pid, nNodes,         & ! input: mpi rank, number of tasks, and communicator
                               tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
                               RCHSTA_trib,         & ! input:
                               RCHSTA_trib,         & ! input:
@@ -1326,7 +1322,7 @@ CONTAINS
     ! --------------------------------
     if (onRoute(kinematicWaveTracking)) then
       call t_startf ('route/scatter-kwt-state')
-      call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
+      call mpi_comm_kwt_state(pid, nNodes,         & ! input: mpi rank, number of tasks, and communicator
                               tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
                               RCHSTA_trib,         & ! input:
                               RCHSTA_trib,         & ! input:
@@ -2002,7 +1998,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE mpi_comm_irf_bas_state(pid,          &
                                    nNodes,       &
-                                   comm,         & ! input: communicator
                                    nReach,       &
                                    RCHFLX_global,&
                                    RCHFLX_local, &
@@ -2021,7 +2016,6 @@ CONTAINS
   ! argument variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
-  integer(i4b),             intent(in)    :: comm                  ! communicator
   integer(i4b),             intent(in)    :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
   type(STRFLX),allocatable, intent(inout) :: RCHFLX_global(:)
   type(STRFLX),allocatable, intent(inout) :: RCHFLX_local(:)
@@ -2225,7 +2219,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE mpi_comm_irf_state(pid,          &
                                nNodes,       &
-                               comm,         & ! input: communicator
                                nReach,       &
                                RCHFLX_global,&
                                RCHFLX_local, &
@@ -2242,7 +2235,6 @@ CONTAINS
   ! argument variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
-  integer(i4b),             intent(in)    :: comm                  ! communicator
   integer(i4b),             intent(in)    :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
   type(STRFLX),allocatable, intent(inout) :: RCHFLX_global(:)
   type(STRFLX),allocatable, intent(inout) :: RCHFLX_local(:)
@@ -2529,7 +2521,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE mpi_comm_kwt_state(pid,          & ! input:
                                nNodes,       & ! input: number of node
-                               comm,         & ! input: communicator
                                nReach,       &
                                RCHSTA_global,&
                                RCHSTA_local, &
@@ -2547,7 +2538,6 @@ CONTAINS
   ! argument variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
-  integer(i4b),             intent(in)    :: comm                  ! communicator
   integer(i4b),             intent(in)    :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
   type(STRSTA),             intent(inout) :: RCHSTA_global(:)
   type(STRSTA),             intent(inout) :: RCHSTA_local(:)
@@ -2983,7 +2973,7 @@ CONTAINS
  END SUBROUTINE subrch_struc2array
 
 
- SUBROUTINE sparse_dist_data(pid, nNodes, nRch_in, reachID_in, structNTOPO, ixNode, ierr, message)   !
+ SUBROUTINE sparse_dist_data(nNodes, nRch_in, reachID_in, structNTOPO, ixNode, ierr, message)   !
    USE globalData, ONLY: commRch           !
    USE globalData, ONLY: nRch_mainstem     ! number of mainstem reaches
    USE globalData, ONLY: nRch_trib         ! number of tributary reaches
@@ -2991,7 +2981,6 @@ CONTAINS
    USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
    implicit none
    ! argument variables
-   integer(i4b),                   intent(in)  :: pid                      ! proessor id
    integer(i4b),                   intent(in)  :: nNodes                   ! number of tasks
    integer(i4b),                   intent(in)  :: nRch_in                  ! number of total reaches
    integer(i4b),                   intent(in)  :: reachID_in(:)            ! reach ID array

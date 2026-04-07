@@ -101,7 +101,7 @@ CONTAINS
    end if
 
    ! restart initialization
-   call init_state_data(pid, nNodes, comm, ierr, cmessage)
+   call init_state_data(pid, nNodes, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    if (qmodOption==1) then
