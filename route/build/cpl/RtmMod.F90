@@ -437,7 +437,8 @@ CONTAINS
     !  2. direct_to_outlet: send negative flow to an outlet of the reach and subtract the flow from the outlet reach
     call t_startf('mizuRoute_bypass_route')
 
-    allocate(qSend(ctl%lnumr), source=0._r8)
+    allocate(qSend(ctl%lnumr))
+    qSend = 0._r8
 
     select case(trim(bypass_routing_option))
       case('direct_in_place')
