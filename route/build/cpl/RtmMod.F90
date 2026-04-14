@@ -389,7 +389,9 @@ CONTAINS
     flush(iulog)
 
     associate(nt_liq => ctl%nt_liq, &
-              nt_ice => ctl%nt_ice)
+              nt_ice => ctl%nt_ice, &
+              begr => ctl%begr, &
+              endr => ctl%endr)
 
     !-------------------------------------------------------
     ! Initialize mizuRoute history handler and fields
@@ -435,20 +437,23 @@ CONTAINS
     !  2. direct_to_outlet: send negative flow to an outlet of the reach and subtract the flow from the outlet reach
     call t_startf('mizuRoute_bypass_route')
 
+    allocate(qSend(ctl%lnumr))
+    qSend = 0._r8
+
     select case(trim(bypass_routing_option))
       case('direct_in_place')
         ctl%direct = 0._r8
-        do nr = ctl%begr,ctl%endr
-          ! --- Transfer qgwl [mm/s] to ocean
-          if (trim(qgwl_runoff_option) == 'all') then ! send all qgwl flow to ocean
-            ctl%direct(nr,nt_liq) = ctl%qgwl(nr,nt_liq)
-            ctl%qgwl(nr,nt_liq) = 0._r8
-          else if (trim(qgwl_runoff_option) == 'negative') then ! send only negative qgwl flow to ocean
-            if(ctl%qgwl(nr,nt_liq) < 0._r8) then
-              ctl%direct(nr,nt_liq) = ctl%qgwl(nr,nt_liq)
-              ctl%qgwl(nr,nt_liq) = 0._r8
-            endif
-          else if (trim(qgwl_runoff_option) == 'threshold') then
+        ! --- Transfer qgwl [mm/s] to ocean
+        if (trim(qgwl_runoff_option) == 'all') then ! send all qgwl flow to ocean
+          ctl%direct(begr:endr, nt_liq) = ctl%direct(begr:endr, nt_liq) + ctl%qgwl(begr:endr, nt_liq)
+          ctl%qgwl(begr:endr, nt_liq) = 0._r8
+        else if (trim(qgwl_runoff_option) == 'negative') then ! send only negative qgwl flow to ocean
+          where (ctl%qgwl(begr:endr, nt_liq) < 0._r8)
+            ctl%direct(begr:endr, nt_liq) = ctl%direct(begr:endr, nt_liq) + ctl%qgwl(begr:endr, nt_liq)
+            ctl%qgwl(begr:endr, nt_liq) = 0._r8
+          end where
+        else if (trim(qgwl_runoff_option) == 'threshold') then
+          do nr = begr,endr
             ! if qgwl is negative, and adding it to the main channel
             ! would bring main channel storage below a threshold,
             ! send qgwl directly to ocean
@@ -462,26 +467,38 @@ CONTAINS
               ctl%direct(nr,nt_liq) = ctl%qgwl(nr,nt_liq)
               ctl%qgwl(nr,nt_liq) = 0._r8
             end if
-          end if
-          ! --- Transfer qsub to ocean [mm/s]
-          if(ctl%qsub(nr,nt_liq) < 0._r8) then
-            ctl%direct(nr,nt_liq) = ctl%direct(nr,nt_liq)+ ctl%qsub(nr,nt_liq)
-            ctl%qsub(nr,nt_liq) = 0._r8
-          endif
-        end do
+          end do
+        end if
+        ! --- Transfer negative qsub to ocean [mm/s]
+        where (ctl%qsub(begr:endr, nt_liq) < 0._r8)
+          ctl%direct(begr:endr, nt_liq) = ctl%direct(begr:endr, nt_liq) + ctl%qsub(begr:endr, nt_liq)
+          ctl%qsub(begr:endr, nt_liq) = 0._r8
+        end where
+
+        ! --- Transfer negative qsur to ocean [mm/s]
+        where (ctl%qsur(begr:endr, nt_liq) < 0._r8)
+          ctl%direct(begr:endr, nt_liq) = ctl%direct(begr:endr, nt_liq) + ctl%qsur(begr:endr, nt_liq)
+          ctl%qsur(begr:endr, nt_liq) = 0._r8
+        end where
+
       case('direct_to_outlet')
-        allocate(qSend(ctl%lnumr))
-        qSend(:) = 0._r8     ! total negative q [mm/s] to be sent to the outlet (converted to +)
-        do nr = ctl%begr,ctl%endr
-          if(ctl%qgwl(nr,nt_liq) < 0._r8) then
-            qSend(nr) = ctl%qgwl(nr,nt_liq)
-            ctl%qgwl(nr,nt_liq) = 0._r8
-          end if
-          if(ctl%qsub(nr,nt_liq) < 0._r8) then
-            qSend(nr) = qSend(nr) + ctl%qsub(nr,nt_liq)
-            ctl%qsub(nr,nt_liq) = 0._r8
-          end if
-        end do
+        ! ----  qgwl [mm/s]
+        select case(trim(qgwl_runoff_option))
+          case('all') ! send all qgwl flow to the outlet
+            qSend(begr:endr) = qSend(begr:endr) + ctl%qgwl(begr:endr, nt_liq)
+            ctl%qgwl(begr:endr, nt_liq) = 0._r8
+          case('negative') ! send negative qgwl flow to the outlet
+            where (ctl%qgwl(begr:endr, nt_liq) < 0._r8)
+              qSend(begr:endr) = qSend(begr:endr) + ctl%qgwl(begr:endr, nt_liq)
+              ctl%qgwl(begr:endr, nt_liq) = 0._r8
+            end where
+          case default; call shr_sys_abort(trim(subname)//'unexpected qgwl_runoff_option for direct_to_outlet')
+        end select
+        ! ---- qsub [mm/s]
+        where (ctl%qsub(begr:endr, nt_liq) < 0._r8)
+          qSend(begr:endr) = qSend(begr:endr) + ctl%qsub(begr:endr, nt_liq)
+          ctl%qsub(begr:endr, nt_liq) = 0._r8
+        end where
 
         ! Distribute "direct runoff to ocean" to targe reach (i.e., outlet of river network)
         call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct(:,nt_liq), fillvalue=0._r8)
@@ -495,10 +512,8 @@ CONTAINS
 
     call t_startf('mizuRoute_direct_to_outlet_land_ice')
 
-    qSend(:) = 0._r8     ! total negative q [mm/s] to be sent to the outlet (converted to +)
-    do nr = ctl%begr,ctl%endr
-      qSend(nr) = ctl%qsur(nr,nt_ice) + ctl%qsub(nr,nt_ice) + ctl%qgwl(nr,nt_ice)
-    end do
+    qSend(:) = 0._r8
+    qSend(begr:endr) = qSend(begr:endr) + ctl%qsur(begr:endr, nt_ice) + ctl%qsub(begr:endr, nt_ice) + ctl%qgwl(begr:endr, nt_ice)
 
     ! Distribute "direct runoff to ocean" to targe reach (i.e., outlet of river network)
     call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct(:,nt_ice), fillvalue=0._r8)

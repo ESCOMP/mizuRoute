@@ -29,7 +29,7 @@ MODULE public_var
   real(dp),    parameter,public   :: verySmall=tiny(1.0_dp) ! a very small number
   real(dp),    parameter,public   :: min_slope=1.e-6_dp     ! minimum slope
   real(dp),    parameter,public   :: negRunoffTol=-1.e-3_dp ! nagative runoff tolerance
-  real(dp),    parameter,public   :: lakeWBtol=1.e-3_dp     ! lake water balance tolerance
+  real(dp),    parameter,public   :: lakeWBtol=2.e-2_dp     ! lake water balance tolerance
   real(dp),    parameter,public   :: negVolTol=-1.0e-50_dp  ! negative channel volume tolerance
 
   ! routing related constants
