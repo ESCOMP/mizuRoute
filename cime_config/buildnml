@@ -236,7 +236,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
                 filename = "%s.mizuroute.r.%s-%s.nc" %(run_refcase, run_refdate, run_tod)
 
             fname_state_in = filename
-         else:
+        else:
             fname_state_in = "empty"
 
     ctl.set( "fname_state_in", fname_state_in )
