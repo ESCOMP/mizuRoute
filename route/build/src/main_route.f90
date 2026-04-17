@@ -208,12 +208,21 @@ CONTAINS
      do iSeg = 1,nSeg
        RCHFLX_out(ixRchProcessed(iSeg))%BASIN_QI = reachRunoff_local(iSeg)
        if (tracer) then
+         ! these should be placed initialization process
+         if (.not.allocated(RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute_inst))then
+           allocate(RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute_inst(nTracer), source=0._dp, stat=ierr)
+           if(ierr/=0)then; message=trim(message)//'unable to allocate RCHFLX_out(segIndex)%BASIN_solute_inst'; return; endif
+         end if
+         if (.not.allocated(RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute))then
+           allocate(RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute(nTracer), source=0._dp, stat=ierr)
+           if(ierr/=0)then; message=trim(message)//'unable to allocate RCHFLX_out(segIndex)%BASIN_solute'; return; endif
+         end if
          if (RCHFLX_out(ixRchProcessed(iSeg))%BASIN_QI>0) then ! this may cause mass inbalance between input and output. so may need to feed flag to land surface model
            do iTracer=1,nTracer
              RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute_inst(iTracer) = reachSolute_local(iSeg,iTracer)
            end do
          else
-           RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute_inst = 0._dp
+           RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute_inst(:) = 0._dp
          endif
        end if
      enddo
@@ -232,12 +241,21 @@ CONTAINS
 
      if (tracer) then
        do iSeg = 1,nSeg
+         ! these should be placed initialization process
+         if (.not.allocated(RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute_inst))then
+           allocate(RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute_inst(nTracer), source=0._dp, stat=ierr)
+           if(ierr/=0)then; message=trim(message)//'unable to allocate RCHFLX_out(segIndex)%BASIN_solute_inst'; return; endif
+         end if
+         if (.not.allocated(RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute))then
+           allocate(RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute(nTracer), source=0._dp, stat=ierr)
+           if(ierr/=0)then; message=trim(message)//'unable to allocate RCHFLX_out(segIndex)%BASIN_solute'; return; endif
+         end if
          if (RCHFLX_out(ixRchProcessed(iSeg))%BASIN_QR(1)>0) then
            do iTracer=1,nTracer
              RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute(iTracer) = reachSolute_local(iSeg,iTracer)     ! total constituent going to reach (mg/s)
            end do
          else
-           RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute = 0._dp
+           RCHFLX_out(ixRchProcessed(iSeg))%BASIN_solute(:) = 0._dp
          endif
        end do
      end if

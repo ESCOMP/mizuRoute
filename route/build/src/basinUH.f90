@@ -108,14 +108,6 @@ CONTAINS
       allocate(RCHFLX_out(iSeg)%solute_future(ntdh,nTracer), source=0._dp, stat=ierr)
       if(ierr/=0)then; message=trim(message)//'unable to allocate RCHFLX_out(segIndex)%solute_future'; return; endif
     end if
-    if (.not.allocated(RCHFLX_out(iSeg)%BASIN_solute_inst))then
-      allocate(RCHFLX_out(iSeg)%BASIN_solute_inst(nTracer), source=0._dp, stat=ierr)
-      if(ierr/=0)then; message=trim(message)//'unable to allocate RCHFLX_out(segIndex)%BASIN_solute_inst'; return; endif
-    end if
-    if (.not.allocated(RCHFLX_out(iSeg)%BASIN_solute))then
-      allocate(RCHFLX_out(iSeg)%BASIN_solute(nTracer), source=0._dp, stat=ierr)
-      if(ierr/=0)then; message=trim(message)//'unable to allocate RCHFLX_out(segIndex)%BASIN_solute'; return; endif
-    end if
   end if
 
   allocate(FRAC_FUTURE_local, source=FRAC_FUTURE, stat=ierr)
