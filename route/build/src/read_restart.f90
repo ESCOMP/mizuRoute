@@ -53,7 +53,7 @@ CONTAINS
  integer(i4b)                  :: ntbound              ! dimenion sizes
  integer(i4b)                  :: ixDim_common(2)      ! custom dimension ID array
  integer(i4b)                  :: jDim                 ! index loops for dimension
- integer(i4b)                  :: iSeg                 ! index loops for reach
+ integer(i4b)                  :: ixSeg                 ! index loops for reach
  integer(i4b)                  :: nNodes_in            ! number of MPI tasks for restart file
  character(len=strLen)         :: cmessage             ! error message of downwind routine
 
@@ -77,8 +77,8 @@ CONTAINS
  allocate(RCHFLX(nSeg), RCHSTA(nSeg), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, RCHSTA]'; return; endif
 
- do iSeg=1,nSeg
-   allocate(RCHFLX(iSeg)%ROUTE(nRoutes))
+ do ixSeg=1,nSeg
+   allocate(RCHFLX(ixSeg)%ROUTE(nRoutes))
  end do
 
  ! Read variables
@@ -170,7 +170,7 @@ CONTAINS
     do iVar=1,nVarsBasinQ
       select case(iVar)
         case(ixBasinQ%q); allocate(state%var(iVar)%array_1d_dp(nSeg), stat=ierr)
-        case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
+        case default; ierr=20; message1=trim(message1)//'unable to identify reach inflow variable index'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//'problem allocating reach inflow:'//trim(meta_basinQ(iVar)%varName); return; endif
     end do
@@ -209,11 +209,14 @@ CONTAINS
     integer(i4b)                  :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
     integer(i4b)                  :: ntdh           ! dimension size
+    integer(i4b)                  :: ixStart(2), ixEnd(2)  ! array indices for get_nc
 
     ierr=0; message1='read_IRFbas_state/'
+    ixStart = [1, 1]
 
     call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%tdh)%dimName), ntdh, ierr, cmessage1)
     if(ierr/=0)then;  message1=trim(message1)//trim(cmessage1); return; endif
+    ixEnd = [nSeg, ntdh]
 
     allocate(state%var(nVarsIRFbas), stat=ierr, errmsg=cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
@@ -231,7 +234,7 @@ CONTAINS
     do iVar=1,nVarsIRFbas
       select case(iVar)
         case(ixIRFbas%qfuture)
-          call get_nc(fname, meta_irf_bas(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,ntdh], ierr, cmessage1)
+          call get_nc(fname, meta_irf_bas(iVar)%varName, state%var(iVar)%array_2d_dp, ixStart, ixEnd, ierr, cmessage1)
         case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF variable index for nc writing'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_irf_bas(iVar)%varName); return; endif
@@ -254,6 +257,7 @@ CONTAINS
   SUBROUTINE read_bas_solute_state(ierr, message1)
 
     USE globalData, ONLY: meta_bas_solute           ! basin tracer states
+    USE globalData, ONLY: nTracer                   ! number of tracers
     USE var_lookup, ONLY: ixBasTracer, nVarsBasTracer
     implicit none
     ! output
@@ -265,18 +269,21 @@ CONTAINS
     integer(i4b)                  :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
     integer(i4b)                  :: ntdh           ! dimension size
+    integer(i4b)                  :: ixStart(3), ixEnd(3)  ! array indices for get_nc
 
     ierr=0; message1='read_bas_solute_state/'
+    ixStart = [1, 1, 1]
 
     call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%tdh)%dimName), ntdh, ierr, cmessage1)
     if(ierr/=0)then;  message1=trim(message1)//trim(cmessage1); return; endif
+    ixEnd = [nSeg, ntdh, nTracer]
 
     allocate(state%var(nVarsBasTracer), stat=ierr, errmsg=cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
     do iVar=1,nVarsBasTracer
       select case(iVar)
-        case(ixBasTracer%tfuture); allocate(state%var(iVar)%array_2d_dp(nSeg, ntdh), stat=ierr)
+        case(ixBasTracer%tfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh, nTracer), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
       end select
       if(ierr/=0)then
@@ -287,19 +294,20 @@ CONTAINS
     do iVar=1,nVarsBasTracer
       select case(iVar)
         case(ixBasTracer%tfuture)
-          call get_nc(fname, meta_bas_solute(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,ntdh], ierr, cmessage1)
-        case default; ierr=20; message1=trim(message1)//'unable to identify basin tracer variable index for nc writing'; return
+          call get_nc(fname, meta_bas_solute(iVar)%varName, state%var(iVar)%array_3d_dp, ixStart, ixEnd, ierr, cmessage1)
+        case default
+          ierr=20; message1=trim(message1)//'unable to identify basin tracer variable index for nc writing'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_bas_solute(iVar)%varName); return; endif
     enddo
 
     do iSeg=1,nSeg
       jSeg = ixRch_order(iSeg)
-      allocate(RCHFLX(jSeg)%solute_future(ntdh), stat=ierr, errmsg=cmessage1)
+      allocate(RCHFLX(jSeg)%solute_future(ntdh, nTracer), stat=ierr, errmsg=cmessage1)
       if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
       do iVar=1,nVarsBasTracer
         select case(iVar)
-          case(ixBasTracer%tfuture); RCHFLX(jSeg)%solute_future(:)  = state%var(iVar)%array_2d_dp(iSeg,:)
+          case(ixBasTracer%tfuture); RCHFLX(jSeg)%solute_future(:,:) = state%var(iVar)%array_3d_dp(iSeg,:,:)
           case default; ierr=20; message1=trim(message1)//'unable to identify basin tracer state variable index'; return
         end select
       enddo
@@ -324,11 +332,14 @@ CONTAINS
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
     integer(i4b), allocatable     :: numQF(:)       ! number of future Q time steps for each segment
     integer(i4b)                  :: ntdh_irf       ! dimenion sizes
+    integer(i4b)                  :: ixStart(2), ixEnd(2)  ! array indices for get_nc
 
     ierr=0; message1='read_IRF_state/'
+    ixStart = [1, 1]
 
     call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%tdh_irf)%dimName), ntdh_irf, ierr, cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
+    ixEnd = [nSeg, ntdh_irf]
 
     allocate(state%var(nVarsIRF), stat=ierr, errmsg=cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
@@ -352,7 +363,7 @@ CONTAINS
     do iVar=1,nVarsIRF
       select case(iVar)
         case(ixIRF%qfuture)
-          call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,ntdh_irf], ierr, cmessage1)
+          call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_2d_dp, ixStart, ixEnd, ierr, cmessage1)
         case(ixIRF%vol)
           call get_nc(fname, meta_irf(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
         case(ixIRF%qerror)
@@ -402,8 +413,10 @@ CONTAINS
     integer(i4b)                  :: nwave          ! dimenion sizes
     integer(i4b), allocatable     :: RFvec(:)       ! temporal vector
     integer(i4b), allocatable     :: numWaves(:)    ! number of waves for each segment
+    integer(i4b)                  :: ixStart(2), ixEnd(2)  ! array indices for get_nc
 
     ierr=0; message1='read_KWT_state/'
+    ixStart = [1, 1]
 
     allocate(state%var(nVarsKWT), stat=ierr, errmsg=cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
@@ -414,6 +427,7 @@ CONTAINS
     ! get Dimension sizes
     call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%wave)%dimName), nwave, ierr, cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
+    ixEnd = [nSeg, nwave]
 
     do iVar=1,nVarsKWT
       select case(iVar)
@@ -432,9 +446,9 @@ CONTAINS
     do iVar=1,nVarsKWT
       select case(iVar)
         case(ixKWT%routed)
-          call get_nc(fname,trim(meta_kwt(iVar)%varName), state%var(iVar)%array_2d_dp, [1,1], [nSeg,nwave], ierr, cmessage1)
+          call get_nc(fname,trim(meta_kwt(iVar)%varName), state%var(iVar)%array_2d_dp, ixStart, ixEnd, ierr, cmessage1)
         case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
-          call get_nc(fname,trim(meta_kwt(iVar)%varName), state%var(iVar)%array_2d_dp, [1,1], [nSeg,nwave], ierr, cmessage1)
+          call get_nc(fname,trim(meta_kwt(iVar)%varName), state%var(iVar)%array_2d_dp, ixStart, ixEnd, ierr, cmessage1)
         case(ixKWT%vol)
           call get_nc(fname, meta_kwt(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
         case default; ierr=20; message1=trim(message1)//'unable to identify KWT variable index for nc reading'; return
@@ -485,8 +499,10 @@ CONTAINS
     type(states)                  :: state          ! temporal state data structures
     integer(i4b)                  :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
+    integer(i4b)                  :: ixStart(2), ixEnd(2)  ! array indices for get_nc
 
     ierr=0; message1='read_KW_state/'
+    ixStart = [1, 1]
 
     allocate(state%var(nVarsKW), stat=ierr, errmsg=cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
@@ -494,6 +510,7 @@ CONTAINS
     ! get Dimension sizes
     call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%mol_kw)%dimName), nMolecule%KW_ROUTE, ierr, cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
+    ixEnd = [nSeg, nMolecule%KW_ROUTE]
 
     do iVar=1,nVarsKW
       select case(iVar)
@@ -507,7 +524,7 @@ CONTAINS
     do iVar=1,nVarsKW
       select case(iVar)
         case(ixKW%qsub)
-          call get_nc(fname, meta_kw(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,nMolecule%KW_ROUTE], ierr, cmessage1)
+          call get_nc(fname, meta_kw(iVar)%varName, state%var(iVar)%array_2d_dp, ixStart, ixEnd, ierr, cmessage1)
         case(ixKW%vol)
           call get_nc(fname, meta_kw(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
         case(ixKW%qerror)
@@ -558,8 +575,10 @@ CONTAINS
     type(states)                  :: state          ! temporal state data structures
     integer(i4b)                  :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
+    integer(i4b)                  :: ixStart(2), ixEnd(2)  ! array indices for get_nc
 
     ierr=0; message1='read_MC_state/'
+    ixStart = [1, 1]
 
     allocate(state%var(nVarsMC), stat=ierr, errmsg=cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
@@ -567,6 +586,7 @@ CONTAINS
     ! get Dimension sizes
     call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%mol_mc)%dimName), nMolecule%MC_ROUTE, ierr, cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
+    ixEnd = [nSeg, nMolecule%MC_ROUTE]
 
     do iVar=1,nVarsMC
       select case(iVar)
@@ -580,7 +600,7 @@ CONTAINS
     do iVar=1,nVarsMC
       select case(iVar)
         case(ixMC%qsub)
-          call get_nc(fname, meta_mc(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,nMolecule%MC_ROUTE], ierr, cmessage1)
+          call get_nc(fname, meta_mc(iVar)%varName, state%var(iVar)%array_2d_dp, ixStart, ixEnd, ierr, cmessage1)
         case(ixMC%vol)
           call get_nc(fname, meta_mc(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
         case(ixMC%qerror)
@@ -631,8 +651,10 @@ CONTAINS
     type(states)                  :: state          ! temporal state data structures
     integer(i4b)                  :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                  :: jSeg           ! index loops for reaches respectively
+    integer(i4b)                  :: ixStart(2), ixEnd(2)  ! array indices for get_nc
 
     ierr=0; message1='read_DW_state/'
+    ixStart = [1, 1]
 
     allocate(state%var(nVarsDW), stat=ierr, errmsg=cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
@@ -640,6 +662,7 @@ CONTAINS
     ! get Dimension sizes
     call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%mol_dw)%dimName), nMolecule%DW_ROUTE, ierr, cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
+    ixEnd = [nSeg, nMolecule%DW_ROUTE]
 
     do iVar=1,nVarsDW
       select case(iVar)
@@ -653,7 +676,7 @@ CONTAINS
     do iVar=1,nVarsDW
       select case(iVar)
         case(ixDW%qsub)
-          call get_nc(fname, meta_dw(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg,nMolecule%DW_ROUTE], ierr, cmessage1)
+          call get_nc(fname, meta_dw(iVar)%varName, state%var(iVar)%array_2d_dp, ixStart, ixEnd, ierr, cmessage1)
         case(ixDW%vol)
           call get_nc(fname, meta_dw(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
         case(ixDW%qerror)
@@ -692,6 +715,7 @@ CONTAINS
   SUBROUTINE read_solute_state(idxRoute, ierr, message1)
 
     USE globalData, ONLY: meta_solute
+    USE globalData, ONLY: nTracer
     USE var_lookup, ONLY: ixTracer, nVarsTracer
     implicit none
     integer(i4b), intent(in)    :: idxRoute        ! routing method
@@ -702,34 +726,45 @@ CONTAINS
     type(states)                :: state          ! temporal state data structures
     integer(i4b)                :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                :: jSeg           ! index loops for reaches respectively
+    integer(i4b)                :: ixStart(2), ixEnd(2)  ! array indices for get_nc
 
     ierr=0; message1='read_solute_state/'
+    ixStart = [1, 1]
+    ixEnd = [nSeg, nTracer]
 
     allocate(state%var(nVarsTracer), stat=ierr, errmsg=cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
     do iVar=1,nVarsTracer
       select case(iVar)
-        case(ixTracer%mass);  allocate(state%var(iVar)%array_1d_dp(nSeg), stat=ierr)
+        case(ixTracer%mass);  allocate(state%var(iVar)%array_2d_dp(nSeg,nTracer), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
-      if(ierr/=0)then; message1=trim(message1)//'problem allocating tracer state:'//trim(meta_solute(iVar)%varName); return; endif
+      if(ierr/=0)then
+        message1=trim(message1)//'problem allocating tracer state:'//trim(meta_solute(iVar)%varName); return
+      endif
     end do
 
     do iVar=1,nVarsTracer
       select case(iVar)
-        case(ixTracer%mass); call get_nc(fname, meta_solute(iVar)%varName, state%var(iVar)%array_1d_dp, 1, nSeg, ierr, cmessage1)
-        case default; ierr=20; message1=trim(message1)//'unable to identify tracer variable index for nc reading'; return
+        case(ixTracer%mass)
+          call get_nc(fname, meta_solute(iVar)%varName, state%var(iVar)%array_2d_dp, ixStart, ixEnd, ierr, cmessage1)
+        case default
+          ierr=20; message1=trim(message1)//'unable to identify tracer variable index for nc reading'; return
       end select
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_solute(iVar)%varName); return; endif
     end do
 
     do iSeg=1,nSeg
       jSeg = ixRch_order(iSeg)
+      allocate(RCHFLX(jSeg)%ROUTE(idxRoute)%reach_solute_mass(0:1,nTracer), stat=ierr, errmsg=cmessage1)
+      RCHFLX(jSeg)%ROUTE(idxRoute)%reach_solute_mass(:,:) = 0._dp
       do iVar=1,nVarsTracer
         select case(iVar)
-          case(ixTracer%mass); RCHFLX(jSeg)%ROUTE(idxRoute)%reach_solute_mass(1) = state%var(iVar)%array_1d_dp(iSeg)
-          case default; ierr=20; message1=trim(message1)//'unable to identify tracer state variable index'; return
+          case(ixTracer%mass)
+            RCHFLX(jSeg)%ROUTE(idxRoute)%reach_solute_mass(1,1:nTracer) = state%var(iVar)%array_2d_dp(iSeg, 1:nTracer)
+          case default
+            ierr=20; message1=trim(message1)//'unable to identify tracer state variable index'; return
         end select
       enddo
     enddo

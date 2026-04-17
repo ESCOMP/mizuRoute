@@ -167,7 +167,7 @@ implicit none
    real(dp)                 , allocatable  :: basinRunoff(:)  ! remapped river network catchment runoff [depth/time] (size: number of nHRU)
    real(dp)                 , allocatable  :: basinEvapo(:)   ! remapped river network catchment evaporation [depth/time] (size: number of nHRU)
    real(dp)                 , allocatable  :: basinPrecip(:)  ! remapped river network catchment precipitation [depth/time] (size: number of nHRU)
-   real(dp)                 , allocatable  :: basinSolute(:)  ! remapped river network catchment solute in water [mass/time] (size: number of nHRU)
+   real(dp)                 , allocatable  :: basinSolute(:,:)! remapped river network catchment solute in water [mass/time] (size: nHRU, nTracer)
  end type runoff
 
  type, public, extends(inputData) :: wm  ! water-management
@@ -356,8 +356,8 @@ implicit none
    real(dp)              :: REACH_WM_FLUX_actual     ! water management fluxes to and from each reach [m3/s]
    real(dp)              :: WB                       ! reach water balance error [m3]
    real(dp)              :: Qerror                   ! simulated discharge error compared to obs [m3/s] -- only for data assimilation
-   real(dp)              :: reach_solute_mass(0:1)   ! constituent mass in channel [mg]
-   real(dp)              :: reach_solute_flux        ! constituent mass flux from reach outlet [mg/s]
+   real(dp),allocatable  :: reach_solute_mass(:,:)   ! mass of constituent(s) in channel [mg]
+   real(dp),allocatable  :: reach_solute_flux(:)     ! mass flux of constituent(s) from reach outlet [mg/s]
  end type hydraulic
 
  ! fluxes and states in each reach
@@ -366,9 +366,9 @@ implicit none
   real(dp), allocatable                :: QFUTURE_IRF(:)         ! runoff volume in future time steps for IRF routing [m3/s]
   real(dp), allocatable                :: QPASTUP_IRF(:,:)       ! runoff volume in the past time steps for lake upstream [m3/s]
   real(dp), allocatable                :: DEMANDPAST_IRF(:,:)    ! demand volume for lake [m3/s]
-  real(dp), allocatable                :: solute_future(:)       ! lateral solute mass in future time steps [mg/s]
-  real(dp)                             :: BASIN_solute           ! instantaneous constituent mass from the local basin [mg/s]
-  real(dp)                             :: BASIN_solute_inst      ! instantaneous constituent mass from the local basin [mg/s]
+  real(dp), allocatable                :: solute_future(:,:)     ! lateral solute mass in future time steps [mg/s]
+  real(dp), allocatable                :: BASIN_solute(:)        ! mass of instantaneous constituent(s) from the local basin [mg/s]
+  real(dp), allocatable                :: BASIN_solute_inst(:)   ! mass of instantaneous constituent(s) from the local basin [mg/s]
   real(dp)                             :: BASIN_QI               ! instantaneous runoff volume from the local basin [m3/s]
   real(dp)                             :: BASIN_QR(0:1)          ! routed runoff volume from the local basin [m3/s]
   type(hydraulic), allocatable         :: ROUTE(:)               ! reach fluxes and states for each routing method

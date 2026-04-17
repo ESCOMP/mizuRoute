@@ -46,10 +46,11 @@ MODULE var_lookup
   integer(i4b)     :: mol_kw       = integerMissing   !  6. kw finite difference computational molecule
   integer(i4b)     :: mol_mc       = integerMissing   !  7. mc finite difference computational molecule
   integer(i4b)     :: mol_dw       = integerMissing   !  8. kw finite difference computational molecule
-  integer(i4b)     :: tdh_irf      = integerMissing   !  9. irf routed future channel flow in a segment
-  integer(i4b)     :: tdh          = integerMissing   ! 10. uh routed future overland flow
-  integer(i4b)     :: nchars       = integerMissing   ! 11. number of characters
-  integer(i4b)     :: hist_fil     = integerMissing   ! 12. history filenames
+  integer(i4b)     :: tracer       = integerMissing   !  9. number of tracer
+  integer(i4b)     :: tdh_irf      = integerMissing   ! 10. irf routed future channel flow in a segment
+  integer(i4b)     :: tdh          = integerMissing   ! 11. uh routed future overland flow
+  integer(i4b)     :: nchars       = integerMissing   ! 12. number of characters
+  integer(i4b)     :: hist_fil     = integerMissing   ! 13. history filenames
  endtype iLook_stateDims
  ! For river discharge variables
  type, public  ::  iLook_qDims
@@ -301,7 +302,7 @@ MODULE var_lookup
  type(iLook_struct)   ,public,parameter :: ixStruct    = iLook_struct   ( 1, 2, 3, 4, 5)
  type(iLook_dims)     ,public,parameter :: ixDims      = iLook_dims     ( 1, 2, 3, 4, 5, 6, 7)
  type(iLook_stateDims),public,parameter :: ixStateDims = iLook_stateDims( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &
-                                                                         11, 12)
+                                                                         11,12,13)
  type(iLook_qDims)    ,public,parameter :: ixQdims     = iLook_qDims    ( 1, 2, 3, 4)
  type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      ( 1)
  type(iLook_HRU2SEG)  ,public,parameter :: ixHRU2SEG   = iLook_HRU2SEG  ( 1, 2, 3, 4)

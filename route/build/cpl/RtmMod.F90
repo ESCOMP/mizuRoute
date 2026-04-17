@@ -251,7 +251,7 @@ CONTAINS
     ! 6. initialize state variables
     !-------------------------------------------------------
 
-    call init_state_data(iam, npes, mpicom_rof, ierr, cmessage)
+    call init_state_data(iam, npes, ierr, cmessage)
     if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     ! put reach flux variables to associated HRUs
@@ -578,7 +578,7 @@ CONTAINS
     do ns = 1,nsub
       call t_startf('mizuRoute_subcycling')
 
-      call mpi_route(iam, npes, mpicom_rof, ierr, cmessage, scatter_ro=.false.)
+      call mpi_route(iam, npes, ierr, cmessage, scatter_ro=.false.)
       if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
       call t_stopf('mizuRoute_subcycling')

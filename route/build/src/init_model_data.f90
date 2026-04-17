@@ -329,7 +329,7 @@ CONTAINS
  ! *********************************************************************
  ! public subroutine: initialize channel state data
  ! *********************************************************************
- SUBROUTINE init_state_data(pid, nNodes, comm, ierr, message)
+ SUBROUTINE init_state_data(pid, nNodes, ierr, message)
 
   ! external routines
   USE read_restart, ONLY: read_state_nc     ! read netcdf state output file
@@ -349,6 +349,7 @@ CONTAINS
   USE globalData, ONLY: idxSUM, idxIRF, idxKWT, &
                         idxKW, idxMC, idxDW
   USE globalData, ONLY: nRoutes                ! number of available routing methods
+  USE globalData, ONLY: nTracer                ! number of tracers
   USE globalData, ONLY: routeMethods           ! ID of active routing method
   USE globalData, ONLY: onRoute                ! logical array for active routing method
   USE globalData, ONLY: masterproc             ! root proc logical
@@ -371,7 +372,6 @@ CONTAINS
   ! Argument variables:
   integer(i4b),        intent(in)  :: pid              ! proc id
   integer(i4b),        intent(in)  :: nNodes           ! number of procs
-  integer(i4b),        intent(in)  :: comm             ! communicator
   integer(i4b),        intent(out) :: ierr             ! error code
   character(*),        intent(out) :: message          ! error message
   ! local variable
@@ -396,39 +396,137 @@ CONTAINS
   call init_pio(pid, nNodes, ierr, message)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  if (isColdStart) then
-    if (masterproc) then
+  if (masterproc) then
+    RCHFLX_trib(:)%BASIN_QI     = 0._dp
+    RCHFLX_trib(:)%BASIN_QR(0)  = 0._dp
+    RCHFLX_trib(:)%BASIN_QR(1)  = 0._dp
+    RCHFLX_trib(:)%Qelapsed = 0
+    RCHFLX_trib(:)%Qobs = 0._dp
+
+    nRch_root=nRch_mainstem+nTribOutlet+rch_per_proc(0)
+    if (onRoute(accumRunoff)) then
+      do ix = 1,nRch_root
+        RCHFLX_trib(ix)%ROUTE(idxSUM)%REACH_VOL(0:1) = 0._dp
+        RCHFLX_trib(ix)%ROUTE(idxSUM)%REACH_Q        = 0._dp
+      end do
+    end if
+    if (onRoute(impulseResponseFunc)) then
+      do ix = 1, nRch_mainstem+nTribOutlet ! mainstem reaches
+        ntdh = size(NETOPO_main(ix)%UH)
+        allocate(RCHFLX_trib(ix)%QFUTURE_IRF(ntdh), source=0._dp, stat=ierr, errmsg=cmessage)
+      end do
+      do ix = 1, rch_per_proc(0) ! tributary reaches in main task
+        ntdh = size(NETOPO_trib(ix)%UH)
+        allocate(RCHFLX_trib(nRch_mainstem+nTribOutlet+ix)%QFUTURE_IRF(ntdh), source=0._dp, stat=ierr, errmsg=cmessage)
+      end do
+      do ix = 1,nRch_root
+        RCHFLX_trib(ix)%ROUTE(idxIRF)%REACH_VOL(0:1) = 0._dp
+        RCHFLX_trib(ix)%ROUTE(idxIRF)%REACH_Q        = 0._dp
+        RCHFLX_trib(ix)%ROUTE(idxIRF)%Qerror         = 0._dp
+      end do
+    end if
+    if (onRoute(kinematicWaveTracking)) then
+      do ix = 1, nRch_mainstem+nTribOutlet
+        if (is_lake_sim .and. NETOPO_main(ix)%islake) then
+          allocate(RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0:0),stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%LKW_ROUTE%KWAVE]'; return; endif
+          RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0)%QF=-9999
+          RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0)%TI=-9999
+          RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0)%TR=-9999
+          RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0)%RF=.False.
+          RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0)%QM=-9999
+        end if
+      end do
+      do ix = 1, rch_per_proc(0)
+        if (is_lake_sim .and. NETOPO_trib(ix)%islake) then
+          allocate(RCHSTA_trib(nRch_mainstem+nTribOutlet+ix)%LKW_ROUTE%KWAVE(0:0),stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%LKW_ROUTE%KWAVE]'; return; endif
+          RCHSTA_trib(ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%QF=-9999
+          RCHSTA_trib(ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%TI=-9999
+          RCHSTA_trib(ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%TR=-9999
+          RCHSTA_trib(ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%RF=.False.
+          RCHSTA_trib(ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%QM=-9999
+        end if
+      end do
+      do ix = 1, nRch_root
+        RCHFLX_trib(ix)%ROUTE(idxKWT)%REACH_VOL(0:1) = 0._dp
+        RCHFLX_trib(ix)%ROUTE(idxKWT)%REACH_Q        = 0._dp
+        RCHFLX_trib(ix)%ROUTE(idxKWT)%Qerror         = 0._dp
+      end do
+    end if
+    if (onRoute(kinematicWave)) then
+      do ix = 1, nRch_root
+        RCHFLX_trib(ix)%ROUTE(idxKW)%REACH_VOL(0:1) = 0._dp
+        RCHFLX_trib(ix)%ROUTE(idxKW)%REACH_Q        = 0._dp
+        RCHFLX_trib(ix)%ROUTE(idxKW)%Qerror = 0._dp
+        allocate(RCHSTA_trib(ix)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%Q]'; return; endif
+        RCHSTA_trib(ix)%KW_ROUTE%molecule%Q(:) = 0._dp
+        if (tracer) then
+          allocate(RCHFLX_trib(ix)%ROUTE(idxKW)%reach_solute_mass(0:1,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
+          allocate(RCHFLX_trib(ix)%ROUTE(idxKW)%reach_solute_flux(nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
+          allocate(RCHSTA_trib(ix)%KW_ROUTE%molecule%solute_mass(nMolecule%KW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%solute_mass]'; return; endif
+        end if
+      end do
+    end if
+    if (onRoute(muskingumCunge)) then
+      do ix = 1, nRch_root
+        RCHFLX_trib(ix)%ROUTE(idxMC)%REACH_VOL(0:1) = 0._dp
+        RCHFLX_trib(ix)%ROUTE(idxMC)%REACH_Q        = 0._dp
+        RCHFLX_trib(ix)%ROUTE(idxMC)%Qerror = 0._dp
+        allocate(RCHSTA_trib(ix)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%Q]'; return; endif
+        RCHSTA_trib(ix)%MC_ROUTE%molecule%Q(:) = 0._dp
+        if (tracer) then
+          allocate(RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_mass(0:1,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
+          allocate(RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_flux(nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
+          allocate(RCHSTA_trib(ix)%MC_ROUTE%molecule%solute_mass(nMolecule%MC_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%solute_mass]'; return; endif
+        end if
+      end do
+    end if
+    if (onRoute(diffusiveWave)) then
+      do ix = 1, nRch_root
+        RCHFLX_trib(ix)%ROUTE(idxDW)%REACH_VOL(0:1) = 0._dp
+        RCHFLX_trib(ix)%ROUTE(idxDW)%REACH_Q        = 0._dp
+        RCHFLX_trib(ix)%ROUTE(idxDW)%Qerror = 0._dp
+        allocate(RCHSTA_trib(ix)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%Q]'; return; endif
+        RCHSTA_trib(ix)%DW_ROUTE%molecule%Q(:) = 0._dp
+        if (tracer) then
+          allocate(RCHFLX_trib(ix)%ROUTE(idxDW)%reach_solute_mass(0:1,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
+          allocate(RCHFLX_trib(ix)%ROUTE(idxDW)%reach_solute_flux(nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
+          allocate(RCHSTA_trib(ix)%DW_ROUTE%molecule%solute_mass(nMolecule%DW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%solute_mass]'; return; endif
+        end if
+      end do
+    end if
+  else
+    if (rch_per_proc(pid) > 0) then
       RCHFLX_trib(:)%BASIN_QI     = 0._dp
       RCHFLX_trib(:)%BASIN_QR(0)  = 0._dp
       RCHFLX_trib(:)%BASIN_QR(1)  = 0._dp
       RCHFLX_trib(:)%Qelapsed = 0
       RCHFLX_trib(:)%Qobs = 0._dp
-
-      nRch_root=nRch_mainstem+nTribOutlet+rch_per_proc(0)
       if (onRoute(accumRunoff)) then
-        do ix = 1,nRch_root
+        do ix = 1, size(RCHFLX_trib)
           RCHFLX_trib(ix)%ROUTE(idxSUM)%REACH_VOL(0:1) = 0._dp
           RCHFLX_trib(ix)%ROUTE(idxSUM)%REACH_Q        = 0._dp
         end do
       end if
       if (onRoute(impulseResponseFunc)) then
-        do ix = 1, nRch_mainstem+nTribOutlet ! mainstem reaches
-          ntdh = size(NETOPO_main(ix)%UH)
-          allocate(RCHFLX_trib(ix)%QFUTURE_IRF(ntdh), source=0._dp, stat=ierr, errmsg=cmessage)
-        end do
-        do ix = 1, rch_per_proc(0) ! tributary reaches in main task
+        do ix = 1, size(RCHFLX_trib)
           ntdh = size(NETOPO_trib(ix)%UH)
-          allocate(RCHFLX_trib(nRch_mainstem+nTribOutlet+ix)%QFUTURE_IRF(ntdh), source=0._dp, stat=ierr, errmsg=cmessage)
-        end do
-        do ix = 1,nRch_root
+          allocate(RCHFLX_trib(ix)%QFUTURE_IRF(ntdh), source=0._dp, stat=ierr, errmsg=cmessage)
           RCHFLX_trib(ix)%ROUTE(idxIRF)%REACH_VOL(0:1) = 0._dp
           RCHFLX_trib(ix)%ROUTE(idxIRF)%REACH_Q        = 0._dp
           RCHFLX_trib(ix)%ROUTE(idxIRF)%Qerror         = 0._dp
         end do
       end if
       if (onRoute(kinematicWaveTracking)) then
-        do ix = 1, nRch_mainstem+nTribOutlet
-          if (is_lake_sim .and. NETOPO_main(ix)%islake) then
+        do ix = 1, size(RCHSTA_trib)
+          if (is_lake_sim .and. NETOPO_trib(ix)%islake) then
             allocate(RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0:0),stat=ierr, errmsg=cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%LKW_ROUTE%KWAVE]'; return; endif
             RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0)%QF=-9999
@@ -438,164 +536,67 @@ CONTAINS
             RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0)%QM=-9999
           end if
         end do
-        do ix = 1, rch_per_proc(0)
-          if (is_lake_sim .and. NETOPO_trib(ix)%islake) then
-            allocate(RCHSTA_trib(nRch_mainstem+nTribOutlet+ix)%LKW_ROUTE%KWAVE(0:0),stat=ierr, errmsg=cmessage)
-            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%LKW_ROUTE%KWAVE]'; return; endif
-            RCHSTA_trib(ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%QF=-9999
-            RCHSTA_trib(ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%TI=-9999
-            RCHSTA_trib(ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%TR=-9999
-            RCHSTA_trib(ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%RF=.False.
-            RCHSTA_trib(ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%QM=-9999
-          end if
-        end do
-        do ix = 1, nRch_root
+        do ix = 1, size(RCHFLX_trib)
           RCHFLX_trib(ix)%ROUTE(idxKWT)%REACH_VOL(0:1) = 0._dp
           RCHFLX_trib(ix)%ROUTE(idxKWT)%REACH_Q        = 0._dp
           RCHFLX_trib(ix)%ROUTE(idxKWT)%Qerror         = 0._dp
         end do
       end if
       if (onRoute(kinematicWave)) then
-        do ix = 1, nRch_root
+        do ix = 1, size(RCHSTA_trib)
+          RCHFLX_trib(ix)%ROUTE(idxKW)%FLOOD_VOL(0:1) = 0._dp
           RCHFLX_trib(ix)%ROUTE(idxKW)%REACH_VOL(0:1) = 0._dp
           RCHFLX_trib(ix)%ROUTE(idxKW)%REACH_Q        = 0._dp
-          RCHFLX_trib(ix)%ROUTE(idxKW)%Qerror = 0._dp
+          RCHFLX_trib(ix)%ROUTE(idxKW)%Qerror         = 0._dp
           allocate(RCHSTA_trib(ix)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%Q]'; return; endif
           RCHSTA_trib(ix)%KW_ROUTE%molecule%Q(:) = 0._dp
           if (tracer) then
-            RCHFLX_trib(ix)%ROUTE(idxKW)%reach_solute_mass(0:1) = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxKW)%reach_solute_flux = 0._dp
+            allocate(RCHFLX_trib(ix)%ROUTE(idxKW)%reach_solute_mass(0:1,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
+            allocate(RCHFLX_trib(ix)%ROUTE(idxKW)%reach_solute_flux(nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
             allocate(RCHSTA_trib(ix)%KW_ROUTE%molecule%solute_mass(nMolecule%KW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%solute_mass]'; return; endif
           end if
         end do
       end if
       if (onRoute(muskingumCunge)) then
-        do ix = 1, nRch_root
+        do ix = 1, size(RCHSTA_trib)
+          RCHFLX_trib(ix)%ROUTE(idxMC)%FLOOD_VOL(0:1) = 0._dp
           RCHFLX_trib(ix)%ROUTE(idxMC)%REACH_VOL(0:1) = 0._dp
           RCHFLX_trib(ix)%ROUTE(idxMC)%REACH_Q        = 0._dp
-          RCHFLX_trib(ix)%ROUTE(idxMC)%Qerror = 0._dp
+          RCHFLX_trib(ix)%ROUTE(idxMC)%Qerror         = 0._dp
           allocate(RCHSTA_trib(ix)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%Q]'; return; endif
           RCHSTA_trib(ix)%MC_ROUTE%molecule%Q(:) = 0._dp
           if (tracer) then
-            RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_mass(0:1) = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_flux = 0._dp
+            allocate(RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_mass(0:1,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
+            allocate(RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_flux(nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
             allocate(RCHSTA_trib(ix)%MC_ROUTE%molecule%solute_mass(nMolecule%MC_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%solute_mass]'; return; endif
           end if
         end do
       end if
       if (onRoute(diffusiveWave)) then
-        do ix = 1, nRch_root
+        do ix = 1, size(RCHSTA_trib)
+          RCHFLX_trib(ix)%ROUTE(idxDW)%FLOOD_VOL(0:1) = 0._dp
           RCHFLX_trib(ix)%ROUTE(idxDW)%REACH_VOL(0:1) = 0._dp
           RCHFLX_trib(ix)%ROUTE(idxDW)%REACH_Q        = 0._dp
-          RCHFLX_trib(ix)%ROUTE(idxDW)%Qerror = 0._dp
+          RCHFLX_trib(ix)%ROUTE(idxDW)%Qerror         = 0._dp
           allocate(RCHSTA_trib(ix)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%Q]'; return; endif
           RCHSTA_trib(ix)%DW_ROUTE%molecule%Q(:) = 0._dp
           if (tracer) then
-            RCHFLX_trib(ix)%ROUTE(idxDW)%reach_solute_mass(0:1) = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxDW)%reach_solute_flux = 0._dp
+            allocate(RCHFLX_trib(ix)%ROUTE(idxDW)%reach_solute_mass(0:1,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
+            allocate(RCHFLX_trib(ix)%ROUTE(idxDW)%reach_solute_flux(nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
             allocate(RCHSTA_trib(ix)%DW_ROUTE%molecule%solute_mass(nMolecule%DW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%solute_mass]'; return; endif
           end if
         end do
       end if
-    else
-      if (rch_per_proc(pid) > 0) then
-        RCHFLX_trib(:)%BASIN_QI     = 0._dp
-        RCHFLX_trib(:)%BASIN_QR(0)  = 0._dp
-        RCHFLX_trib(:)%BASIN_QR(1)  = 0._dp
-        RCHFLX_trib(:)%Qelapsed = 0
-        RCHFLX_trib(:)%Qobs = 0._dp
-        if (onRoute(accumRunoff)) then
-          do ix = 1, size(RCHFLX_trib)
-            RCHFLX_trib(ix)%ROUTE(idxSUM)%REACH_VOL(0:1) = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxSUM)%REACH_Q        = 0._dp
-          end do
-        end if
-        if (onRoute(impulseResponseFunc)) then
-          do ix = 1, size(RCHFLX_trib)
-            ntdh = size(NETOPO_trib(ix)%UH)
-            allocate(RCHFLX_trib(ix)%QFUTURE_IRF(ntdh), source=0._dp, stat=ierr, errmsg=cmessage)
-            RCHFLX_trib(ix)%ROUTE(idxIRF)%REACH_VOL(0:1) = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxIRF)%REACH_Q        = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxIRF)%Qerror         = 0._dp
-          end do
-        end if
-        if (onRoute(kinematicWaveTracking)) then
-          do ix = 1, size(RCHSTA_trib)
-            if (is_lake_sim .and. NETOPO_trib(ix)%islake) then
-              allocate(RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0:0),stat=ierr, errmsg=cmessage)
-              if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%LKW_ROUTE%KWAVE]'; return; endif
-              RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0)%QF=-9999
-              RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0)%TI=-9999
-              RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0)%TR=-9999
-              RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0)%RF=.False.
-              RCHSTA_trib(ix)%LKW_ROUTE%KWAVE(0)%QM=-9999
-            end if
-          end do
-          do ix = 1, size(RCHFLX_trib)
-            RCHFLX_trib(ix)%ROUTE(idxKWT)%REACH_VOL(0:1) = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxKWT)%REACH_Q        = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxKWT)%Qerror         = 0._dp
-          end do
-        end if
-        if (onRoute(kinematicWave)) then
-          do ix = 1, size(RCHSTA_trib)
-            RCHFLX_trib(ix)%ROUTE(idxKW)%FLOOD_VOL(0:1) = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxKW)%REACH_VOL(0:1) = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxKW)%REACH_Q        = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxKW)%Qerror         = 0._dp
-            allocate(RCHSTA_trib(ix)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage)
-            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%Q]'; return; endif
-            RCHSTA_trib(ix)%KW_ROUTE%molecule%Q(:) = 0._dp
-            if (tracer) then
-              RCHFLX_trib(ix)%ROUTE(idxKW)%reach_solute_mass(0:1) = 0._dp
-              RCHFLX_trib(ix)%ROUTE(idxKW)%reach_solute_flux = 0._dp
-              allocate(RCHSTA_trib(ix)%KW_ROUTE%molecule%solute_mass(nMolecule%KW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
-              if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%solute_mass]'; return; endif
-            end if
-          end do
-        end if
-        if (onRoute(muskingumCunge)) then
-          do ix = 1, size(RCHSTA_trib)
-            RCHFLX_trib(ix)%ROUTE(idxMC)%FLOOD_VOL(0:1) = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxMC)%REACH_VOL(0:1) = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxMC)%REACH_Q        = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxMC)%Qerror         = 0._dp
-            allocate(RCHSTA_trib(ix)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage)
-            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%Q]'; return; endif
-            RCHSTA_trib(ix)%MC_ROUTE%molecule%Q(:) = 0._dp
-            if (tracer) then
-              RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_mass(0:1) = 0._dp
-              RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_flux = 0._dp
-              allocate(RCHSTA_trib(ix)%MC_ROUTE%molecule%solute_mass(nMolecule%MC_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
-              if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%solute_mass]'; return; endif
-            end if
-          end do
-        end if
-        if (onRoute(diffusiveWave)) then
-          do ix = 1, size(RCHSTA_trib)
-            RCHFLX_trib(ix)%ROUTE(idxDW)%FLOOD_VOL(0:1) = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxDW)%REACH_VOL(0:1) = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxDW)%REACH_Q        = 0._dp
-            RCHFLX_trib(ix)%ROUTE(idxDW)%Qerror         = 0._dp
-            allocate(RCHSTA_trib(ix)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
-            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%Q]'; return; endif
-            RCHSTA_trib(ix)%DW_ROUTE%molecule%Q(:) = 0._dp
-            if (tracer) then
-              RCHFLX_trib(ix)%ROUTE(idxDW)%reach_solute_mass(0:1) = 0._dp
-              RCHFLX_trib(ix)%ROUTE(idxDW)%reach_solute_flux = 0._dp
-              allocate(RCHSTA_trib(ix)%DW_ROUTE%molecule%solute_mass(nMolecule%DW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
-              if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%solute_mass]'; return; endif
-            end if
-          end do
-        end if
-      end if
     end if
+  end if
+
+  if (isColdStart) then
     ! initialize time
     TSEC(1)=0._dp; TSEC(2)=dt
   else
@@ -616,7 +617,7 @@ CONTAINS
 
     initHvars = .true.
 
-    call mpi_restart(pid, nNodes, comm, ierr, cmessage)
+    call mpi_restart(pid, nNodes, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
