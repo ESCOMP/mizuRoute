@@ -193,11 +193,12 @@ implicit none
   real(dp)                                   :: BASAREA        ! local basin area
   real(dp)                                   :: TOTAREA        ! UPSAREA + BASAREA
   real(dp)                                   :: MINFLOW        ! minimum environmental flow
+  ! lake - natural lake: Doll 2003 parameters
   real(dp)                                   :: D03_MaxStorage ! Doll 2003; maximume storage [m3]
   real(dp)                                   :: D03_Coefficient! Doll 2003; Coefficient [?]
   real(dp)                                   :: D03_Power      ! Doll 2003; Power [-]
   real(dp)                                   :: D03_S0         ! Doll 2003; Additional parameter to represent inactive storage
-
+  ! lake - managed lake: HYP parameters
   real(dp)                                   :: HYP_E_emr      ! HYPE; elevation of emergency spillway [m]
   real(dp)                                   :: HYP_E_lim      ! HYPE; elevation below which primary spillway flow is restrcited [m]
   real(dp)                                   :: HYP_E_min      ! HYPE; elevation below which outflow is zero [m]
@@ -210,7 +211,7 @@ implicit none
   logical(lgt)                               :: HYP_prim_F     ! HYPE; if the reservoir has a primary spillway then set to 1 otherwise 0
   real(dp)                                   :: HYP_A_avg      ! HYPE; average area for the lake; this might not be used if bathymetry is provided [m]
   logical(lgt)                               :: HYP_Qsim_mode  ! HYPE; the outflow is sum of emergency and primary spillways if 1, otherwise the maximum
-
+  ! lake - managed lake: Hanasaki 2006 parameters
   real(dp)                                   :: H06_Smax       ! Hanasaki 2006; maximume reservoir storage [m3]
   real(dp)                                   :: H06_alpha      ! Hanasaki 2006; fraction of active storage compared to total storage [-]
   real(dp)                                   :: H06_envfact    ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
@@ -269,11 +270,6 @@ implicit none
   character(len=32),dimension(:),allocatable :: pfafCode     ! pfafstetter code
   integer(i4b)                               :: RHORDER      ! Processing sequence
   real(dp)    ,dimension(:),allocatable      :: UH           ! Unit hydrograph for upstream
-!  integer(i4b)                               :: LAKE_IX      ! Lake index (1,2,...,nlak)
-!  integer(i4b)                               :: LAKE_ID      ! Lake ID (REC code)
-!  real(dp)                                   :: BASULAK      ! Area of basin under lake
-!  real(dp)                                   :: RCHULAK      ! Length of reach under lake
-!  logical(lgt)                               :: USRTAKE      ! .TRUE. if user takes from reach, .FALSE. otherwise
   logical(lgt)                               :: LAKINLT      ! .TRUE. if reach is lake inlet, .FALSE. otherwise
   logical(lgt)                               :: ISLAKE       ! .TRUE. if the object is a lake
   logical(lgt)                               :: LAKETARGVOL  ! .TRUE. if the lake follow a given target volume
@@ -383,7 +379,7 @@ implicit none
  ! ---------- lake data types -----------------------------------------------------------------
 
  ! Lake Parameters
- TYPE, public :: LAKPRP
+ type, public :: LAKPRP
   real(dp)                             :: AREAREF            ! lake area
   real(dp)                             :: LAKREFLEV          ! lake elevation
   real(dp)                             :: LAKAVGLEV          ! lake average level (for initialization)
@@ -396,10 +392,10 @@ implicit none
   real(dp)                             :: DSCHSPL            ! discharge at spillway height
   real(dp)                             :: RATECVA            ! discharge rating curve parameter
   real(dp)                             :: RATECVB            ! discharge rating curve parameter
- END TYPE LAKPRP
+ end type LAKPRP
 
  ! Lake topology
- TYPE, public :: LAKTOPO
+ type, public :: LAKTOPO
   integer(i4b)                         :: LAKE_IX           ! Lake index (1,2,...,nlak)
   integer(i4b)                         :: LAKE_ID           ! Lake ID (REC code)
   real(dp)                             :: LAKLAT1           ! Centroid latitude
@@ -410,16 +406,16 @@ implicit none
   integer(i4b)                         :: DREACHK           ! Downstream reach ID
   integer(i4b)                         :: DLAKE_I           ! Downstream lake index
   integer(i4b)                         :: DLAKE_K           ! Downstream lake ID
- END TYPE LAKTOPO
+ end type LAKTOPO
 
  ! Lake fluxes
- TYPE, public :: LKFLX
+ type, public :: LKFLX
   real(dp)                             :: LAKE_Qav          ! lake discharge (average over time step) (m3 s-1)
   real(dp)                             :: LAKE_Q            ! lake discharge (instantaneous) (m3 s-1)
   real(dp)                             :: LAKE_P            ! lake precipitation (m3)
   real(dp)                             :: LAKE_E            ! lake evaporation (m3)
   real(dp)                             :: LAKE_I            ! inflow to lake (m3 s-1)
- END TYPE LKFLX
+ end type LKFLX
 
 END MODULE dataTypes
 
