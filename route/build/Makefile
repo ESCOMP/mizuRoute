@@ -129,7 +129,8 @@ ifeq "$(FC)" "nvidia"
     FLAGS = -fast -O3 -Mdclchk $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -traceback -Mbounds -Mlist -Minfo -Mdclchk $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
+    FLAGS = -g -O0 $(FLAGS_OMP) -traceback -Mbounds -Mdclchk -Mchkptr -Mchkstk -Ktrap=divz,inv,ovf $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
+
   endif
 endif
 
