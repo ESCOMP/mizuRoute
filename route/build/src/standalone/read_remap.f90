@@ -101,13 +101,15 @@ CONTAINS
  ! local variables
  integer(i4b)                       :: ix,jx             ! index of variables
  integer(i4b), allocatable          :: idxZero(:)        ! indices where array variables are zero
+ integer(i4b), allocatable          :: temp_num_qhru(:)  ! local array that holds # of overlapping HRUs for each river network hru
  integer(i4b)                       :: nHRU_map          ! number of HRU in mapping files (this should match up with river network hru)
  integer(i4b)                       :: nData             ! number of data (weight, runoff hru id) in mapping files
  integer(i4b)                       :: total_intersects  ! sum of intersected hydrologic model hrus over the entire routing HRUs
  integer(i4b)                       :: nZero             ! number of array variables with zero
  logical(lgt), allocatable          :: logical_array(:)  !
  real(dp),     allocatable          :: real_array(:)     !
- integer(i8b), allocatable          :: int_array(:)      !
+ integer(i4b), allocatable          :: int4_array(:)      !
+ integer(i8b), allocatable          :: int8_array(:)      !
 
  ierr=0; message='check_remap_data/'
 
@@ -126,43 +128,42 @@ CONTAINS
    write(iulog,'(3a)') ' Correct ',trim(dname_data_remap), &
                      & ' dimension variables at routing HRUs without any interesected hydrologic model hrus'
 
-   nZero=count(remap_data_in%num_qhru==0)
+   ! If there is river network hrus without any overlapping hydrologic model hrus,
+   ! num_qhru=0 and also correcpoinding data-dimension varialbes=0 (that is why sum of num_qhru != data dimension size
+   ! Thefore, need to remove 0 data-dimension variables
+
+   nZero=count(remap_data_in%num_qhru==0) ! number of elements in num_qhru with 0 values
 
    allocate(logical_array(nData))
    logical_array = .true.
 
+   ! To locate index of data-dimension variable to be removed, just need to change 0 to 1 in num_qhru (using temp_num_qhru)
+   allocate(temp_num_qhru, source=remap_data_in%num_qhru)
+   where (temp_num_qhru==0) temp_num_qhru=1
+
    if (nZero>0) then
-     allocate(idxZero(nZero))
-     idxZero = pack(arth(1,1,nHRU_map), remap_data_in%num_qhru==0)
+     idxZero = pack(arth(1,1,nHRU_map), remap_data_in%num_qhru==0) ! indxex in num_qhru with 0
+     ! turn false (no keeping this element) at index of data-dimension for corresponding river network hru with 0 num_qhru
      do ix = 1,nZero
-       jx = sum(remap_data_in%num_qhru(1:idxZero(ix)))+1
+       jx = sum(temp_num_qhru(1:idxZero(ix)))
        logical_array(jx) = .false.
      end do
 
-     allocate(real_array(total_intersects), int_array(total_intersects))
-     if (allocated(remap_data_in%qhru_id)) then
+     if (allocated(remap_data_in%weight)) then
        real_array = pack(remap_data_in%weight, logical_array)
-       deallocate(remap_data_in%weight)
-       allocate(remap_data_in%weight(total_intersects))
-       remap_data_in%weight = real_array
+       call move_alloc(real_array, remap_data_in%weight)
      end if
      if (allocated(remap_data_in%qhru_id)) then
-       int_array = pack(remap_data_in%qhru_id, logical_array)
-       deallocate(remap_data_in%qhru_id)
-       allocate(remap_data_in%qhru_id(total_intersects))
-       remap_data_in%qhru_id = int_array
+       int8_array = pack(remap_data_in%qhru_id, logical_array)
+       call move_alloc(int8_array, remap_data_in%qhru_id)
      end if
      if (allocated(remap_data_in%i_index)) then
-       int_array = pack(remap_data_in%i_index, logical_array)
-       deallocate(remap_data_in%i_index)
-       allocate(remap_data_in%i_index(total_intersects))
-       remap_data_in%i_index = int_array
+       int4_array = pack(remap_data_in%i_index, logical_array)
+       call move_alloc(int4_array, remap_data_in%i_index)
      end if
      if (allocated(remap_data_in%j_index)) then
-       int_array = pack(remap_data_in%j_index, logical_array)
-       deallocate(remap_data_in%j_index)
-       allocate(remap_data_in%j_index(total_intersects))
-       remap_data_in%j_index = int_array
+       int4_array = pack(remap_data_in%j_index, logical_array)
+       call move_alloc(int4_array, remap_data_in%j_index)
      end if
    end if
  end if

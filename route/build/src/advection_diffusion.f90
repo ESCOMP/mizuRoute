@@ -197,25 +197,21 @@ CONTAINS
     real(dp),      intent(inout)  :: T(NX)
     ! Local variables
     integer(i4b)                  :: ix
-    real(dp)                      :: U(NX)
     real(dp)                      :: D(NX)
-    real(dp)                      :: L(NX)
     real(dp)                      :: b1(NX)
     real(dp)                      :: coef
 
-    U(1:NX) = MAT(1:NX,1)
     D(1:NX) = MAT(1:NX,2)
-    L(1:NX) = MAT(1:NX,3)
     b1(1:NX) = b(1:NX)
     do ix = 2, NX
-      coef  = L(ix-1)/D(ix-1)
-      D(ix) = D(ix)-coef*U(ix)
+      coef  = MAT(ix-1,3)/D(ix-1)
+      D(ix) = D(ix)-coef*MAT(ix,1)
       b1(ix) = b1(ix)-coef*b1(ix-1)
     end do
 
     T(NX) = b1(NX)/D(NX) ! Starts the countdown of answers
     do ix = NX-1, 1, -1
-        T(ix) = (b1(ix) - U(ix+1)*T(ix+1))/D(ix)
+        T(ix) = (b1(ix) - MAT(ix+1,1)*T(ix+1))/D(ix)
     end do
 
   END SUBROUTINE TDMA

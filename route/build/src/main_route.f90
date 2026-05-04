@@ -246,6 +246,12 @@ CONTAINS
 
    ! 3. subroutine: river reach routing
    do ix=1,size(routeMethods)
+     if (.not. allocated(rch_routes(ix)%rch_route)) then
+       ierr=20
+       write(cmessage,'(A,I0)') 'routing object is not allocated for routeMethods index ', ix
+       message=trim(message)//trim(cmessage)
+       return
+     end if
      call route_network(rch_routes(ix)%rch_route, &  ! input: instantiated routing object
                         routeMethods(ix),         &  ! input: routing method index
                         river_basin,              &  ! input: river basin data type
@@ -290,7 +296,7 @@ CONTAINS
 
     implicit none
     ! Argument variables
-    class(base_route_rch), intent(in),    allocatable :: rch_route
+    class(base_route_rch), intent(in)                 :: rch_route
     integer(i4b),          intent(in)                 :: idRoute              ! routing method id
     type(subbasin_omp),    intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
     real(dp),              intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
@@ -359,6 +365,7 @@ CONTAINS
 !$OMP          shared(RPARAM_in)                        & ! data structure shared
 !$OMP          shared(RCHSTA_out)                       & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
+!$OMP          shared(rch_route)                        & ! routing object shared
 !$OMP          shared(ix,idxRoute)                      & ! indices shared
 !$OMP          firstprivate(nTrib)
       do iTrib = 1,nTrib
