@@ -14,7 +14,7 @@ public::solve_ade    ! solve advection-diffusion equation
 CONTAINS
 
   ! *********************************************************************
-  ! subroutine: solve advection-diffuision equation (ade)
+  ! subroutine: solve advection-diffuision equation (ade) per a reach
   ! *********************************************************************
   SUBROUTINE solve_ade(reach_length,  & ! input: Reach length [m]
                        nMolecule,     & ! input: number of sub-segments
@@ -26,7 +26,9 @@ CONTAINS
                        FluxPrev,      & ! input: Flux at previous time step [unit of quantity]
                        FluxLocal,     & ! inout: Flux soloved at current time step [unit of quantity]
                        verbose,       & ! input: reach index to be examined
-                       ierr,message)
+                       advec_scheme,  & ! optional input: advection term descretization: 1->central difference, 2->upwind method
+                       downstreamBC   & ! optional input: downstream end B.C. 1->Neumann, 2->absorbing
+                       )
   ! ----------------------------------------------------------------------------------------
   ! Solve linearlized advection diffusive equation per reach and time step.
   !  dQ/dt + ck*dQ/dx = dk*d2Q/dx2 + FluxLat - a)
@@ -34,14 +36,17 @@ CONTAINS
   !  ck (velocity) and dk (diffusivity) are given by input argument
   !
   !  1) dQ/dt   = (Q(t,x) - Q(t-1,x))/dt
-  !  2) dQ/dx   = [(1-wck)(Q(t-1,x+1)-Q(t-1,x-1)) + wck*(Q(t,x+1)-Q(t,x-1))]/2dx  (using central difference)
+  !  2) dQ/dx   = [(1-wck)(Q(t-1,x+1)-Q(t-1,x-1)) + wck*(Q(t,x+1)-Q(t,x-1))]/2dx  (central difference)
+  !               or
+  !               [(1-wck)(Q(t-1,x+1)-Q(t-1,x-1)) + wck*(Q(t,x+1)-Q(t,x-1))]/2dx  (upwind)
   !  3) d2Q/dx2 = [(1-wdk)(Q(t-1,x+1)-2Q(t-1,x)+Q(t-1,x-1)) + wdk*(Q(t,x+1)-2Q(t,x)+Q(t,x-1))]/2dx
   !
-  !  upstream B.C:   Dirchlet BC with inflow at current time-step,t, from upstream basin
-  !  downstream B.C: Neumann BC with prescribed quantity gradient (Sbc)
+  !  4) downstream B.C: Neumann BC with prescribed quantity gradient (Sbc)
   !                  dQ/dx|x=N = Sbc ->  4) Q(t,N)-Q(t,N-1)) = Sbc*dx
-  !  Another downstream B.C option is absorbing boundary condition
+  !     Another downstream B.C option: absorbing boundary condition
   !                  dQ/dt|x=N + ck*dQ/dx|x=N = 0
+  !
+  !  upstream B.C:   Dirchlet BC with inflow at current time-step,t, from upstream basin
   !
   !  Inserting 1), 2), 3) and 4) into a) and moving Q(t,*) terms to left-hand side and Q(t-1,*) terms to the righ-hand side
   !  results in tridiagonal matrix equation A*Q = b
@@ -65,8 +70,8 @@ CONTAINS
   real(dp),     intent(in)      :: FluxPrev(nMolecule)       ! sub-reach quantity at previous time step [m3/s]
   real(dp),     intent(out)     :: FluxLocal(nMolecule,0:1)  ! sub-reach & sub-time step quantity at previous and current time step [m3/s]
   logical(lgt), intent(in)      :: verbose                   ! reach index to be examined
-  integer(i4b), intent(out)     :: ierr                      ! error code
-  character(*), intent(out)     :: message                   ! error message
+  integer(i4b), optional, intent(in) :: advec_scheme         ! advection term descretization: 1->central diff.(default), 2->upwind method
+  integer(i4b), optional, intent(in) :: downstreamBC         ! downstream end B.C. 1->Neumann (default), 2->absorbing
   ! Local variables
   real(dp)                      :: Cd                        ! Fourier number
   real(dp)                      :: Ca                        ! Courant number
@@ -79,16 +84,24 @@ CONTAINS
   real(dp)                      :: wdk                       ! weight for diffusion
   integer(i4b)                  :: ix                        ! loop index
   integer(i4b)                  :: Nx                        ! number of internal reach segments
-  integer(i4b)                  :: downstreamBC              ! method of B.C condition - absorbing or Neumann
+  integer(i4b)                  :: downBC                    ! B.C condition method used
+  integer(i4b)                  :: advec_discretization      ! advection term discretization used
   character(len=strLen)         :: fmt1                      ! format string
   ! Local parameters
   integer(i4b), parameter       :: absorbingBC=1             ! downstream B.C.
   integer(i4b), parameter       :: neumannBC=2               ! downstream B.C. flux derivative w.r.t. distance at downstream boundary
+  integer(i4b), parameter       :: upwind=1                  ! upwind method for advection term discretization
+  integer(i4b), parameter       :: central=2                 ! central difference for advetion term discretization
 
-  ierr=0; message='solve_ade/'
+  downBC = neumannBC  ! downstream boundary condition
+  if (present(downstreamBC)) then
+    downBC = downstreamBC
+  end if
+  advec_discretization = central ! advection term discretization method
+  if (present(advec_scheme)) then
+    advec_discretization = advec_scheme
+  end if
 
-  ! hard-coded parameters
-  downstreamBC = neumannBC  ! downstream boundary condition
   wck = 1.0                 ! weight in advection term
   wdk = 1.0                 ! weight in diffusion term 0.0-> fully explicit, 0.5-> Crank-Nicolson, 1.0 -> fully implicit
 
@@ -107,30 +120,42 @@ CONTAINS
   FluxLocal(1,1)  = FluxUpstream          ! quantity from upstream at current time step
 
   ! Fourier number and Courant number
-  Cd = dk*dt_local/dx**2
+  Cd = dk*dt_local/(dx*dx)
   Ca = ck*dt_local/dx
 
   ! create a matrix - current time step
   ! populate tridiagonal elements
   ! diagonal
   diagonal(1,2)             = 1._dp
-  diagonal(2:nMolecule-1,2) = 2._dp + 4*wdk*Cd
-  if (downstreamBC == absorbingBC) then
+  if (advec_discretization==upwind) then
+    diagonal(2:nMolecule-1,2) = 1._dp + wck*Ca + 2._dp*wdk*Cd
+  else if (advec_discretization==central) then
+    diagonal(2:nMolecule-1,2) = 2._dp + 4*wdk*Cd
+  end if
+  if (downBC == absorbingBC) then
     diagonal(nMolecule,2)     = 1._dp + wck*Ca
-  else if (downstreamBC == neumannBC) then
+  else if (downBC == neumannBC) then
     diagonal(nMolecule,2)     = 1._dp
   end if
 
   ! upper
   diagonal(:,1)           = 0._dp
-  diagonal(3:nMolecule,1) = wck*Ca - 2._dp*wdk*Cd
+  if (advec_discretization==upwind) then
+    diagonal(3:nMolecule,1) = -wdk*Cd
+  else if (advec_discretization==central) then
+    diagonal(3:nMolecule,1) = wck*Ca - 2._dp*wdk*Cd
+  end if
 
   ! lower
   diagonal(:,3)             = 0._dp
-  diagonal(1:nMolecule-2,3) = -wck*Ca - 2._dp*wdk*Cd
-  if (downstreamBC == absorbingBC) then
+  if (advec_discretization==upwind) then
+    diagonal(1:nMolecule-2,3) = -wck*Ca - wdk*Cd
+  else if (advec_discretization==central) then
+    diagonal(1:nMolecule-2,3) = -wck*Ca - 2._dp*wdk*Cd
+  end if
+  if (downBC == absorbingBC) then
     diagonal(nMolecule-1,3)   = -wck*Ca
-  else if (downstreamBC == neumannBC) then
+  else if (downBC == neumannBC) then
     diagonal(nMolecule-1,3)     = -1._dp
   end if
 
@@ -138,16 +163,23 @@ CONTAINS
   ! upstream boundary condition
   b(1)             = FluxLocal(1,1)
   ! downstream boundary condition
-  if (downstreamBC == absorbingBC) then
+  if (downBC == absorbingBC) then
     b(nMolecule) = (1._dp-(1._dp-wck)*Ca)*FluxLocal(nMolecule,0) + (1-wck)*Ca*FluxLocal(nMolecule-1,0)
-  else if (downstreamBC == neumannBC) then
+  else if (downBC == neumannBC) then
     Sbc = (FluxLocal(nMolecule,0)-FluxLocal(nMolecule-1,0))
     b(nMolecule)     = Sbc
   end if
   ! internal node points
-  b(2:nMolecule-1) = ((1._dp-wck)*Ca +2._dp*(1._dp-wdk)*Cd)*FluxLocal(1:nMolecule-2,0)  &
-                    + (2._dp-4._dp*(1._dp-wdk)*Cd)*FluxLocal(2:nMolecule-1,0)           &
-                    - ((1._dp-wck)*Ca -2._dp*(1._dp-wdk)*Cd)*FluxLocal(3:nMolecule,0)
+  if (advec_discretization==upwind) then
+    b(2:nMolecule-1) = ((1._dp-wck)*Ca +(1._dp-wdk)*Cd)*FluxLocal(1:nMolecule-2,0)  &
+                     + (1._dp-(1._dp-wck)*Ca-2._dp*(1._dp-wdk)*Cd)*FluxLocal(2:nMolecule-1,0) &
+                     + (1._dp-wdk)*Cd*FluxLocal(3:nMolecule,0)
+  else if (advec_discretization==central) then
+    b(2:nMolecule-1) = ((1._dp-wck)*Ca +2._dp*(1._dp-wdk)*Cd)*FluxLocal(1:nMolecule-2,0)  &
+                      + (2._dp-4._dp*(1._dp-wdk)*Cd)*FluxLocal(2:nMolecule-1,0)           &
+                      - ((1._dp-wck)*Ca -2._dp*(1._dp-wdk)*Cd)*FluxLocal(3:nMolecule,0)
+  end if
+
   ! solve matrix equation - get updated FluxLocal
   call TDMA(nMolecule, diagonal, b, FluxSolved)
 
