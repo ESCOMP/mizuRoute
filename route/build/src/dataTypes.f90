@@ -322,7 +322,7 @@ implicit none
    real(dp), allocatable  :: Q(:)           ! Discharge at sub-reaches at current step (m3/s)
    real(dp), allocatable  :: A(:)           ! Flow area at sub-reach at current step (m2)
    real(dp), allocatable  :: H(:)           ! Flow height at sub-reach at current step (m)
-   real(dp), allocatable  :: Solute_mass(:) ! solute mass at sub-reach at current step (mg)
+   real(dp), allocatable  :: c_solute(:,:)  ! solute concentration at sub-reach at current step (mg/m3)
  end type SUBRCH
 
  type, public :: kwRch
