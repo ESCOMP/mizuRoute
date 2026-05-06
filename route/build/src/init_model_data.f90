@@ -465,7 +465,7 @@ CONTAINS
         if (tracer) then
           allocate(RCHFLX_trib(ix)%ROUTE(idxKW)%reach_solute_mass(0:1,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
           allocate(RCHFLX_trib(ix)%ROUTE(idxKW)%reach_solute_flux(nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
-          allocate(RCHSTA_trib(ix)%KW_ROUTE%molecule%solute_mass(nMolecule%KW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+          allocate(RCHSTA_trib(ix)%KW_ROUTE%molecule%c_solute(nMolecule%KW_ROUTE,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%solute_mass]'; return; endif
         end if
       end do
@@ -481,7 +481,7 @@ CONTAINS
         if (tracer) then
           allocate(RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_mass(0:1,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
           allocate(RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_flux(nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
-          allocate(RCHSTA_trib(ix)%MC_ROUTE%molecule%solute_mass(nMolecule%MC_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+          allocate(RCHSTA_trib(ix)%MC_ROUTE%molecule%c_solute(nMolecule%MC_ROUTE,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%solute_mass]'; return; endif
         end if
       end do
@@ -497,7 +497,7 @@ CONTAINS
         if (tracer) then
           allocate(RCHFLX_trib(ix)%ROUTE(idxDW)%reach_solute_mass(0:1,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
           allocate(RCHFLX_trib(ix)%ROUTE(idxDW)%reach_solute_flux(nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
-          allocate(RCHSTA_trib(ix)%DW_ROUTE%molecule%solute_mass(nMolecule%DW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+          allocate(RCHSTA_trib(ix)%DW_ROUTE%molecule%c_solute(nMolecule%DW_ROUTE,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%solute_mass]'; return; endif
         end if
       end do
@@ -554,7 +554,7 @@ CONTAINS
           if (tracer) then
             allocate(RCHFLX_trib(ix)%ROUTE(idxKW)%reach_solute_mass(0:1,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
             allocate(RCHFLX_trib(ix)%ROUTE(idxKW)%reach_solute_flux(nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
-            allocate(RCHSTA_trib(ix)%KW_ROUTE%molecule%solute_mass(nMolecule%KW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+            allocate(RCHSTA_trib(ix)%KW_ROUTE%molecule%c_solute(nMolecule%KW_ROUTE,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%solute_mass]'; return; endif
           end if
         end do
@@ -571,7 +571,7 @@ CONTAINS
           if (tracer) then
             allocate(RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_mass(0:1,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
             allocate(RCHFLX_trib(ix)%ROUTE(idxMC)%reach_solute_flux(nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
-            allocate(RCHSTA_trib(ix)%MC_ROUTE%molecule%solute_mass(nMolecule%MC_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+            allocate(RCHSTA_trib(ix)%MC_ROUTE%molecule%c_solute(nMolecule%MC_ROUTE,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%solute_mass]'; return; endif
           end if
         end do
@@ -588,7 +588,7 @@ CONTAINS
           if (tracer) then
             allocate(RCHFLX_trib(ix)%ROUTE(idxDW)%reach_solute_mass(0:1,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
             allocate(RCHFLX_trib(ix)%ROUTE(idxDW)%reach_solute_flux(nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
-            allocate(RCHSTA_trib(ix)%DW_ROUTE%molecule%solute_mass(nMolecule%DW_ROUTE), source=0._dp, stat=ierr, errmsg=cmessage)
+            allocate(RCHSTA_trib(ix)%DW_ROUTE%molecule%c_solute(nMolecule%DW_ROUTE,nTracer), source=0._dp, stat=ierr, errmsg=cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%solute_mass]'; return; endif
           end if
         end do
