@@ -254,6 +254,7 @@ MODULE var_lookup
  ! tracer states
  type, public  ::  iLook_tracer
   integer(i4b)     :: mass           = integerMissing  ! 1. constituent mass (mg)
+  integer(i4b)     :: csub           = integerMissing  ! 2. constituent concentration at sub-reach (mg/m3)
  endtype iLook_tracer
  ! Basin IRF state/fluxes
  type, public  ::  iLook_IRFbas
@@ -324,7 +325,7 @@ MODULE var_lookup
                                                                          31)
  type(iLook_HFLX)     ,public,parameter :: ixHFLX      = iLook_HFLX     ( 1)
  type(iLook_basinQ)   ,public,parameter :: ixBasinQ    = iLook_basinQ   ( 1)
- type(iLook_tracer)   ,public,parameter :: ixTracer    = iLook_tracer   ( 1)
+ type(iLook_tracer)   ,public,parameter :: ixTracer    = iLook_tracer   ( 1, 2)
  type(iLook_IRFbas)   ,public,parameter :: ixIRFbas    = iLook_IRFbas   ( 1)
  type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      ( 1, 2, 3)
  type(iLook_basTracer),public,parameter :: ixBasTracer = iLook_basTracer( 1)

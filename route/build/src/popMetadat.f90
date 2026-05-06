@@ -310,7 +310,9 @@ contains
  call meta_basinQ(ixBasinQ%q)%init('basin_q', 'basin routed flow', 'm3/s' ,ncd_double, [ixStateDims%seg], .true.)
 
  ! reach concentration flux from basin
- call meta_solute(ixTracer%mass)%init('solute_mass', 'mass in reach/lake', 'mg' ,ncd_double, [ixStateDims%seg,ixStateDims%tracer], .false.)
+ call meta_solute(ixTracer%mass)%init('solute_mass', 'total mass in a reach/lake', 'mg' ,ncd_double, [ixStateDims%seg,ixStateDims%tracer], .false.)
+ call meta_solute(ixTracer%csub)%init('c_sub', 'concentrationin in sub-reach', 'mg/m3' ,ncd_double, [ixStateDims%seg,ixStateDims%mol_dw,ixStateDims%tracer], .false.)
+
 
  end subroutine popMetadat
 
