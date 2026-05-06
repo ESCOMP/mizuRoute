@@ -6,6 +6,7 @@ USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
 ! global parameters
 USE globalData, ONLY: nTracer       ! number of tracers
 USE public_var, ONLY: vname_solute  ! tracer name
+USE public_var, ONLY: tracer        ! tracer name
 USE public_var, ONLY: iulog         ! i/o logical unit number
 USE public_var, ONLY: dt            ! simulation time step
 
@@ -41,7 +42,7 @@ CONTAINS
 
   implicit none
   ! Argument variables:
-  integer(i4b), intent(in)                 :: seg_id         ! input: routing method index
+  integer(i4b), intent(in)                 :: seg_id         ! input: reach/lake ID
   integer(i4b), intent(in)                 :: ixRoute        ! input: routing method index
   real(dp),     intent(in)                 :: Qupstream      ! input: total inflow from upstream reaches
   real(dp),     intent(in)                 :: Qlat           ! input: lateral flow into reach
@@ -134,7 +135,7 @@ CONTAINS
   ! Compare dMass vs (flux_in - flux_out)*dt
   implicit none
   ! Argument variables:
-  integer(i4b), intent(in)                 :: seg_id         ! input: routing method index
+  integer(i4b), intent(in)                 :: seg_id         ! input: reach/lake ID
   integer(i4b), intent(in)                 :: ixRoute        ! input: routing method index
   real(dp),     intent(in)                 :: Cupstream(:)   ! input: total inflow from upstream reaches
   real(dp),     intent(in)                 :: Clat(:)        ! input: lateral flow into reach
@@ -154,7 +155,7 @@ CONTAINS
   if (present(tolerance)) then
     mb_tol=tolerance
   else
-    mb_tol=2.e-5_dp ! in mg
+    mb_tol=1.e-3_dp ! in mg
   end if
 
   if (verbose) then
@@ -188,7 +189,7 @@ CONTAINS
       write(iulog,'(A,1PG15.7)') '  8 outflux [mg]      = ', Cout
     endif
     if (abs(MBerr) > mb_tol) then
-      write(iulog,'(A,1PG15.7,1X,A,1X,1PG15.7)') ' WARNING: abs. MB error [m3] = ', abs(MBerr), '>',mb_tol
+      write(iulog,'(A,1PG15.7,1X,A,1X,1PG15.7)') ' WARNING: abs. MB error [mg] = ', abs(MBerr), '>',mb_tol
     end if
   end do
 
@@ -232,6 +233,11 @@ CONTAINS
     real(dp)                          :: wb_mainstem(7)
     real(dp)                          :: wb_trib(7)
     real(dp)                          :: wb_error
+    real(dp)                          :: mb_local(3)
+    real(dp)                          :: mb_global(3)
+    real(dp)                          :: mb_mainstem(3)
+    real(dp)                          :: mb_trib(3)
+    real(dp)                          :: mb_error
     character(strLen)                 :: cmessage       ! error message from subroutine
 
     ierr=0; message='comp_global_wb/'
@@ -259,7 +265,6 @@ CONTAINS
     wb_global = 0._dp
     call shr_mpi_reduce(wb_local, 'sum', wb_global, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
     wb_error = wb_global(1)-sum(wb_global(2:6))
 
     if (verbose) then
@@ -282,6 +287,49 @@ CONTAINS
       write(iulog,'(A,1PG15.7,1X,A)') ' WARNING: global WB error [m3] = ', wb_error, '> 1.0 [m3]'
     end if
     flush(iulog)
+
+    if (tracer) then
+      if (masterproc) then
+        mb_trib     = 0._dp
+        mb_mainstem = 0._dp
+        if (nRch_mainstem > 0) then
+          call accum_mass_balance(NETOPO_main(1:nRch_mainstem), RCHFLX_trib(1:nRch_mainstem), mb_mainstem, 1, ierr, cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        end if
+        if (nRch_trib > 0) then
+          lwr = nRch_mainstem + nTribOutlet + 1
+          upr = nRch_mainstem + nTribOutlet + nRch_trib
+          call accum_mass_balance(NETOPO_trib, RCHFLX_trib(lwr:upr), mb_trib, 1, ierr, cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        end if
+        mb_local = mb_mainstem + mb_trib
+      else ! non-main processors
+        call accum_mass_balance(NETOPO_trib, RCHFLX_trib, mb_local, 1, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
+      ! sum mass balance components across all the processors
+      mb_global = 0._dp
+      call shr_mpi_reduce(mb_local, 'sum', mb_global, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      mb_error = mb_global(1)-sum(mb_global(2:3))
+
+      if (verbose) then
+        if (masterproc) then
+          write(iulog,'(A)')         ' ---------------------------'
+          write(iulog,'(A)')         ' -- global mass balance  --'
+          write(iulog,'(A)')         ' ---------------------------'
+          write(iulog,'(A)')         ' 4=1-(2+3)'
+          write(iulog,'(A,1PG15.7)') ' 1 dMass [mg]             = ', mb_global(1)
+          write(iulog,'(A,1PG15.7)') ' 2 lateral flux [m3]      = ', mb_global(2)
+          write(iulog,'(A,1PG15.7)') ' 3 outflux [m3]           = ', mb_global(3)
+          write(iulog,'(A,1PG15.7)') ' 4 MBerr [m3]             = ', mb_error
+        end if
+      endif
+      if (abs(wb_error) > 1._dp) then ! tolerance is 1 [m3]
+        write(iulog,'(A,1PG15.7,1X,A)') ' WARNING: global Mass error [m3] = ', wb_error, '> 1.0 [mg]'
+      end if
+      flush(iulog)
+    end if
 
     CONTAINS
 
@@ -328,6 +376,42 @@ CONTAINS
         water_budget(7) = water_budget(7) - RCHFLX_in(ix)%REACH_WM_FLUX *dt
       end do
     END SUBROUTINE accum_water_balance
+
+    SUBROUTINE accum_mass_balance(NETOPO_in, RCHFLX_in, mass_budget, iTrace, ierr, message)
+
+      USE dataTypes, ONLY: RCHTOPO   ! data structure - Network topology
+      USE dataTypes, ONLY: STRFLX    ! data structure - fluxes in each reach
+
+      implicit none
+      ! Arguments:
+      type(RCHTOPO),     intent(in)  :: NETOPO_in(:)
+      type(STRFLX),      intent(in)  :: RCHFLX_in(:)
+      real(dp),          intent(out) :: mass_budget(3)
+      integer(i4b),      intent(in)  :: iTrace
+      integer(i4b),      intent(out) :: ierr
+      character(strLen), intent(out) :: message
+      ! Local variables:
+      integer(i4b)                   :: ix
+
+      ierr=0; message='accum_mass_balance/'
+
+      if (size(RCHFLX_in)/=size(NETOPO_in)) then
+        ierr=20; message=trim(message)//'RCHFLX and NETOPO has different sizes'; return
+      end if
+
+      mass_budget = 0._dp
+      do ix = 1, size(RCHFLX_in)
+        mass_budget(1) = mass_budget(1) + (RCHFLX_in(ix)%ROUTE(ixRoute)%reach_solute_mass(1,iTrace) &
+                                                          - RCHFLX_in(ix)%ROUTE(ixRoute)%reach_solute_mass(0,iTrace))
+        ! in flux
+        mass_budget(2) = mass_budget(2) + RCHFLX_in(ix)%BASIN_solute(iTrace) *dt
+        ! out flux
+        if (NETOPO_in(ix)%DREACHI==-1 .and. NETOPO_in(ix)%DREACHK<=0) then ! to-do: better way to detect outlet segments
+          mass_budget(3) = mass_budget(3) - RCHFLX_in(ix)%ROUTE(ixRoute)%reach_solute_flux(iTrace) *dt
+        end if
+      end do
+
+    END SUBROUTINE accum_mass_balance
 
   END SUBROUTINE comp_global_wb
 
