@@ -18,6 +18,7 @@ MODULE pio_decomp_data
   USE globalData, ONLY: ioDesc_mesh_mc_double
   USE globalData, ONLY: ioDesc_mesh_dw_double
   USE globalData, ONLY: ioDesc_tracer_double
+  USE globalData, ONLY: ioDesc_tracer_mesh_double
   USE globalData, ONLY: ioDesc_irf_double
   USE globalData, ONLY: ioDesc_vol_double
   USE globalData, ONLY: ioDesc_irf_bas_double
@@ -234,7 +235,12 @@ CONTAINS
                       [ndim_seg,ndim_tracer],            & ! input: dimension length == global array size
                       compdof_rch,                       & ! input:
                       ioDesc_tracer_double)
-
+      ! type: double, dim: [dim_seg, dim_mesh]
+      call pio_decomp(pioSystem,                           & ! inout: pio system descriptor
+                      ncd_double,                          & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                      [ndim_seg,ndim_Mesh_dw,ndim_tracer], & ! input: dimension length == global array size
+                      compdof_rch,                         & ! input:
+                      ioDesc_tracer_mesh_double)
     end if
 
     end associate

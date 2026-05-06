@@ -66,6 +66,7 @@ USE globalData,        ONLY: ioDesc_irf_double
 USE globalData,        ONLY: ioDesc_irf_bas_double
 USE globalData,        ONLY: ioDesc_tracer_bas_double
 USE globalData,        ONLY: ioDesc_tracer_double
+USE globalData,        ONLY: ioDesc_tracer_mesh_double
 
 implicit none
 
@@ -1333,14 +1334,24 @@ CONTAINS
     character(*), intent(out)  :: message1        ! error message
     ! local variables
     real(dp),     allocatable  :: array_2d_dp(:,:)
+    real(dp),     allocatable  :: array_3d_dp(:,:,:)
     integer(i4b)               :: iVar,iSeg       ! index loops for variables and segments respectively
 
     ierr=0; message1='write_solute_state/'
 
-    associate(nSeg     => size(RCHFLX_local))
+    associate(nSeg     => size(RCHFLX_local), &
+              nMesh    => meta_stateDims(ixStateDims%mol_dw)%dimLength) ! number of sub-reaches
 
     do iVar=1,nVarsTracer
       select case(iVar)
+        case(ixTracer%csub)
+          allocate(array_3d_dp(nSeg,nMesh,nTracer),stat=ierr,errmsg=cmessage)
+          if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//':tracer state:'//trim(meta_mc(iVar)%varName); return; endif
+          do iSeg=1,nSeg
+            array_3d_dp(iSeg,1:nMesh,1:nTracer) = RCHSTA_local(iSeg)%DW_ROUTE%molecule%c_solute(1:nMesh,1:nTracer)
+          end do
+          call write_pnetcdf(pioFileDesc, meta_solute(iVar)%varName, array_3d_dp, ioDesc_tracer_mesh_double, ierr, cmessage)
+          deallocate(array_3d_dp)
         case(ixTracer%mass)
           allocate(array_2d_dp(nSeg, nTracer),stat=ierr,errmsg=cmessage)
           if(ierr/=0)then

@@ -166,6 +166,7 @@ MODULE globalData
   type(io_desc_t),                 public :: ioDesc_mesh_dw_double      ! [reach, Duffusive wave computational meshes] (double precision)
   type(io_desc_t),                 public :: ioDesc_tracer_bas_double   ! [reach, basin UH future time-steps, tracers] (double precision)
   type(io_desc_t),                 public :: ioDesc_tracer_double       ! [reach, tracers] (double precision)
+  type(io_desc_t),                 public :: ioDesc_tracer_mesh_double  ! [reach, sub_reach, tracers] (double precision)
   type(io_desc_t),                 public :: ioDesc_irf_double          ! [reach, IRF future timer-steps] (double precision)
   type(io_desc_t),                 public :: ioDesc_vol_double          ! [reach, time-bounds] (double precision)
   type(io_desc_t),                 public :: ioDesc_irf_bas_double      ! [reach, basin UH future time-steps] (double precision)
