@@ -2407,6 +2407,7 @@ CONTAINS
                                     commType,          & ! input: communication type - scatter or gather
                                     ierr, message)
   USE globalData, ONLY: nMolecule
+  USE globalData, ONLY: nTracer
   USE dataTypes,  ONLY: SUBRCH
   USE dataTypes,  ONLY: STRSTA
   USE globalData, ONLY: nRch_mainstem
@@ -2427,8 +2428,9 @@ CONTAINS
   character(len=strLen),    intent(out)   :: message               ! error message
   ! local variables
   character(len=strLen)                   :: cmessage              ! error message from a subroutine
-  type(SUBRCH), allocatable               :: SUBR0(:)            ! temp SUBRCH data structure to hold updated states
-  real(dp),     allocatable               :: Q(:),Q_trib(:)
+  type(SUBRCH), allocatable               :: SUBR0(:)              ! temp SUBRCH data structure to hold updated states
+  real(dp),     allocatable               :: Q(:),Q_trib(:)        ! flat array for discharge-Q
+  real(dp),     allocatable               :: C(:,:),C_trib(:,:)    ! flat array for solute concentration-C
   integer(i4b)                            :: myid
   integer(i4b)                            :: nSeg                  ! number of reaches
   integer(i4b)                            :: nMoles                ! number of computational molecules
@@ -2452,7 +2454,15 @@ CONTAINS
 
   if (commType == scatter) then
 
+    allocate(Q(totMeshAll))
+    if (tracer) then
+      allocate(C(totMeshAll,nTracer))
+    end if
+
     if (masterproc) then
+      ! need to allocate global array to be scattered at the other tasks
+      totMeshAll = nSeg*nMoles
+
       ! extract only tributary reaches
       allocate(SUBR0(nSeg), stat=ierr)
       if(ierr/=0)then; message=trim(message)//'problem allocating array for [SUBR0]'; return; endif
@@ -2468,28 +2478,33 @@ CONTAINS
       enddo
 
       ! convert SUBRCH data strucutre to state arrays
-      call subrch_struc2array(SUBR0,         & !input: input state data structure
-                              nMoles,        & !input: number of numerical molecules
-                              Q,             & !output: states array
-                              ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      ixMesh = 1
+      do iSeg=1,nSeg
+        Q(ixMesh:ixMesh+nMoles-1) = SUBR0(iSeg)%Q(1:nMoles)
+        ixMesh = ixMesh+nMoles
+      end do
+
+      if (tracer) then
+        ixMesh = 1
+        do iSeg=1,nSeg
+          C(ixMesh:ixMesh+nMoles-1,:) = SUBR0(iSeg)%c_solute(1:nMoles,:)
+          ixMesh = ixMesh+nMoles
+        end do
+      end if
     endif ! end of root process
 
-    ! total waves from all the tributary reaches in each proc
+    ! total molecules from all the tributary reaches in each proc
     do myid = 0, nNodes-1
       totMesh(myid) = nMoles*nReach(myid)
     enddo
 
-    ! need to allocate global array to be scattered at the other tasks
-    totMeshAll = nSeg*nMoles
-    if (.not.masterproc) then
-      allocate(Q(totMeshAll), stat=ierr)
-      if(ierr/=0)then; message=trim(message)//'problem allocating array for [Q]'; return; endif
-    endif
-
     ! Distribute modified molecule%Q data to each process
     call shr_mpi_scatterV(Q, totMesh(0:nNodes-1), Q_trib, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if (tracer) then
+      call shr_mpi_scatterV(C, totMesh(0:nNodes-1), C_trib, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
 
     ! update RCHSTA_local%molecule data structure
     ixMesh=1
@@ -2506,6 +2521,9 @@ CONTAINS
         RCHSTA_local(jSeg)%MC_ROUTE%molecule%Q(1:nMoles) = Q_trib(ixMesh:ixMesh+nMoles-1)
       else if (routeMethod==diffusiveWave) then
         RCHSTA_local(jSeg)%DW_ROUTE%molecule%Q(1:nMoles) = Q_trib(ixMesh:ixMesh+nMoles-1)
+        if (tracer) then
+          RCHSTA_local(jSeg)%DW_ROUTE%molecule%c_solute(1:nMoles,:) = C_trib(ixMesh:ixMesh+nMoles-1,:)
+        end if
       end if
       ixMesh=ixMesh+nMoles !update 1st idex of array
     end do
