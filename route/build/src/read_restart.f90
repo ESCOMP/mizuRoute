@@ -717,6 +717,7 @@ CONTAINS
     USE globalData, ONLY: meta_solute
     USE globalData, ONLY: nTracer
     USE var_lookup, ONLY: ixTracer, nVarsTracer
+    USE globalData, ONLY: nMolecule
     implicit none
     integer(i4b), intent(in)    :: idxRoute        ! routing method
     integer(i4b), intent(out)   :: ierr           ! error code
@@ -726,18 +727,27 @@ CONTAINS
     type(states)                :: state          ! temporal state data structures
     integer(i4b)                :: iVar,iSeg      ! index loops for variables, reaches respectively
     integer(i4b)                :: jSeg           ! index loops for reaches respectively
-    integer(i4b)                :: ixStart(2), ixEnd(2)  ! array indices for get_nc
+    integer(i4b)                :: ixStart2d(2), ixEnd2d(2)  ! array indices for get_nc
+    integer(i4b)                :: ixStart3d(3), ixEnd3d(3)  ! array indices for get_nc
 
     ierr=0; message1='read_solute_state/'
-    ixStart = [1, 1]
-    ixEnd = [nSeg, nTracer]
+
+    ! get Dimension sizes
+    call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%mol_dw)%dimName), nMolecule%DW_ROUTE, ierr, cmessage1)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
+
+    ixStart2d = [1, 1]
+    ixEnd2d = [nSeg, nTracer]
+    ixStart3d = [1, 1, 1]
+    ixEnd3d = [nSeg, nMolecule%DW_ROUTE, nTracer]
 
     allocate(state%var(nVarsTracer), stat=ierr, errmsg=cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
     do iVar=1,nVarsTracer
       select case(iVar)
-        case(ixTracer%mass);  allocate(state%var(iVar)%array_2d_dp(nSeg,nTracer), stat=ierr)
+        case(ixTracer%csub); allocate(state%var(iVar)%array_3d_dp(nSeg, nMolecule%DW_ROUTE, nTracer), stat=ierr)
+        case(ixTracer%mass); allocate(state%var(iVar)%array_2d_dp(nSeg,nTracer), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
       if(ierr/=0)then
@@ -747,8 +757,10 @@ CONTAINS
 
     do iVar=1,nVarsTracer
       select case(iVar)
+        case(ixTracer%csub)
+          call get_nc(fname, meta_solute(iVar)%varName, state%var(iVar)%array_3d_dp, ixStart3d, ixEnd3d, ierr, cmessage1)
         case(ixTracer%mass)
-          call get_nc(fname, meta_solute(iVar)%varName, state%var(iVar)%array_2d_dp, ixStart, ixEnd, ierr, cmessage1)
+          call get_nc(fname, meta_solute(iVar)%varName, state%var(iVar)%array_2d_dp, ixStart2d, ixEnd2d, ierr, cmessage1)
         case default
           ierr=20; message1=trim(message1)//'unable to identify tracer variable index for nc reading'; return
       end select
@@ -759,8 +771,12 @@ CONTAINS
       jSeg = ixRch_order(iSeg)
       allocate(RCHFLX(jSeg)%ROUTE(idxRoute)%reach_solute_mass(0:1,nTracer), stat=ierr, errmsg=cmessage1)
       RCHFLX(jSeg)%ROUTE(idxRoute)%reach_solute_mass(:,:) = 0._dp
+      allocate(RCHSTA(jSeg)%DW_ROUTE%molecule%c_solute(nMolecule%DW_ROUTE,nTracer), stat=ierr, errmsg=cmessage1)
+      RCHSTA(jSeg)%DW_ROUTE%molecule%c_solute(:,:) = 0._dp
       do iVar=1,nVarsTracer
         select case(iVar)
+          case(ixTracer%csub)
+            RCHSTA(jSeg)%DW_ROUTE%molecule%c_solute(1:nMolecule%DW_ROUTE,1:nTracer) = state%var(iVar)%array_3d_dp(iSeg,1:nMolecule%DW_ROUTE,1:nTracer)
           case(ixTracer%mass)
             RCHFLX(jSeg)%ROUTE(idxRoute)%reach_solute_mass(1,1:nTracer) = state%var(iVar)%array_2d_dp(iSeg, 1:nTracer)
           case default
