@@ -194,7 +194,7 @@ CONTAINS
     write(iulog,fmt1) ' diagonal(:,2)= ', diagonal(:,2)
     write(iulog,fmt1) ' diagonal(:,3)= ', diagonal(:,3)
     write(iulog,fmt1) ' b= ', b(1:nMolecule)
-    write(iulog,fmt1) ' Q sub_reqch=', (FluxSolved(ix), ix=1,nMolecule)
+    write(iulog,fmt1) ' FluxSolved= ', (FluxSolved(ix), ix=1,nMolecule)
   end if
 
   END SUBROUTINE solve_ade
