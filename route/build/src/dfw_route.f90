@@ -33,6 +33,8 @@ public::dfw_route_rch
 
 integer(i4b), parameter :: top_reach=1
 integer(i4b), parameter :: bottom_reach=2
+integer(i4b), parameter :: advec_scheme=1 ! 1->central difference, 2->upwind
+integer(i4b), parameter :: downBC = 1 ! downstream end B.C: 1->Neumann, 2->open boundary condition.
 
 type, extends(base_route_rch) :: dfw_route_rch
  CONTAINS
@@ -306,8 +308,8 @@ CONTAINS
                     Qprev,              & ! input: quantity at previous time step [unit of quantity]
                     Qlocal,             & ! inout: quantity soloved at current time step [unit of quantity]
                     verbose,            & ! input: reach index to be examined
-                    advec_scheme=1,     & ! optional input: reach index to be examined
-                    downstreamBC=1)       ! optional input: reach index to be examined
+                    advec_scheme=advec_scheme, & ! optional input: advection scheme (1->central difference, 2->upwind)
+                    downstreamBC=downBC)         ! optional input: downstream boundary condition (1->Neumann, 2->open boundary condition)
    end do
 
    ! For very low flow condition, outflow - inflow may exceed current storage, so limit outflow and adjust flow profile
