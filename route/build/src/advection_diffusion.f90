@@ -1,6 +1,6 @@
 MODULE advection_diffusion
 
-! solving advection-diffusion equation
+! Numerical solution for 1D advection-diffusion equation
 
 USE nrtype
 USE public_var,    ONLY: iulog           ! i/o logical unit number
@@ -27,7 +27,9 @@ CONTAINS
                        FluxLocal,     & ! inout: Flux soloved at current time step [unit of quantity]
                        verbose,       & ! input: reach index to be examined
                        advec_scheme,  & ! optional input: advection term descretization: 1->central difference, 2->upwind method
-                       downstreamBC   & ! optional input: downstream end B.C. 1->Neumann, 2->absorbing
+                       downstreamBC,  & ! optional input: downstream end B.C. 1->Neumann, 2->absorbing
+                       wc,            & ! optional input: advection term descretization weight: 0=fully explict to 1=fully implicit
+                       wd             & ! optional input: diffusion term descretization weight: 1=fully explict to 2=fully implicit
                        )
   ! ----------------------------------------------------------------------------------------
   ! Solve linearlized advection diffusive equation per reach and time step.
@@ -72,6 +74,8 @@ CONTAINS
   logical(lgt), intent(in)      :: verbose                   ! reach index to be examined
   integer(i4b), optional, intent(in) :: advec_scheme         ! advection term descretization: 1->central diff.(default), 2->upwind method
   integer(i4b), optional, intent(in) :: downstreamBC         ! downstream end B.C. 1->Neumann (default), 2->absorbing
+  real(dp), optional, intent(in) :: wc                       ! advection term weight
+  real(dp), optional, intent(in) :: wd                       ! diffusion term weight
   ! Local variables
   real(dp)                      :: Cd                        ! Fourier number
   real(dp)                      :: Ca                        ! Courant number
@@ -101,9 +105,14 @@ CONTAINS
   if (present(advec_scheme)) then
     advec_discretization = advec_scheme
   end if
-
-  wck = 1.0                 ! weight in advection term
-  wdk = 1.0                 ! weight in diffusion term 0.0-> fully explicit, 0.5-> Crank-Nicolson, 1.0 -> fully implicit
+  wck = 1.0   ! weight in advection term: 0.0->fully explict, 1.0->fully implicit (default)
+  if (present(wc)) then
+    wck=wc
+  end if
+  wdk = 1.0   ! weight in diffusion term: 0.0->fully explicit, 0.5->Crank-Nicolson, 1.0->fully implicit (default)
+  if (present(wd)) then
+    wdk = wd
+  end if
 
   Nx = nMolecule - 1  ! Nx: number of internal reach segments
 
