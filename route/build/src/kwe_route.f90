@@ -302,9 +302,7 @@ CONTAINS
                     Qlat,               & ! input: lateral quantity into chaneel [unit of quantity]
                     Qprev,              & ! input: quantity at previous time step [unit of quantity]
                     Qlocal,             & ! inout: quantity soloved at current time step [unit of quantity]
-                    verbose,            & ! input: reach index to be examined
-                    ierr,message)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+                    verbose)              ! input: reach index to be examined
    end do
 
    ! For very low flow condition, outflow - inflow may exceed current storage, so limit outflow and adjust flow profile
