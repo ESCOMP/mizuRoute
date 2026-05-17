@@ -2451,6 +2451,8 @@ CONTAINS
   else if (routeMethod==diffusiveWave) then
     nMoles=nMolecule%DW_ROUTE
   end if
+  ! need to allocate global array to be scattered at the other tasks
+  totMeshAll = nSeg*nMoles
 
   if (commType == scatter) then
 
@@ -2460,8 +2462,6 @@ CONTAINS
     end if
 
     if (masterproc) then
-      ! need to allocate global array to be scattered at the other tasks
-      totMeshAll = nSeg*nMoles
 
       ! extract only tributary reaches
       allocate(SUBR0(nSeg), stat=ierr)
