@@ -320,13 +320,13 @@ CONTAINS
           write(iulog,'(A)')         ' ---------------------------'
           write(iulog,'(A)')         ' 4=1-(2+3)'
           write(iulog,'(A,1PG15.7)') ' 1 dMass [mg]             = ', mb_global(1)
-          write(iulog,'(A,1PG15.7)') ' 2 lateral flux [m3]      = ', mb_global(2)
-          write(iulog,'(A,1PG15.7)') ' 3 outflux [m3]           = ', mb_global(3)
-          write(iulog,'(A,1PG15.7)') ' 4 MBerr [m3]             = ', mb_error
+          write(iulog,'(A,1PG15.7)') ' 2 lateral flux [mg]      = ', mb_global(2)
+          write(iulog,'(A,1PG15.7)') ' 3 outflux [mg]           = ', mb_global(3)
+          write(iulog,'(A,1PG15.7)') ' 4 MBerr [mg]             = ', mb_error
         end if
       endif
-      if (abs(wb_error) > 1._dp) then ! tolerance is 1 [m3]
-        write(iulog,'(A,1PG15.7,1X,A)') ' WARNING: global Mass error [m3] = ', wb_error, '> 1.0 [mg]'
+      if (abs(wb_error) > 1._dp) then ! tolerance is 1 [mg]
+        write(iulog,'(A,1PG15.7,1X,A)') ' WARNING: global Mass error [mg] = ', wb_error, '> 1.0 [mg]'
       end if
       flush(iulog)
     end if
