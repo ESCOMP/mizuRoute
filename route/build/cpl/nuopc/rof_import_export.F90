@@ -346,7 +346,7 @@ contains
     ! Flooding back to land, sign convention is positive in land->rof direction
     ! so if water is sent from rof to land, the flux must be negative.
     do n = begr, endr
-       flood(n)   =  ctl%flood(n) ! floodplain volume per HRU area [mm/s]
+       flood(n)   =  -1._r8*ctl%flood(n) ! floodplain volume per HRU area [mm/s]
        volr(n)    =  ctl%volr(n)  ! volume (channel+floodplain) per HRU area [m]
        volrmch(n) =  ctl%volr(n)  ! volume per HRU area [m]
     end do
