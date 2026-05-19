@@ -221,7 +221,13 @@ CONTAINS
        endif
        solute_per_vol = rstate%DW_ROUTE%molecule%c_solute(nMolecule%DW_ROUTE-1,iTrace)
      end if
-     solute_out = (rflux%ROUTE(idxRoute)%REACH_Q-rflux%BASIN_QR(1))*solute_per_vol
+     ! mass discharge [mg/s] = concentration [mg/m3/s] times water flux [m3/s] out of reach
+     ! REACH_Q is water flux that flowing to next reach
+     if (hw_drain_point==top_reach) then ! REACH_Q does not include BASIN_QR (this was input at top of reach)
+       solute_out = rflux%ROUTE(idxRoute)%REACH_Q*solute_per_vol
+     else ! REACH_Q includ BASIN_QR (as lateral flow), discharge from this reach without lateral flow is REACH_Q minus BASIN_QR(1)
+       solute_out = (rflux%ROUTE(idxRoute)%REACH_Q-rflux%BASIN_QR(1))*solute_per_vol
+     end if
 
      ! limit maximum allowable mass flux out of the reach
      max_outMass=rflux%ROUTE(idxRoute)%reach_solute_mass(1,iTrace)/dt + Cupstream(iTrace)
