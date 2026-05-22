@@ -198,7 +198,6 @@ CONTAINS
                                  secprhour, &   ! time conversion factor (hour->sec)
                                  secprday       ! time conversion factor (day->sec)
   USE mpi_utils,           ONLY: shr_mpi_bcast
-  USE mpi_utils,           ONLY: shr_mpi_barrier
 
   ! Argument variables
   character(len=strLen), intent(in)                 :: dir_name         ! the name of the directory that the txt file located
