@@ -1,6 +1,7 @@
 ## To get started for ctsm coupling mode
 
-User interested in using mizuRoute with CTSM is referred to CESM's user guide. Here, quick guide is provided.  
+User interested in using mizuRoute with CTSM is referred to CESM's user guide. Here, quick guide is provided. 
+This mode uses the same mizuRoute model configurations as stand-alone mode. Users still benefit from reading through [readthedocs](https://mizuroute.readthedocs.io/en/latest/). 
 
 1. Obtain CTSM code from [github](https://github.com/ESCOMP/CTSM/tree/master)
 
