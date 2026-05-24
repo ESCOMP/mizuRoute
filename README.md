@@ -57,9 +57,9 @@ A suggested contribution process is:
 
 ## Prerequisite 
 To effectively work with mizuRoute, users and developers benefit from having the following working commands. 
- 1. Linux commands.
- 2. Geographic Information System to develop and visualize river network data.
- 3. python or similar other languages to analyze/visualize data, prepare for the input.
+ 1. Linux commands (must).
+ 2. python or similar other languages to analyze/visualize data, prepare for the input (must).
+ 3. Geographic Information System to develop and visualize river network data (strongly desired).
  4. Modern Fortran (fortran 90 or later), if a user desires to change the codes.
 
 
