@@ -6,7 +6,7 @@
 
 ## Overview
 
-MizuRoute is a community river model for simulating streamflow through user-defined, catchment-based vector river network. It takes runoff or lateral inflow from from a hydrologic, land surface model, or other data sources and routes water through rivers, lakes, and reservoirs.
+MizuRoute is a river model for simulating streamflow through user-defined, catchment-based vector river network. It takes runoff or lateral inflow (river model forcing) from a hydrologic, land surface model, or other data sources and routes water through rivers, lakes, and reservoirs.
 MizuRoute is designed for multiple applications, including stand-alone hydrologic and water-resources studies, regional and continental river-routing experiments, model intercomparison studies, and coupled Earth system modeling. 
 MizuRoute supports parallel computing with Passing Interface (MPI), enabling multi-decdal to a century simulations over large and fine scale river networks such as regional, continental or global domains.
 We are also intereseted in expanding modeling capability, for example, tracers, stream temperature , data assimilations etc., as optional features, in addition to streamflow estimations.
@@ -29,14 +29,14 @@ MizuRoute is used in several ways:
 mizuRoute is commonly used in two configurations:
 
 1. **Stand-alone model** 
-   Users provide runoff or lateral inflow time series and a river network to simulate streamflow, river storage, lake/reservoir volume, and related routing diagnostics. This is how majorty of users use.
+   Users provide river model forcing time series as well asl a river network to simulate streamflow, river storage, lake/reservoir volume, and related routing diagnostics. This is how majorty of users use.
    Please refer to [getting started stand-alone mode](docs/starting_stand-alone_mode.md) 
 
 2. **ESM/land model coupled mode** 
    Currently, mizuRoute is coupled to Community Terrestrial Systems Model ([CTSM](https://github.com/ESCOMP/CTSM)), the land-model component of Community Earth System Model([CESM](https://www.cesm.ucar.edu/models)). For this use, river model forcing is directly from CTSM.
    Please refer to [getting started CTSM coupled mode](docs/starting_ctsm_couple_mode.md) 
    
-Most new users interested in rive routing applications should begin with [getting started stand-alone mode](docs/starting_stand-alone_mode.md) and [mizuRoute documentation](http://mizuRoute.readthedocs.io/)
+Most new users interested in rive routing applications should begin with [getting started stand-alone mode](docs/starting_stand-alone_mode.md) and [mizuRoute documentation](http://mizuRoute.readthedocs.io/).
 Users interested in coupled Earth system simulations should consult the CESM/CTSM documentation in addition to the mizuRoute documentation.
 
 ## Community model and contributions
