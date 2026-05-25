@@ -28,6 +28,7 @@ Lake storage evolves dynamically as a function of these fluxes, allowing the mod
 The water balance of a lake or reservoir in mizuRoute can be expressed as:
 
 .. math::
+   :label: lake_water_balance
 
    \frac{dS}{dt} = I - O + F_{\mathrm{eff}}\,A - F_{a,i}
 
@@ -44,6 +45,7 @@ The flux :math:`F_{a,i}` is defined such that positive values represent abstract
 The effective forcing term can be decomposed as:
 
 .. math::
+   :label: effective_areal_forcing
 
    F_{\mathrm{eff}} = P - E + G
 
