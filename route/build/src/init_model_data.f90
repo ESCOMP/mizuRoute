@@ -12,15 +12,9 @@ USE var_lookup, ONLY: ixPFAF             ! index of variables for the pfafstette
 
 ! Shared data
 USE public_var, ONLY: iulog
-USE public_var, ONLY: verySmall
-USE public_var, ONLY: integerMissing
-USE public_var, ONLY: realMissing
 USE public_var, ONLY: charMissing
 
 implicit none
-
-integer(i4b),parameter  :: upstream_size=1
-integer(i4b),parameter  :: stream_order=2
 
 private
 public :: get_mpi_omp
@@ -201,7 +195,6 @@ CONTAINS
   USE read_streamSeg,       ONLY: mod_meta_varFile         ! modify variable I/O options
   USE model_utils,          ONLY: model_finalize
   USE mpi_process,          ONLY: comm_ntopo_data          ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
-  USE mpi_utils,            ONLY: shr_mpi_initialized      ! If MPI is being used
   USE domain_decomposition, ONLY: mpi_domain_decomposition ! domain decomposition for mpi
   USE network_topo,         ONLY: lakeInlet                ! identify lake inlet reach
   USE network_topo,         ONLY: outletSegment            ! subroutine: find oultlet reach id, index  as a destination reach
@@ -278,7 +271,6 @@ CONTAINS
    end if
 
    call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
-                        nRch, nHRU,                                           & ! input: number of reach and HRUs that contribut to any reaches
                         structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
                         ierr, cmessage)                                         ! output: error controls
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -340,7 +332,6 @@ CONTAINS
  SUBROUTINE init_state_data(pid, nNodes, comm, ierr, message)
 
   ! external routines
-  USE ascii_utils,  ONLY: lower             ! convert string to lower case
   USE read_restart, ONLY: read_state_nc     ! read netcdf state output file
   USE mpi_process,  ONLY: mpi_restart
   ! shared data
@@ -394,7 +385,7 @@ CONTAINS
 
   do iRoute = 1, nRoutes
     if (routeMethods(iRoute)==kinematicWave) then
-      nMolecule%KW_ROUTE = 2
+      nMolecule%KW_ROUTE = 20
     else if (routeMethods(iRoute)==muskingumCunge) then
       nMolecule%MC_ROUTE = 2
     else if (routeMethods(iRoute)==diffusiveWave) then
@@ -648,9 +639,6 @@ CONTAINS
   ! options
   USE public_var, ONLY: ntopAugmentMode          ! River network augmentation mode
   USE public_var, ONLY: idSegOut                 ! River network subset mode (idSegOut > 0)
-  ! common variables
-  USE public_var, ONLY: realMissing              ! missing value for real
-  USE public_var, ONLY: integerMissing           ! missing value for integers
   ! global data
   USE globalData, ONLY: meta_PFAF                ! meta for pfafstetter code
   ! external subroutines
@@ -695,39 +683,29 @@ CONTAINS
     maxPfafLen = dummy(1)
   end if
 
-  call getData(&
-               ! input
-               trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
-               dname_nhru,   & ! input: dimension name of the HRUs
-               dname_sseg,   & ! input: dimension name of the stream segments
-               ! output: model control
+  call getData(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
+               dname_nhru,    & ! input: dimension name of the HRUs
+               dname_sseg,    & ! input: dimension name of the stream segments
                nHRU_out,      & ! output: number of HRUs
                nRch_out,      & ! output: number of stream segments
-               ! output: populate data structures
-               structHRU,    & ! ancillary data for HRUs
-               structSeg,    & ! ancillary data for stream segments
-               structHRU2seg,& ! ancillary data for mapping hru2basin
-               structNTOPO,  & ! ancillary data for network topology
-               structPFAF,   & ! ancillary data for pfafstetter code
-               ! output: error control
-               ierr,cmessage) ! output: error control
+               structHRU,     & ! output: ancillary data for HRUs
+               structSeg,     & ! output: ancillary data for stream segments
+               structHRU2seg, & ! output: ancillary data for mapping hru2basin
+               structNTOPO,   & ! output: ancillary data for network topology
+               structPFAF,    & ! output: ancillary data for pfafstetter code
+               ierr,cmessage)   ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   call check_river_properties(structNTOPO, structHRU, structSEG, ierr, cmessage) ! input: data structure for physical river network data
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  call augment_ntopo(&
-                     ! input: model control
-                     nHRU_out,                         & ! number of HRUs
+  call augment_ntopo(nHRU_out,                         & ! number of HRUs
                      nRch_out,                         & ! number of stream segments
-                     ! inout: populate data structures
                      structHRU,                        & ! ancillary data for HRUs
                      structSeg,                        & ! ancillary data for stream segments
                      structHRU2seg,                    & ! ancillary data for mapping hru2basin
                      structNTOPO,                      & ! ancillary data for network toopology
-                     ! output:
                      ierr, cmessage,                   & ! error control
-                     ! optional output
                      tot_hru       = tot_hru,          & ! total number of all the upstream hrus for all stream segments
                      tot_upseg     = tot_upseg,        & ! total number of all the immediate upstream segments for all stream segments
                      tot_upstream  = tot_upstream,     & ! total number of all the upstream segments for all stream segments
@@ -745,24 +723,18 @@ CONTAINS
     !        --> users can modify the hard-coded parameter "maxUpstreamFile" if desired
     if(tot_upstream > maxUpstreamFile) tot_upstream=0
 
-    call writeData(&
-                   ! input
-                   trim(ancil_dir)//trim(fname_ntopNew), & ! input: file name
-                   ! input: model control
+    call writeData(trim(ancil_dir)//trim(fname_ntopNew), & ! input: file name
                    tot_hru,       & ! input: total number of all the upstream hrus for all stream segments
                    tot_upseg,     & ! input: total number of immediate upstream segments for all  stream segments
                    tot_upstream,  & ! input: total number of all of the upstream stream segments for all stream segments
                    tot_uh,        & ! input: total number of unit hydrograph for all stream segments
-                   ! input: reach masks
                    ixHRU_desired, & ! input: indices of desired hrus
                    ixSeg_desired, & ! input: indices of desired reaches
-                   ! input: data structures
                    structHRU,     & ! input: ancillary data for HRUs
                    structSeg,     & ! input: ancillary data for stream segments
                    structHRU2seg, & ! input: ancillary data for mapping hru2basin
                    structNTOPO,   & ! input: ancillary data for network topology
                    structPFAF,    & ! input: ancillary data for pfafstetter code
-                   ! output: error control
                    ierr,cmessage) ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 

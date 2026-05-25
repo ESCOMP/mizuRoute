@@ -5,7 +5,6 @@ USE dataTypes,            ONLY: STRSTA          ! state in each reach
 USE dataTypes,            ONLY: STRFLX          ! fluxes in each reach
 USE dataTypes,            ONLY: RCHTOPO         ! Network topology
 USE dataTypes,            ONLY: RCHPRP          ! Reach parameter
-USE dataTypes,            ONLY: runoff          ! runoff data type
 USE dataTypes,            ONLY: subbasin_omp    ! mainstem+tributary data structures
 USE obs_data,             ONLY: gageObs
 USE globalData,           ONLY: routeMethods    ! Active routing method IDs
@@ -40,7 +39,8 @@ CONTAINS
                        RCHFLX_out,     &  ! inout: reach flux data structure
                        RCHSTA_out,     &  ! inout: reach state data structure
                        gage_obs_data,  &  ! inout: gauge data
-                       ierr, message)     ! output: error control
+                       ierr, message,  &  ! output: error control
+                       enforce_min_runoff) ! optional input: true->enforce min. runoff, false->allow any runoff (e.g., negative)
    ! Details:
    ! Given HRU (basin) runoff, perform hru routing (optional) to get reach runoff, and then channel routing
    ! This routine is called from each distributed core
@@ -74,6 +74,7 @@ CONTAINS
    type(gageObs),                   intent(inout) :: gage_obs_data        ! gauge observation data
    integer(i4b),                    intent(out)   :: ierr                 ! error code
    character(len=strLen),           intent(out)   :: message              ! error message
+   logical(lgt),       optional   , intent(in)    :: enforce_min_runoff   ! enforce minimum threshold runoff or not
    ! local variables
    character(len=strLen)                          :: cmessage             ! error message of downwind routine
    real(dp)                                       :: qobs                 ! observed discharge at a time step and site
@@ -85,10 +86,17 @@ CONTAINS
    integer(i4b)                                   :: iSeg                 ! index of reach
    integer(i4b)                                   :: ix,jx                ! loop index
    integer(i4b), allocatable                      :: reach_ix(:)
+   logical(lgt)                                   :: enfrc_min_ro         ! local variable of enforce_min_runoff
    integer(i4b), parameter                        :: no_mod=0
    integer(i4b), parameter                        :: direct_insert=1
 
    ierr=0; message = "main_routing/"
+
+  ! optional: enforcing accesptable minimum flow or not (default: yes==true)
+  enfrc_min_ro = .true.
+  if (present(enforce_min_runoff))then
+    enfrc_min_ro = enforce_min_runoff
+  end if
 
   ! number of reaches to be processed
   nSeg = size(ixRchProcessed)
@@ -145,7 +153,9 @@ CONTAINS
                    RPARAM_in,          & ! input: reach parameter
                    reachRunoff_local,  & ! output: reach runoff (m3/s)
                    ierr, cmessage,     & ! output: error control
-                   ixRchProcessed)       ! optional input: indices of reach to be routed
+                   ixRchProcessed,     & ! optional input: indices of reach to be routed
+                   enfrc_min_ro        & ! optional input: flag to enforce minimum basin runoff to runoffMin=1.e-15 [m/s]
+                   )
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    if(tracer) then
@@ -236,6 +246,12 @@ CONTAINS
 
    ! 3. subroutine: river reach routing
    do ix=1,size(routeMethods)
+     if (.not. allocated(rch_routes(ix)%rch_route)) then
+       ierr=20
+       write(cmessage,'(A,I0)') 'routing object is not allocated for routeMethods index ', ix
+       message=trim(message)//trim(cmessage)
+       return
+     end if
      call route_network(rch_routes(ix)%rch_route, &  ! input: instantiated routing object
                         routeMethods(ix),         &  ! input: routing method index
                         river_basin,              &  ! input: river basin data type
@@ -280,7 +296,7 @@ CONTAINS
 
     implicit none
     ! Argument variables
-    class(base_route_rch), intent(in),    allocatable :: rch_route
+    class(base_route_rch), intent(in)                 :: rch_route
     integer(i4b),          intent(in)                 :: idRoute              ! routing method id
     type(subbasin_omp),    intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
     real(dp),              intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
@@ -349,6 +365,7 @@ CONTAINS
 !$OMP          shared(RPARAM_in)                        & ! data structure shared
 !$OMP          shared(RCHSTA_out)                       & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
+!$OMP          shared(rch_route)                        & ! routing object shared
 !$OMP          shared(ix,idxRoute)                      & ! indices shared
 !$OMP          firstprivate(nTrib)
       do iTrib = 1,nTrib

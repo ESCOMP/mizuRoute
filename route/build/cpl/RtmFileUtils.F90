@@ -95,8 +95,6 @@ contains
      integer,          intent(in)  :: iflag   !0=>abort if file not found 1=>do not abort
 
      ! !LOCAL VARIABLES:
-     integer i               !loop index
-     integer klen            !length of fulpath character string
      logical lexist          !true if local file exists
      !--------------------------------------------------
 
@@ -149,7 +147,7 @@ contains
      ! !ARGUMENTS:
      implicit none
      character(len=*), intent(in):: locfn  !file name
-     integer, intent(in):: iun             !fortran unit number
+     integer, intent(inout) :: iun             !fortran unit number
      character(len=1), intent(in):: form   !file format: u = unformatted,
 
      ! !LOCAL VARIABLES:

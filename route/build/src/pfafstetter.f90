@@ -83,7 +83,7 @@ contains
 
   if (nSeg == 1) then ! simple case of one stream segment
     isMainstem(1) = .true.
-  else            ! standard case: 1)find odd sequence after pfafCode length and 2) digit at length of pfafCode equal to last digit of pfafCode
+  else ! standard case: 1)find odd sequence after pfafCode length and 2) digit at length of pfafCode equal to last digit of pfafCode
     do iSeg = 1,nSeg
       pfaf = adjustl(pfafs(iSeg))
       nPfaf = len(trim(pfaf))
@@ -299,7 +299,9 @@ contains
 
   ! initialize output
   nSeg = size(pfafs)
-  if (size(isClosed)/=nSeg)then;ierr=10;message=trim(message)//'isClosed array sized is inconsistent with pfaf array size';return;endif
+  if (size(isClosed)/=nSeg) then
+    ierr=10; message=trim(message)//'isClosed array size is inconsistent with pfaf array size'; return
+  end if
   isClosed(:) = .false.
   ! get the length of the basin ID (=pfafBasin)
   uniqLen = len(trim(pfafBasin))

@@ -1,9 +1,6 @@
 MODULE process_param
 
 USE nrtype
-! global parameters
-USE public_var, ONLY: realMissing    ! missing value for real number
-USE public_var, ONLY: integerMissing ! missing value for integer number
 
 implicit none
 
@@ -99,13 +96,10 @@ CONTAINS
 ! subroutine: compute normalized UH from Saint-Venant Eq. at sim. time step
 !             for all the upstream segment
 ! *********************************************************************
- SUBROUTINE make_uh(&
-                    ! Input
-                    length,     &       ! input: river segment array [meter]
+ SUBROUTINE make_uh(length,     &       ! input: river segment array [meter]
                     dt,         &       ! input: time step interval [sec]
                     velo,       &       ! input: IRF parameter 1 - celerity C for each stream segment [m/s]
                     diff,       &       ! input: IRF parameter 2 - diffusivity D for each stream segment [m^2/s]
-                    ! Output
                     seg_uh,     &       ! output: unit hydrograph ordinates for a given segment length array
                     ierr, message)   ! output: error control
  ! ----------------------------------------------------------------------------------------
@@ -158,8 +152,6 @@ CONTAINS
  nTsub=ceiling(dt/dTUH)
  !nTsub=floor(dt/dTUH)
  nSeg = size(length)
-
- maxtdh = 0
 
  ! Memory allocation
  allocate(seg_uh(nSeg), stat=ierr, errmsg=cmessage)

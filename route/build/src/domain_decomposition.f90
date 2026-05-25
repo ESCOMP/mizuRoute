@@ -12,6 +12,7 @@ USE var_lookup,        ONLY: ixHRU2SEG     ! index of variables for the netowork
 USE nr_utils,          ONLY: indexx        ! sorting array
 USE nr_utils,          ONLY: indexTrue     ! index at only true in array
 USE nr_utils,          ONLY: arth          ! generate sequential array
+USE nr_utils,          ONLY: sizeo         ! size of array, allowing unallocated array (=>0)
 ! updated and saved data
 USE public_var
 
@@ -37,12 +38,12 @@ CONTAINS
  ! ***************************************************************
  ! public subroutine: MPI Domain decomposition
  ! ***************************************************************
- SUBROUTINE mpi_domain_decomposition(nNodes,       & ! input: number of procs
-                                     nSeg,         & ! input: number of reaches
-                                     structNTOPO,  & ! input: river network data structure
-                                     structHRU2SEG,& ! input: reach-hru topology data structure
-                                     nContribHRU,  & ! output: number of contributory HRUs within the entire river network
-                                     ierr, message)  ! output: error handling
+ SUBROUTINE mpi_domain_decomposition(nNodes,        & ! input: number of procs
+                                     nSeg,          & ! input: number of reaches
+                                     structNTOPO,   & ! input: river network data structure
+                                     structHRU2SEG, & ! input: reach-hru topology data structure
+                                     nContribHRU,   & ! output: number of contributory HRUs within the entire river network
+                                     ierr, message)   ! output: error handling
 
    USE globalData, ONLY: domains_mpi             ! domain data structure - for each domain listing segment and hru indices
    USE globalData, ONLY: nDomain_mpi             ! count of decomposed domains (tributaries + mainstems)
@@ -107,20 +108,28 @@ CONTAINS
        downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
      end do
 
-     write(iulog,*) 'seg_index segid down_index down_id domain-id node-id'
+     write(iulog,*) 'domain-index node-id seg_index segid down_index down_id nContHru'
      do ix = 1,nDomain_mpi
-      associate (segIndexSub => domains_mpi(ix)%segIndex, nSubSeg => size(domains_mpi(ix)%segIndex))
-      do iSeg = 1,size(segIndexSub)
-       if (downIndex(segIndexSub(iSeg)) > 0) then
-       write(iulog, "(I9,1x,I12,1x,I9,1x,I12,1x,I5,1x,I3)") segIndexSub(iSeg),segId(segIndexSub(iSeg)), &
-                                                  downIndex(segIndexSub(iSeg)),segId(downIndex(segIndexSub(iSeg))), &
-                                                  ix, domains_mpi(ix)%idNode
-       else
-       write(iulog, "(I9,1x,I12,1x,I9,1x,I12,1x,I5,1x,I3)") segIndexSub(iSeg),segId(segIndexSub(iSeg)), &
-                                                  downIndex(segIndexSub(iSeg)),-999, &
-                                                  ix, domains_mpi(ix)%idNode
-       endif
-      end do
+      associate (segIndexSub => domains_mpi(ix)%segIndex, nSubSeg => sizeo(domains_mpi(ix)%segIndex))
+      if (nSubSeg>0) then ! if domain has segment (not endorheic)
+        do iSeg = 1,nSubSeg
+         if (downIndex(segIndexSub(iSeg)) > 0) then
+          write(iulog, "(I5,1x,I3,1x,I9,1x,I12,1x,I9,1x,I12,1x,I3)") &
+                        ix, domains_mpi(ix)%idNode, &
+                        segIndexSub(iSeg),segId(segIndexSub(iSeg)), &
+                        downIndex(segIndexSub(iSeg)),segId(downIndex(segIndexSub(iSeg))), sizeo(domains_mpi(ix)%hruIndex)
+         else
+          write(iulog, "(I5,1x,I3,1x,I9,1x,I12,1x,I9,1x,I12,1x,I3)") &
+                        ix, domains_mpi(ix)%idNode, &
+                        segIndexSub(iSeg),segId(segIndexSub(iSeg)), &
+                        downIndex(segIndexSub(iSeg)),-999, sizeo(domains_mpi(ix)%hruIndex)
+         endif
+        end do
+      else ! if domain does not has any segment (endorheic)
+        write(iulog, "(I5,1x,I3,1x,I9,1x,I12,1x,I9,1x,I12,1x,I3)") &
+                      ix, domains_mpi(ix)%idNode, &
+                      -999,-999, -999, -999, sizeo(domains_mpi(ix)%hruIndex)
+      end if
       end associate
      end do
 
@@ -129,7 +138,9 @@ CONTAINS
      do ix = 1,nDomain_mpi
       associate (segIndexSub => domains_mpi(ix)%segIndex)
       ! reach index array in order of node assignment
-      missing(segIndexSub) = .false.
+      if (sizeo(domains_mpi(ix)%segIndex)>0) then ! non-endorheic domain only (endorheic domain does not have any reaches)
+       missing(segIndexSub) = .false.
+      end if
       end associate
      end do
      if (count(missing)>0) then
@@ -482,8 +493,6 @@ CONTAINS
    integer(i4b), allocatable                             :: HRUindex(:)         ! local array for HRU indices
    integer(i4b), allocatable                             :: ixEndorheic(:)      ! local array for endorheic HRU indices
    integer(i4b), allocatable                             :: index_array(:)      ! local index array
-   integer(i4b)                                          :: segIndex(nSeg)      ! reach index for all the reaches
-   integer(i4b)                                          :: downIndex(nSeg)     ! downstream reach index for all the reacheds
    logical(lgt)                                          :: majorMainstem(nSeg) ! logical to indicate reach is "major" mainstem
    integer(i4b)                                          :: nUpSeg              ! number of upstream reaches for a reach
    integer(i4b)                                          :: sumHruLocal         ! sum of hrus that contribute to the segments
@@ -505,9 +514,7 @@ CONTAINS
 
    ! put ntopo data structure components into a separate array
    do iSeg = 1, nSeg
-     segIndex(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
-     downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
-     nUpSeg          = size(structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat)
+     nUpSeg = size(structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat)
      if (nUpSeg > maxSegs) majorMainstem(iSeg) = .true.
    enddo
 
@@ -750,7 +757,9 @@ CONTAINS
 
    nTribSeg = 0  ! number of tributary reaches
    nTrib = 0     ! number of tributaries
+   nSubSeg(:) = 0
    do ix = 1,nDomain
+    if (domains(ix)%basinType==endorheic) cycle
     nSubSeg(ix) = size(domains(ix)%segIndex)
     if (domains(ix)%basinType==tributary) then
      nTribSeg = nTribSeg + nSubSeg(ix)

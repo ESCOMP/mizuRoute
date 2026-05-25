@@ -172,6 +172,7 @@ CONTAINS
    case('<ro_calendar>');          ro_calendar  = trim(cData)                          ! name of calendar used in runoff input netcdfs
    case('<ro_time_units>');        ro_time_units = trim(cData)                         ! time units used in runoff input netcdfs
    case('<ro_time_stamp>');        ro_time_stamp = trim(cData)                         ! time stamp used input - start, middle, or end, otherwise error
+   case('<runoffMin>');            read(cData,*,iostat=io_error) runoffMin             ! minimum runoff volume [m3/s] from HRU.
    ! Water-management input netCDF - water abstraction/infjection or lake target volume
    case('<fname_wm>');             fname_wm        = trim(cData)                       ! name of text file containing ordered nc file names
    case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                       ! name of varibale for fluxes to and from seg (reachs/lakes)
@@ -364,12 +365,14 @@ CONTAINS
    case('<varname_pfafCode>'     ); meta_PFAF   (ixPFAF%code           )%varName =trim(cData)  ! pfafstetter code
 
    ! CESM coupling variables (not used for stand-alone)
-   case('<qgwl_runoff_option>'   ); qgwl_runoff_option    = trim(cData)  ! handling negative qgwl runoff: all, negative, threshold
-   case('<bypass_routing_option>'); bypass_routing_option = trim(cData)  ! routing bypass option: direct_in_place, direct_to_outlet, none
+   case('<qgwl_runoff_option>'   ); qgwl_runoff_option    = trim(cData)                        ! handling negative qgwl runoff: all, negative, threshold
+   case('<bypass_routing_option>'); bypass_routing_option = trim(cData)                        ! routing bypass option: direct_in_place, direct_to_outlet, none
+   case('<correct_area>');          read(cData,*,iostat=io_error) correct_area                 ! logical flag: area correction between model and coupler areas.
+   case('<ice_runoff>');            read(cData,*,iostat=io_error) ice_runoff                   ! logical flag: true => ice sent to coupler separately from liquid, otherwise combined with liquid
 
    ! if not in list then keep going
    case default
-    message=trim(message)//'unexpected text in control file provided: '//trim(cName)&
+    message=trim(message)//'unexpected text in control file provided: '//trim(cName) &
                          //' (note strings in control file must match the variable names in public_var.f90)'
     err=20; return
   end select
@@ -390,7 +393,8 @@ CONTAINS
 
  ! ---------- restart option  ---------------------------------------------------------------------
  if (trim(runMode)=='standalone' .or. .not. continue_run) then
-   if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
+   if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' &
+      .or. lower(trim(fname_state_in))=='coldstart') then
      isColdStart=.true.
    else
      isColdStart=.false.
@@ -464,7 +468,8 @@ CONTAINS
    case('h','hr','hour');    time_conv = 1._dp/secprhour
    case('s','sec','second'); time_conv = 1._dp
    case default
-     message=trim(message)//'expect the time units of runoff to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
+     message=trim(message)//'expect the time units of runoff to be "day"("d"), "hour"("h") or "second"("s") &
+             & [time units = '//trim(cTime)//']'
      err=81; return
  end select
 
@@ -496,7 +501,8 @@ CONTAINS
      case('h','hr','hour');    time_conv_solute = 1._dp/secprhour
      case('s','sec','second'); time_conv_solute = 1._dp
      case default
-       message=trim(message)//'expect the time units of mass flux to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
+       message=trim(message)//'expect the time units of mass flux to be "day"("d"), "hour"("h") or "second"("s") &
+             & [time units = '//trim(cTime)//']'
        err=81; return
    end select
  end if
@@ -527,7 +533,9 @@ CONTAINS
    case default
      read(outputFrequency,'(I5)',iostat=err) nOutFreq
      if (err/=0) then
-       message=trim(message)//'<outputFrequency> is invalid: must be "daily", "monthly", "yearly" or positive integer (number of time steps)'; return
+       message=trim(message)//'<outputFrequency> is invalid: must be "daily", "monthly", "yearly" &
+             & or positive integer (number of time steps)'
+       return
      end if
      if (nOutFreq<0) then
        message=trim(message)//'<outputFrequency> is invalid: must be positive integer'; return
@@ -664,7 +672,7 @@ CONTAINS
  ! Control routing method dependent variable name - routedRunoff, volume, elevation etc.
  ! use generic name if outputNameOption is set to 'generic' AND only one routing method is activated w or w/o accumRunoff
  isGeneric = trim(lower(outputNameOption))=='generic'
- onlyOneRouting = ((nRoutes==2 .and. any(routeMethods==accumRunoff) .or. nRoutes==1))
+ onlyOneRouting = ((nRoutes==2 .and. any(routeMethods==accumRunoff)) .or. nRoutes==1)
  if (onlyOneRouting .and. isGeneric) then
    do iRoute = 1, nRoutes
      select case(routeMethods(iRoute))
@@ -709,7 +717,7 @@ CONTAINS
  ! if routing methods are not including DW and tracer is on, execution is aborted and instruct user to include 5(DW) in route_opt
  if (all(routeMethods/=diffusiveWave)) then
    if (tracer) then
-     message=trim(message)//'Tracer is on without DW routig method included. Please include 5 (==DW method) in route_opt when tracer is on.'
+     message=trim(message)//'Tracer is on w/o DW routig method. Please include 5 (==DW method) in route_opt when tracer is on.'
      err=20; return
    end if
    meta_rflx(ixRFLX%DWsoluteFlux)%varFile = .false.

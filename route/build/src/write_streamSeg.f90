@@ -22,11 +22,6 @@ USE globalData, ONLY: meta_PFAF           ! network topology
 ! named variables
 USE var_lookup, ONLY: ixStruct, nStructures  ! index of data structures
 USE var_lookup, ONLY: ixDims,   nDimensions  ! index of dimensions
-USE var_lookup, ONLY: ixHRU,    nVarsHRU     ! index of variables for the HRUs
-USE var_lookup, ONLY: ixSEG,    nVarsSEG     ! index of variables for the stream segments
-USE var_lookup, ONLY: ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-USE var_lookup, ONLY: ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
-USE var_lookup, ONLY: ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
 
 ! netcdf modules
 USE netcdf
@@ -43,24 +38,18 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: write ancillary data for HRUs and stream segments
  ! *********************************************************************
- subroutine writeData(&
-                      ! input
-                      fname,         & ! input: file name
-                      ! input: model control
+ subroutine writeData(fname,         & ! input: file name
                       tot_hru,       & ! input: total number of all the upstream hrus for all stream segments
                       tot_upseg,     & ! input: total number of immediate upstream segments for all  stream segments
                       tot_upstream,  & ! input: total number of all of the upstream stream segments for all stream segments
                       tot_uh,        & ! input: total number of all of unit hydrographs for all the segments
-                      ! input: reach masks
                       ixHRU_desired, & ! input: indices of desired hrus
                       ixSeg_desired, & ! input: indices of desired reaches
-                      ! input: data structures
                       structHRU,     & ! input: ancillary data for HRUs
                       structSeg,     & ! input: ancillary data for stream segments
                       structHRU2seg, & ! input: ancillary data for mapping hru2basin
                       structNTOPO,   & ! input: ancillary data for network toopology
                       structPFAF,    & ! input: ancillary data for pfafstetter code
-                      ! output: error control
                       ierr,message)    ! output: error control
  implicit none
  ! input variables
@@ -168,7 +157,6 @@ CONTAINS
  integer(i4b)                        :: ncid             ! NetCDF file ID
  integer(i4b)                        :: jDim             ! dimension index
  integer(i4b)                        :: iStruct          ! structure index
- integer(i4b),parameter              :: nVars=30         ! number of variables
  character(len=strLen)               :: cmessage         ! error message of downwind routine
 
  ierr=0; message='createFile/'
@@ -200,11 +188,13 @@ CONTAINS
   if (.not.dimCheck(jDim)) cycle
 
   ! define the start index
-  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_start', 'start index in ragged array', '-', nf90_int, ixDims%seg, ierr, cmessage)
+  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_start', 'start index in ragged array', '-', &
+                 & nf90_int, ixDims%seg, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! define the count
-  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_count', 'count of spatial element in ragged array', '-', nf90_int, ixDims%seg, ierr, cmessage)
+  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_count', 'count of spatial element in ragged array', '-', &
+                 & nf90_int, ixDims%seg, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end do  ! looping through dimensions
@@ -242,12 +232,9 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: define variable in NetCDF file
  ! *********************************************************************
- subroutine defineVar(&
-                      ! input
-                      ncid,         & ! input: NetCDF id
+ subroutine defineVar(ncid,         & ! input: NetCDF id
                       meta,         & ! input: metadata structure
                       ivtype,       & ! input: variable type
-                      ! output: error control
                       ierr,message)   ! output: error control
  implicit none
  ! input variables
@@ -278,15 +265,12 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: define variable in NetCDF file
  ! *********************************************************************
- subroutine varDefine(&
-                      ! input
-                      ncid,         & ! input: NetCDF id
+ subroutine varDefine(ncid,         & ! input: NetCDF id
                       varName,      & ! input: variable name
                       varDesc,      & ! input: variable description
                       varUnit,      & ! input: variable units
                       ivtype,       & ! input: variable type
                       ivdim,        & ! input: variable dimension
-                      ! output: error control
                       ierr,message)   ! output: error control
  implicit none
  ! input variables
@@ -333,14 +317,11 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: write variables to NetCDF file (double precision)
  ! *********************************************************************
- subroutine writeVar_dp(&
-                        ! input
-                        fname,        & ! input: filename
+ subroutine writeVar_dp(fname,        & ! input: filename
                         nSpace,       & ! input: number of spatial elements
                         meta,         & ! input: metadata structure
                         struct,       & ! input: variable type
                         ixDesired,    & ! input: vector of desired spatial elements
-                        ! output: error control
                         ierr,message)   ! output: error control
  implicit none
  ! input variables
@@ -462,14 +443,11 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: write variables to NetCDF file (integer)
  ! *********************************************************************
- subroutine writeVar_i4b(&
-                         ! input
-                         fname,        & ! input: filename
+ subroutine writeVar_i4b(fname,        & ! input: filename
                          nSpace,       & ! input: number of spatial elements
                          meta,         & ! input: metadata structure
                          struct,       & ! input: variable type
                          ixDesired,    & ! input: vector of desired spatial elements
-                         ! output: error control
                          ierr,message)   ! output: error control
  implicit none
  ! input variables
@@ -592,14 +570,11 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: write variables to NetCDF file (character array)
  ! *********************************************************************
- subroutine writeVar_char(&
-                         ! input
-                         fname,        & ! input: filename
+ subroutine writeVar_char(fname,       & ! input: filename
                          nSpace,       & ! input: number of spatial elements
                          meta,         & ! input: metadata structure
                          struct,       & ! input: variable type
                          ixDesired,    & ! input: vector of desired spatial elements
-                         ! output: error control
                          ierr,message)   ! output: error control
  implicit none
  ! input variables

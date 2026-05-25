@@ -8,24 +8,16 @@ USE dataTypes, ONLY: var_dlength    ! double precision type: var(:)%dat
 ! public parameters
 USE public_var, ONLY: iulog          ! i/o logical unit number
 
-! metadata on data structures
-USE globalData, ONLY: meta_struct  ! structure information
-USE globalData, ONLY: meta_HRU     ! HRU properties
-USE globalData, ONLY: meta_HRU2SEG ! HRU-to-segment mapping
-USE globalData, ONLY: meta_SEG     ! stream segment properties
-USE globalData, ONLY: meta_NTOPO   ! network topology
-
 ! named variables
 USE public_var, ONLY: true,false      ! named integers for true/false
 USE public_var, ONLY: verySmall       ! a very small value
 USE public_var, ONLY: integerMissing
 
 ! named variables
-USE var_lookup, ONLY:ixStruct, nStructures  ! index of data structures
-USE var_lookup, ONLY:ixHRU,    nVarsHRU     ! index of variables for the HRUs
-USE var_lookup, ONLY:ixSEG,    nVarsSEG     ! index of variables for the stream segments
-USE var_lookup, ONLY:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
+USE var_lookup, ONLY:ixHRU      ! index of variables for the HRUs
+USE var_lookup, ONLY:ixSEG      ! index of variables for the stream segments
+USE var_lookup, ONLY:ixHRU2SEG  ! index of variables for the hru2segment mapping
+USE var_lookup, ONLY:ixNTOPO    ! index of variables for the network topology
 
 ! external utilities
 USE nr_utils, ONLY: findIndex     ! Num. Recipies utilities
@@ -51,18 +43,14 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: compute correspondence between HRUs and segments
  ! *********************************************************************
- subroutine hru2segment(&
-                        ! input
-                        nHRU,       &   ! input: number of HRUs
-                        nSeg,       &   ! input: number of stream segments
-                        ! input-output: data structures
-                        structHRU,     & ! ancillary data for HRUs
-                        structSeg,     & ! ancillary data for stream segments
-                        structHRU2seg, & ! ancillary data for mapping hru2basin
-                        structNTOPO,   & ! ancillary data for network toopology
-                        ! output
-                        total_hru,  &   ! output: total number of HRUs that drain into any segments
-                        ierr, message)  ! output: error control
+ subroutine hru2segment(nHRU,          & ! input: number of HRUs
+                        nSeg,          & ! input: number of stream segments
+                        structHRU,     & ! inout: ancillary data for HRUs
+                        structSeg,     & ! inout: ancillary data for stream segments
+                        structHRU2seg, & ! inout: ancillary data for mapping hru2basin
+                        structNTOPO,   & ! inout: ancillary data for network toopology
+                        total_hru,     & ! output: total number of HRUs that drain into any segments
+                        ierr, message)   ! output: error control
  implicit none
  ! input variables
  integer(i4b), intent(in)                      :: nHRU              ! number of HRUs
@@ -105,13 +93,10 @@ CONTAINS
   hruSegId(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruSegId)%dat(1)
  end do
 
- call downReachIndex(&
-                     ! input
-                     nHRU,          & ! number of upstream elements
+ call downReachIndex(nHRU,          & ! number of upstream elements
                      nSeg,          & ! number of stream segments
                      segId,         & ! unique identifier of the stream segments
                      hruSegId,      & ! unique identifier of the segment where water drains
-                     ! output
                      segHRUix,      & ! index of downstream stream segment
                      nHRU2seg,      & ! number of elements that drain into each segment
                      ierr,cmessage)   ! error control
@@ -214,12 +199,8 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: mapping between upstream and downstream segments
  ! *********************************************************************
- subroutine up2downSegment(&
-                           ! input
-                           nRch,         & ! input: number of stream segments
-                           ! input-output: data structures
-                           structNTOPO,  & ! ancillary data for network toopology
-                           ! output
+ subroutine up2downSegment(nRch,         & ! input: number of stream segments
+                           structNTOPO,  & ! inout: ancillary data for network toopology
                            total_upseg,  & ! output: sum of immediate upstream segments
                            ierr, message)  ! output (error control)
  implicit none
@@ -232,7 +213,6 @@ CONTAINS
  integer(i4b)      , intent(out)                :: ierr             ! error code
  character(*)      , intent(out)                :: message          ! error message
  ! local variables
- logical(lgt),parameter          :: checkMap=.true.     ! flag to check the mapping
  logical(lgt)                    :: checkDownID         ! flag to invalid downstream id
  character(len=strLen)           :: cmessage            ! error message of downwind routine
  integer(i4b)                    :: iRch                ! reach index
@@ -273,13 +253,10 @@ CONTAINS
  endif
 
  ! define the index of the downstream reach ID
- call downReachIndex(&
-                     ! input
-                     nRch,          & ! number of upstream elements
+ call downReachIndex(nRch,          & ! number of upstream elements
                      nRch,          & ! number of stream segments
                      segId,         & ! unique identifier of the stream segments
                      downSegId,     & ! unique identifier of the downstream segment
-                     ! output
                      downIndex,     & ! index of downstream stream segment
                      nUpstream,     & ! number of elements that drain into each segment
                      ierr,cmessage)   ! error control
@@ -382,13 +359,10 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: define index of downstream reach
  ! *********************************************************************
- subroutine downReachIndex(&
-                           ! input
-                           nUp,          & ! number of upstream elements
+ subroutine downReachIndex(nUp,          & ! number of upstream elements
                            nSeg,         & ! number of stream segments
                            segId,        & ! unique identifier of the stream segments
                            downId,       & ! unique identifier of the segment where water drains
-                           ! output
                            downSegIndex, & ! index of downstream stream segment
                            nElement2Seg, & ! number of elements that drain into each segment
                            ierr,message)
@@ -493,9 +467,9 @@ CONTAINS
  ! subroutine: define processing order for the individual
  !                 stream segments in the river network
  ! *********************************************************************
- subroutine REACHORDER(NRCH,         &   ! input:        number of reaches
-                       structNTOPO,  &   ! input:output: network topology
-                       ierr, message)    ! output:       error control
+ subroutine REACHORDER(NRCH,         &   ! input:  number of reaches
+                       structNTOPO,  &   ! inout:  network topology
+                       ierr, message)    ! output: error control
  ! ----------------------------------------------------------------------------------------
  ! Purpose:
  !
@@ -660,12 +634,9 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: identify all reaches above the current reach
  ! *********************************************************************
- SUBROUTINE reach_list(&
-                       ! input
-                       NRCH,        & ! Number of reaches
+ SUBROUTINE reach_list(NRCH,        & ! Number of reaches
                        doReachList, & ! flag to compute the list of upstream reaches
                        structNTOPO, & ! Network topology
-                       ! output
                        structSEG,   & ! Reach properties
                        NTOTAL,      & ! Total number of upstream reaches for all reaches
                        ierr,message)  ! Error control
@@ -810,22 +781,17 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: identify all reaches above a given reach
  ! *********************************************************************
- SUBROUTINE reach_mask(&
-                       ! input
-                       desireId,      &  ! input: reach index
-                       structNTOPO,   &  ! input: network topology structures
+ SUBROUTINE reach_mask(desireId,      &  ! input: reach index
+                       structNTOPO,   &  ! input+output:: network topology structures
                        structSeg,     &  ! input: Reach property structures
                        nHRU,          &  ! input: number of HRUs
                        nRch,          &  ! input: number of reaches
-                       ! output: updated dimensions
                        tot_hru,       &  ! input+output: total number of all the upstream hrus for all stream segments
                        tot_upseg,     &  ! input+output: sum of immediate upstream segments
                        tot_upstream,  &  ! input+output: total number of upstream reaches for all reaches
                        tot_uh,        &  ! input+output: total number of unit hydrograph dimensions
-                       ! output: dimension masks
                        ixHRU_desired, &  ! output: indices of desired hrus
                        ixSeg_desired, &  ! output: indices of desired reaches
-                       ! output: error control
                        ierr, message )   ! output: error control
  ! ----------------------------------------------------------------------------------------
  ! Purpose:
@@ -834,7 +800,7 @@ CONTAINS
  !
  ! ----------------------------------------------------------------------------------------
 
- IMPLICIT NONE
+ implicit none
  ! input variables
  integer(i4b)      , intent(in)                :: desireId          ! id of the desired reach
  type(var_ilength) , intent(inout)             :: structNTOPO(:)    ! network topology structure
@@ -869,7 +835,7 @@ CONTAINS
  ! check if we actually want the mask
  if(desireId<0)then
 
-  ! ---------- case 1: no mask desired ---------------------------------------------------------------------------------------------------
+  ! ---------- case 1: no mask desired ---------------------------------------------------------------------------------------------
 
   ! allocate space
   allocate(ixHRU_desired(nHRU), ixSeg_desired(nRch), stat=ierr)
@@ -883,7 +849,7 @@ CONTAINS
  ! mask is desired
  else
 
-  ! ---------- case 2: mask desired ------------------------------------------------------------------------------------------------------
+  ! ---------- case 2: mask desired ------------------------------------------------------------------------------------------------
 
   ! initialize the HRU map
   ixHRU_map(:) = integerMissing
@@ -1036,20 +1002,15 @@ CONTAINS
  ! *********************************************************************
  ! new subroutine: identify all reaches above a given reach
  ! *********************************************************************
- SUBROUTINE REACH_MASK_ORIG(&
-                            ! input
-                            desireId,      &  ! input: reach index
+ SUBROUTINE REACH_MASK_ORIG(desireId,      &  ! input: reach index
                             structNTOPO,   &  ! input: network topology structures
                             nHRU,          &  ! input: number of HRUs
                             nRch,          &  ! input: number of reaches
-                            ! output: updated dimensions
                             tot_hru,       &  ! input+output: total number of all the upstream hrus for all stream segments
                             tot_upseg,     &  ! input+output: sum of immediate upstream segments
                             tot_upstream,  &  ! input+output: total number of upstream reaches for all reaches
-                            ! output: dimension masks
                             ixHRU_desired, &  ! output: indices of desired hrus
                             ixSeg_desired, &  ! output: indices of desired reaches
-                            ! output: error control
                             ierr, message )   ! output: error control
  ! ----------------------------------------------------------------------------------------
  ! Purpose:
@@ -1133,7 +1094,7 @@ CONTAINS
   ! skip if we have already tested krch
   if(isTested(kRch)) cycle
 
-  ! ---------- get a vector of reaches downstream of a given reach -----------------------------------------------------------------------
+  ! ---------- get a vector of reaches downstream of a given reach -----------------------------------------------------------------
 
   ! initialise the reach array
   nDown = 0        ! initialize the number of upstream reaches
@@ -1183,7 +1144,7 @@ CONTAINS
    print*, trim(message)//'pause: '; read(*,*)
   endif
 
-  ! ---------- extract the vector from the linked list -----------------------------------------------------------------------------------
+  ! ---------- extract the vector from the linked list -----------------------------------------------------------------------------
 
   ! allocate space
   allocate(ixDownstream(nDown),stat=ierr)
@@ -1229,7 +1190,7 @@ CONTAINS
 
  END DO  ! assess each reach
 
- ! ---------- check for errors ----------------------------------------------------------------------------------------------------------
+ ! ---------- check for errors -----------------------------------------------------------------------------------------------------
 
  nRch_desire = count(isDesired)
 
@@ -1245,7 +1206,7 @@ CONTAINS
   ierr=20; return
  endif
 
- ! ---------- get the subset of indices -------------------------------------------------------------------------------------------------
+ ! ---------- get the subset of indices --------------------------------------------------------------------------------------------
 
  allocate(ixSeg_desired(nRch_desire), stat=ierr)
  if(ierr/=0) message=trim(message)//'unable to allocate space for the vectors of desired reaches'
@@ -1270,7 +1231,7 @@ CONTAINS
  ! pack the desired indices into the HRU vector
  ixHRU_desired(:) = pack(ixHRU_map, ixHRU_map/=integerMissing)
 
- ! --------- update the dimension lengths ---------------------------------------------------------------------------------------------
+ ! --------- update the dimension lengths ------------------------------------------------------------------------------------------
 
 
  tot_hru       = 0_i4b  ! total number of all the upstream hrus for all stream segments

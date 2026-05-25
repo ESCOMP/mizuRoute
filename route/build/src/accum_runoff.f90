@@ -81,13 +81,13 @@ CONTAINS
    if (nUps>0) then
      write(fmt1,'(A,I5,A)') '(A,1X',nUps,'(1X,I10))'
      write(fmt2,'(A,I5,A)') '(A,1X',nUps,'(1X,F20.7))'
-     write(iulog,'(a)')             ' * upstream reach index (NETOPO_in%UREACH) and discharge (uprflux) [m3/s] :'
-     write(iulog,fmt1)              ' UREACHK =', (NETOPO_in(segIndex)%UREACHK(iUps), iUps=1,nUps)
-     write(iulog,fmt2)              ' prflux  =', (RCHFLX_out(NETOPO_in(segIndex)%UREACHI(iUps))%ROUTE(idxSUM)%REACH_Q, iUps=1,nUps)
+     write(iulog,'(a)') ' * upstream reach index (NETOPO_in%UREACH) and inflow (uprflux) [m3/s] :'
+     write(iulog,fmt1) ' UREACHK =', (NETOPO_in(segIndex)%UREACHK(iUps), iUps=1,nUps)
+     write(iulog,fmt2) ' prflux  =', (RCHFLX_out(NETOPO_in(segIndex)%UREACHI(iUps))%ROUTE(idxSUM)%REACH_Q, iUps=1,nUps)
    end if
-   write(iulog,'(a)')             ' * local area discharge (RCHFLX_out%BASIN_QR(1)) and final discharge (RCHFLX_out%ROUTE(idxSUM)%REACH_Q) [m3/s] :'
-   write(iulog,'(a,1x,G15.4)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(segIndex)%BASIN_QR(1)
-   write(iulog,'(a,1x,G15.4)')     ' RCHFLX_out%ROUTE(idxSUM)%REACH_Q =', RCHFLX_out(segIndex)%ROUTE(idxSUM)%REACH_Q
+   write(iulog,'(a)') ' * lateral flow (RCHFLX_out%BASIN_QR(1)) and accumulated flow (RCHFLX_out%ROUTE(idxSUM)%REACH_Q) [m3/s] :'
+   write(iulog,'(a,1x,G15.4)') ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(segIndex)%BASIN_QR(1)
+   write(iulog,'(a,1x,G15.4)') ' RCHFLX_out%ROUTE(idxSUM)%REACH_Q =', RCHFLX_out(segIndex)%ROUTE(idxSUM)%REACH_Q
  endif
 
  END SUBROUTINE accum_inst_runoff

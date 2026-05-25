@@ -19,6 +19,7 @@ MODULE mpi_utils
   public :: shr_mpi_scatterV
   public :: shr_mpi_allgather
   public :: shr_mpi_reduce
+  public :: shr_mpi_sparse_distribute
   public :: shr_mpi_chkerr
   public :: shr_mpi_commsize
   public :: shr_mpi_commrank
@@ -872,6 +873,133 @@ CONTAINS
     end select
 
   END SUBROUTINE shr_mpi_reduceRealV
+
+  ! -----------------------------------------------
+  ! Sparse real array element transfer across tasks
+  ! ------------------------------------------------
+  subroutine shr_mpi_sparse_distribute(src_array, dest_task, dest_index, & ! input
+                                       dest_array,                       & ! output
+                                       agg, fillvalue)                     ! optional arguments
+    ! Description:
+    !   Every element in real src_array is sent to a specified task and index of dest_array
+    !   if there are multiple source elements from different src_array(s), aggregate them with max/min/sum/mean.
+    !   If there is no source elements sent to any indices in dest_array(s), put fillvalue
+    implicit none
+    ! Argument variables:
+    real(dp),    intent(in)           :: src_array(:)   ! source array to be distributed
+    integer,     intent(in)           :: dest_task(:)   ! destination task for each element
+    integer,     intent(in)           :: dest_index(:)  ! destination index for for each element
+    real(dp),    intent(out)          :: dest_array(:)  ! final array after transferred
+    character(*),intent(in),optional  :: agg            ! aggregation methods at overlapped transferred elements
+    real(dp),    intent(in),optional  :: fillvalue      ! fill value (missing value) in dest_array
+    ! Local variables:
+    integer                       :: i,r,k
+    integer,  allocatable         :: send_counts(:)         ! total number of destination tasks in a source array per task
+    integer,  allocatable         :: recv_counts(:)         ! total number of source tasks in a dest array per task
+    integer,  allocatable         :: sdispls(:), rdispls(:) ! sent/recive displacemnet in MPR_ALLtoallV function
+    integer                       :: total_send, total_recv ! total number of elements sents/recieved per task
+    integer,  allocatable         :: send_indices(:)        ! index of packed source array
+    integer,  allocatable         :: recv_indices(:)        ! index of parked recived array
+    integer,  allocatable         :: cursor(:)              !
+    integer,  allocatable         :: elem_counts(:)         ! number of elements sent at each dest array index
+    real(dp), allocatable         :: recv_values(:)         ! packed recived array after trasfer
+    real(dp), allocatable         :: send_values(:)         ! source array packed
+    real(dp)                      :: fillvalue_local        ! fill values to be filled in missing dest array elements
+    character(4)                  :: agg_method             ! aggregation method: sum, max, min, or mean
+    integer                       :: ierr
+
+    agg_method='sum'
+    if (present(agg)) then
+      agg_method=trim(agg)
+    end if
+    fillvalue_local=-9999._dp
+    if (present(fillvalue)) then
+      fillvalue_local=fillvalue
+    end if
+
+    ! Count how many to send to each task
+    allocate(send_counts(nNodes), recv_counts(nNodes))
+    send_counts(:) = 0
+    do i = 1, size(dest_task)
+      send_counts(dest_task(i)+1) = send_counts(dest_task(i)+1) + 1 ! task starts with 0, but array index starts with 1
+    end do
+
+    ! Exchange counts
+    call MPI_Alltoall(send_counts, 1, MPI_INTEGER, &
+                      recv_counts, 1, MPI_INTEGER, mpicom_route, ierr)
+    total_send = sum(send_counts)
+    total_recv = sum(recv_counts)
+
+    ! Build displacements
+    allocate(sdispls(nNodes), rdispls(nNodes))
+
+    sdispls(1) = 0
+    rdispls(1) = 0
+    do r = 2, nNodes
+      sdispls(r) = sdispls(r-1) + send_counts(r-1)
+      rdispls(r) = rdispls(r-1) + recv_counts(r-1)
+    end do
+
+    ! Pack send buffers (value + index)
+    allocate(send_values(total_send), send_indices(total_send))
+    allocate(cursor(nNodes))
+
+    cursor = sdispls
+    do i = 1, size(dest_task)
+      r = dest_task(i) + 1
+      k = cursor(r) + 1
+
+      send_values(k)  = src_array(i)
+      send_indices(k) = dest_index(i)
+
+      cursor(r) = cursor(r) + 1
+    end do
+
+    ! All-to-all exchange
+    allocate(recv_values(total_recv))
+    allocate(recv_indices(total_recv))
+
+    call MPI_Alltoallv(send_values, send_counts, sdispls, MPI_DOUBLE_PRECISION, &
+                       recv_values, recv_counts, rdispls, MPI_DOUBLE_PRECISION, &
+                       mpicom_route, ierr)
+
+    call MPI_Alltoallv(send_indices, send_counts, sdispls, MPI_INTEGER, &
+                       recv_indices, recv_counts, rdispls, MPI_INTEGER, &
+                       mpicom_route, ierr)
+
+    ! aggregate contributions
+    allocate(elem_counts(size(dest_array)), source=0)
+    if (trim(agg_method)=="sum" .or. trim(agg_method)=="mean") then
+      dest_array = 0._dp
+      do r = 1, total_recv
+        elem_counts(recv_indices(r)) = elem_counts(recv_indices(r)) + 1
+        dest_array(recv_indices(r)) = dest_array(recv_indices(r)) + recv_values(r)
+      end do
+      if (trim(agg_method)=="mean") then
+        where (elem_counts>0)
+          dest_array = dest_array / elem_counts
+        end where
+      end if
+    else if (trim(agg_method)=="min") then
+      dest_array = huge(0._dp)
+      do r = 1, total_recv
+        elem_counts(recv_indices(r)) = elem_counts(recv_indices(r)) + 1
+        dest_array(recv_indices(r)) = min(dest_array(recv_indices(r)), recv_values(r))
+      end do
+    else if (trim(agg_method)=="max") then
+      dest_array = -huge(0._dp)
+      do r = 1, total_recv
+        elem_counts(recv_indices(r)) = elem_counts(recv_indices(r)) + 1
+        dest_array(recv_indices(r)) = max(dest_array(recv_indices(r)), recv_values(r))
+      end do
+    end if
+
+    ! finalize array by filling missing element
+    where (elem_counts==0)
+      dest_array = fillvalue_local
+    end where
+
+  end subroutine shr_mpi_sparse_distribute
 
   !-------------------------------------------------------------------------------
   ! PURPOSE: MPI number of tasks

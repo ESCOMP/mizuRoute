@@ -97,7 +97,7 @@ Here assume that all the libaries are installed using homebrew 🍺, and gnu com
 
      Execute::
 
-         mk -p libraries/parallelio
+         mkdir -p libraries/parallelio
          ./bin/git-fleximod -g .gitmodules update
 
      See mizuRoute/README_EXTERNALS.rst for more details.

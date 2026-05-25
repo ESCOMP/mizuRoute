@@ -21,9 +21,9 @@
       <value component="mizuroute" >$SRCROOT</value>
       <value component="rtm"       >$SRCROOT/components/rtm/</value>
       <value component="mosart"    >$SRCROOT/components/mosart/</value>
-      <value component="drof"      >$CIMEROOT/src/components/data_comps/drof</value>
-      <value component="srof"      >$CIMEROOT/src/components/stub_comps/srof</value>
-      <value component="xrof"      >$CIMEROOT/src/components/xcpl_comps/xrof</value>
+      <value component="drof"      >$SRCROOT/components/cdeps/drof</value>
+      <value component="srof"      >$CIMEROOT/CIME/non_py/src/components/stub_comps_$COMP_INTERFACE/srof</value>
+      <value component="xrof"      >$SRCROOT/components/cmeps/med_test_comps/xrof</value>
     </values>
     <group>case_comps</group>
     <file>env_case.xml</file>

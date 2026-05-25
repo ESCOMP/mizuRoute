@@ -3,7 +3,6 @@ MODULE pio_utils
   USE mpi
   USE nrtype
   USE pio
-  USE public_var, only : iulog
 
   implicit none
 
@@ -75,13 +74,13 @@ CONTAINS
   ! *********************************************************************
   ! subroutine: initialize ParallelIO system
   ! *********************************************************************
-  SUBROUTINE pio_sys_init(pid,       &  !input
-                          comm,      &  !input
-                          stride,    &  !input
-                          nIOtasks,  &  !input
-                          rearranger,&  !input
-                          idxBase,   &  !input
-                          pioIOsystem)  !output
+  SUBROUTINE pio_sys_init(pid,        &  ! input
+                          comm,       &  ! input
+                          stride,     &  ! input
+                          nIOtasks,   &  ! input
+                          rearranger, &  ! input
+                          idxBase,    &  ! input
+                          pioIOsystem)   ! output
     implicit none
     ! ARGUMENTS:
     integer(i4b),          intent(in)  :: pid
@@ -486,10 +485,7 @@ CONTAINS
   integer(i4b),     intent(out)           :: ierr
   character(*),     intent(out)           :: message      ! error message
   ! local variables
-  integer(i4b)                            :: dimid0(1)           ! dimid for no dimension
   type(var_desc_t)                        :: pioVarId
-
-  dimid0 = 0
 
   if (present(pioDimId)) then
     ierr = pio_def_var(pioFileDesc, trim(vname), ivtype, pioDimId, pioVarId)

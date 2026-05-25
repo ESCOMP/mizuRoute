@@ -548,7 +548,7 @@ CONTAINS
         type is (character(len=*))
           tmp = repeat(' ',len(col_data)) ! size the string
           call this%get_cell_value(i, icol, tmp, istat)
-          col_data(i) = tmp
+          col_data(i:this%nrows) = tmp  ! this works with both intel and gcc.  col_data(i)=tmp works only with intel, not with gcc.
         class default
           call this%get_cell_value(i, icol, col_data(i), istat)
         end select

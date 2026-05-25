@@ -2,6 +2,7 @@
   <comp_archive_spec compname="mizuroute" compclass="rof">
     <rest_file_extension>r</rest_file_extension>
     <hist_file_extension>h.*\.nc$</hist_file_extension>
+    <hist_file_extension>e</hist_file_extension>
     <hist_file_extension>h_gauge.*\.nc$</hist_file_extension>
     <rest_history_varname>history_file</rest_history_varname>
     <rpointer>
@@ -18,6 +19,7 @@
       <tfile disposition="move">casename.mizuroute.h.1976.nc</tfile>
       <tfile disposition="ignore">anothercasename.mizuroute.h.1976-01.nc</tfile>
       <tfile disposition="ignore">casename.mizuroute.h.1976-01-01.nc.base</tfile>
+      <tfile disposition="move">casename.mizuroute.e.1976-01-01.nc</tfile>
     </test_file_names>
   </comp_archive_spec>
 </components>

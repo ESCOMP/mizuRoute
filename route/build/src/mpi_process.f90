@@ -18,18 +18,15 @@ USE globalData, ONLY: meta_HRU
 USE dataTypes, ONLY: var_ilength              ! integer type:     var(:)%dat
 USE dataTypes, ONLY: var_dlength              ! double precision type: var(:)%dat
 USE dataTypes, ONLY: var_clength              ! character type:        var(:)%dat
-USE dataTypes, ONLY: subbasin_omp             ! openMP domain data structure
 ! named variables
-USE var_lookup, ONLY:ixHRU,    nVarsHRU       ! index of variables for the HRUs
-USE var_lookup, ONLY:ixSEG,    nVarsSEG       ! index of variables for the stream segments
-USE var_lookup, ONLY:ixHRU2SEG,nVarsHRU2SEG   ! index of variables for the hru2segment mapping
+USE var_lookup, ONLY:nVarsHRU       ! index of variables for the HRUs
+USE var_lookup, ONLY:nVarsSEG       ! index of variables for the stream segments
+USE var_lookup, ONLY:nVarsHRU2SEG   ! index of variables for the hru2segment mapping
 USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO     ! index of variables for the network topology
-USE var_lookup, ONLY:ixPFAF,   nVarsPFAF      ! index of variables for the pfafstetter code
 ! general utility
 USE nr_utils,  ONLY: indexx           ! create sorted index array
 USE nr_utils,  ONLY: arth             ! build a vector of regularly spaced numbers
 USE nr_utils,  ONLY: sizeo            ! get size of allocatable array (if not allocated, zero)
-USE nr_utils,  ONLY: findIndex        ! find index within a vector
 USE nr_utils,  ONLY: match_index      !
 USE perf_mod,  ONLY: t_startf         ! timing start
 USE perf_mod,  ONLY: t_stopf          ! timing stop
@@ -38,8 +35,6 @@ USE mpi_utils, ONLY: shr_mpi_bcast
 USE mpi_utils, ONLY: shr_mpi_gatherV
 USE mpi_utils, ONLY: shr_mpi_scatterV
 USE mpi_utils, ONLY: shr_mpi_allgather
-USE mpi_utils, ONLY: shr_mpi_barrier
-USE mpi_utils, ONLY: shr_mpi_abort
 
 implicit none
 
@@ -63,7 +58,6 @@ private
 public :: comm_ntopo_data
 public :: mpi_restart
 public :: mpi_route
-public :: pass_global_data
 
 CONTAINS
 
@@ -73,8 +67,6 @@ CONTAINS
  SUBROUTINE comm_ntopo_data(pid,                & ! input: proc id
                             nNodes,             & ! input: number of procs
                             comm,               & ! input: communicator
-                            nRch_in,            & ! input: number of stream segments in whole domain
-                            nHRU_in,            & ! input: number of HRUs that are connected to reaches
                             structHRU,          & ! input: data structure for HRUs
                             structSEG,          & ! input: data structure for stream segments
                             structHRU2seg,      & ! input: data structure for mapping hru2basin
@@ -91,6 +83,8 @@ CONTAINS
   USE globalData,          ONLY: RPARAM_trib              ! reach physical parameter data structure (per proc, tributary)
   USE globalData,          ONLY: NETOPO_main              ! network topology data structure (per proc, tributary)
   USE globalData,          ONLY: RPARAM_main              ! reach physical parameter data structure (per proc, tributary)
+  USE globalData,          ONLY: nRch                     ! number of reaches in the entire network
+  USE globalData,          ONLY: nHRU                     ! number of HRUs in the entire network
   USE globalData,          ONLY: nRch_mainstem            ! number of mainstem reaches
   USE globalData,          ONLY: nHRU_mainstem            ! number of mainstem HRUs
   USE globalData,          ONLY: basinRunoff_main         ! mainstem only HRU runoff
@@ -119,7 +113,7 @@ CONTAINS
   USE globalData,          ONLY: runMode                  ! mizuRoute run mode - standalone or ctsm-coupling
   USE globalData,          ONLY: reachID
   USE globalData,          ONLY: basinID
-  USE globalData,          ONLY: commRch                  !
+  USE globalData,          ONLY: maxtdh                   !
   USE public_var,          ONLY: tracer                   ! logical whether or not tracer is on
   USE public_var,          ONLY: is_flux_wm               ! logical whether or not water abstraction/injection occurs
   USE public_var,          ONLY: is_lake_sim              ! logical whether or not lake simulation occurs
@@ -134,8 +128,6 @@ CONTAINS
   integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),                   intent(in)  :: nNodes                   ! number of processes (MPI)
   integer(i4b),                   intent(in)  :: comm                     ! communicator
-  integer(i4b),                   intent(in)  :: nRch_in                  ! number of total reaches
-  integer(i4b),                   intent(in)  :: nHRU_in                  ! number of total HRUs that are connected to reaches
   type(var_dlength), allocatable, intent(in)  :: structHRU(:)             ! HRU properties
   type(var_dlength), allocatable, intent(in)  :: structSEG(:)             ! stream segment properties
   type(var_ilength), allocatable, intent(in)  :: structHRU2SEG(:)         ! HRU to SEG mapping
@@ -160,18 +152,8 @@ CONTAINS
   real(dp),          allocatable              :: array_dp_temp_local(:)   ! double precision temporal array
   integer(i4b),      allocatable              :: array_int_temp(:)        ! integer temporal array
   integer(i4b),      allocatable              :: array_int_temp_local(:)  ! integer temporal array
-  integer(i4b)                                :: ixNode(nRch_in)          ! node assignment for each reach
-  integer(i4b)                                :: ixDomain(nRch_in)        ! domain index for each reach
-  !
-  integer(i4b)                                :: ixDestSeg                !
-  integer(i4b)                                :: ixLocalSeg               !
-  integer(i4b)                                :: nComm                    !
-  integer(i4b),     allocatable               :: destSegId(:)             !
-  integer(i4b),     allocatable               :: destSegIndex(:)          !
-  integer(i4b),     allocatable               :: srcTask(:)               !
-  integer(i4b),     allocatable               :: destTask(:)              !
-  integer(i4b),     allocatable               :: srcIndex(:)              !
-  integer(i4b),     allocatable               :: destIndex(:)             !
+  integer(i4b)                                :: ixNode(nRch)             ! node assignment for each reach
+  integer(i4b)                                :: ixDomain(nRch)           ! domain index for each reach
   !
   logical(lgt),      allocatable              :: tribOutlet(:)            ! logical to indicate tributary outlet to mainstems over entire network
   integer(i4b)                                :: nRch_trib_outlet         ! number of tributary outlets for each proc (scalar)
@@ -209,7 +191,7 @@ CONTAINS
     allocate(rch_per_proc(-1:nNodes-1), hru_per_proc(-1:nNodes-1), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [rch_per_proc, hru_per_proc]'; return; endif
 
-    allocate(ixHRU_order(nHRU_in),ixRch_order(nRch_in), stat=ierr)
+    allocate(ixHRU_order(nHRU),ixRch_order(nRch), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixHRU_order, ixRch_order]'; return; endif
 
     ! Create segIndex array from domains derived type. The array is sorted from node 0 through nNodes-1
@@ -228,7 +210,7 @@ CONTAINS
     domain:do ix = 1, nDomain_mpi
       ! get the number of stream segments and HRUs in each domain
       ixx = rnkIdNode(ix)
-      associate (nSubSeg => size(domains_mpi(ixx)%segIndex), nSubHru => size(domains_mpi(ixx)%hruIndex) )
+      associate (nSubSeg => sizeo(domains_mpi(ixx)%segIndex), nSubHru => sizeo(domains_mpi(ixx)%hruIndex) )
 
       ! define reach global index array in order of node assignment
       if (domains_mpi(ixx)%basinType /= endorheic ) then   ! endorheic domain does not have reaches
@@ -262,67 +244,12 @@ CONTAINS
     deallocate(domains_mpi)
 
     ! Reorder reachID and basinID for output to match up with order of RCHFLX/RCHSTA reach order and basinRunoff hru order
-    reachID(1:nRch_in) = reachID( ixRch_order )
-    basinID(1:nHRU_in) = basinID( ixHRU_order )
-
-    ! Find destination reach index (in local domain) and task-id
-    if (trim(runMode)=='cesm-coupling' .and. &
-        trim(bypass_routing_option)=='direct_to_outlet') then
-
-      allocate(srcTask(nRch_in),destTask(nRch_in), srcIndex(nRch_in), destIndex(nRch_in))
-      allocate(destSegIndex(nRch_in), destSegId(nRch_in))
-
-      srcTask(:)   = integerMissing
-      destTask(:)  = integerMissing
-      srcIndex(:)  = integerMissing
-      destIndex(:) = integerMissing
-
-      do iSeg=1,nRch_in
-        jSeg = ixRch_order(iSeg)
-        destSegId(iSeg) = structNTOPO(jSeg)%var(ixNTOPO%destSegId)%dat(1)
-      end do
-      ! matching index in reachID
-      destSegIndex = match_index(reachID, destSegId, ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      nComm = 0
-      do iSeg = 1,nRch_in
-        ! process only if source and destination reaches are different
-        if (destSegId(iSeg)/=integerMissing .and. reachID(iSeg) /= destSegId(iseg)) then
-          nComm = nComm + 1
-          if (ixNode(iSeg)>0) then ! if this segment is in any non-main tasks
-            ixLocalSeg = iSeg - sum(rch_per_proc(-1:ixNode(iSeg)-1))
-          else
-            ixLocalSeg = iSeg
-          end if
-          if (ixNode(destSegIndex(iSeg))>0) then
-            ixDestSeg = destSegIndex(iSeg)-sum(rch_per_proc(-1:ixNode(destSegIndex(iSeg))-1))
-          else
-            ixDestSeg = destSegIndex(iSeg)
-          end if
-
-          if (ixNode(iSeg)==-1) then
-            srcTask(nComm) = 0
-          else
-            srcTask(nComm) = ixNode(iSeg)
-          end if
-
-          if (ixNode(destSegIndex(iSeg))==-1) then
-            destTask(nComm) = 0
-          else
-            destTask(nComm) = ixNode(destSegIndex(iSeg))
-          end if
-
-          srcIndex(nComm) = ixLocalSeg
-          destIndex(nComm) = ixDestSeg
-        end if
-      end do
-      deallocate(destSegIndex, destSegId)
-    end if
+    reachID(1:nRch) = reachID( ixRch_order )
+    basinID(1:nHRU) = basinID( ixHRU_order )
 
     if (debug_mpi) then
       write(iulog,'(a)') 'ix, segId, ixRch_order, domain-index, proc-id'
-      do ix = 1,nRch_in
+      do ix = 1,nRch
         write(iulog,*) ix, structNTOPO(ix)%var(ixNTOPO%segId)%dat(1), ixRch_order(ix), ixDomain(ix), ixNode(ix)
       enddo
     endif
@@ -330,6 +257,10 @@ CONTAINS
   endif  ! ( masterproc )
 
   ! sends the number of reaches/hrus per proc to all processors
+  call shr_mpi_bcast(nRch, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  call shr_mpi_bcast(nHRU, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call shr_mpi_bcast(rch_per_proc, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call shr_mpi_bcast(hru_per_proc, ierr, cmessage)
@@ -343,37 +274,20 @@ CONTAINS
   call shr_mpi_bcast(basinID,ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! element-to-element transfer data
-  if (trim(runMode)=='cesm-coupling' .and. &
-      trim(bypass_routing_option)=='direct_to_outlet') then
-
-    call shr_mpi_bcast(nComm, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call shr_mpi_bcast(srcTask, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call shr_mpi_bcast(destTask, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call shr_mpi_bcast(srcIndex, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call shr_mpi_bcast(destIndex, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    allocate(commRch(nComm))
-    do ix = 1, nComm
-      commRch(ix)%srcTask   = srcTask(ix)
-      commRch(ix)%destTask  = destTask(ix)
-      commRch(ix)%srcIndex  = srcIndex(ix)
-      commRch(ix)%destIndex = destIndex(ix)
-    end do
-    call shr_mpi_barrier(comm, cmessage)
-    deallocate(srcTask, destTask, srcIndex, destIndex)
-  end if
-
   ! define the number of reaches/hrus on the mainstem
   nRch_mainstem = rch_per_proc(-1)
   nHRU_mainstem = hru_per_proc(-1)
   nRch_trib     = rch_per_proc(pid)
   nHRU_trib     = hru_per_proc(pid)
+
+  ! element-to-element transfer data
+  if (trim(runMode)=='cesm-coupling' .and. &
+      trim(bypass_routing_option)=='direct_to_outlet') then
+
+    call sparse_dist_data(pid, nNodes, nRch, reachID, structNTOPO, ixNode, ierr, message)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  end if
 
   ! ********************************************************************************************************************
   ! process for processor 0 through nNodes (tributary domains)
@@ -392,18 +306,18 @@ CONTAINS
     !  Send the information for tributaries to individual processors
     ! -----------------------------------------------------------------------------
 
-    allocate(array_int_temp(nRch_in), array_dp_temp(nRch_in), stat=ierr, errmsg=cmessage)
+    allocate(array_int_temp(nRch), array_dp_temp(nRch), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     do ix=1,nVarsNTOPO
       if (meta_NTOPO(ix)%varFile .or. ix==ixNTOPO%isLakeInlet) then  ! isLakeInlet also needs to distributed
         if (masterproc) then
-          do iSeg = 1,nRch_in
+          do iSeg = 1,nRch
             jSeg = ixRch_order(iSeg)
             array_int_temp(iSeg) = structNTOPO(jSeg)%var(ix)%dat(1)
           end do
         end if
-        call shr_mpi_scatterV(array_int_temp(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), array_int_temp_local, ierr, cmessage)
+        call shr_mpi_scatterV(array_int_temp(nRch_mainstem+1:nRch), rch_per_proc(0:nNodes-1), array_int_temp_local, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
         do iSeg = 1,size(array_int_temp_local)
           structNTOPO_local(iSeg)%var(ix)%dat(1) = array_int_temp_local(iSeg)
@@ -414,12 +328,12 @@ CONTAINS
     do ix=1,nVarsSEG
       if (.not. meta_SEG(ix)%varFile) cycle
       if (masterproc) then
-        do iSeg = 1,nRch_in
+        do iSeg = 1,nRch
           jSeg = ixRch_order(iSeg)
           array_dp_temp(iSeg) = structSEG(jSeg)%var(ix)%dat(1)
         end do
       end if
-      call shr_mpi_scatterV(array_dp_temp(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), array_dp_temp_local, ierr, cmessage)
+      call shr_mpi_scatterV(array_dp_temp(nRch_mainstem+1:nRch), rch_per_proc(0:nNodes-1), array_dp_temp_local, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       do iSeg = 1,size(array_dp_temp_local)
         structSEG_local(iSeg)%var(ix)%dat(1) = array_dp_temp_local(iSeg)
@@ -428,18 +342,18 @@ CONTAINS
 
     deallocate(array_dp_temp, array_int_temp, stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    allocate(array_dp_temp(nHRU_in), array_int_temp(nHRU_in), stat=ierr, errmsg=cmessage)
+    allocate(array_dp_temp(nHRU), array_int_temp(nHRU), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     do ix=1,nVarsHRU2SEG
       if (.not. meta_HRU2SEG(ix)%varFile) cycle
       if (masterproc) then
-        do iHru = 1,nHRU_in
+        do iHru = 1,nHRU
           jHRU = ixHRU_order(iHru)
           array_int_temp(iHru) = structHRU2SEG(jHru)%var(ix)%dat(1)
         end do
       end if
-      call shr_mpi_scatterV(array_int_temp(nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), array_int_temp_local, ierr, cmessage)
+      call shr_mpi_scatterV(array_int_temp(nHRU_mainstem+1:nHRU), hru_per_proc(0:nNodes-1), array_int_temp_local, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       do iHru = 1,size(array_int_temp_local)
         structHRU2SEG_local(iHru)%var(ix)%dat(1) = array_int_temp_local(iHru)
@@ -449,12 +363,12 @@ CONTAINS
     do ix=1,nVarsHRU
       if (.not. meta_HRU(ix)%varFile) cycle
       if (masterproc) then
-        do iHru = 1,nHRU_in
+        do iHru = 1,nHRU
           jHRU = ixHRU_order(iHru)
           array_dp_temp(iHru) = structHRU(jHru)%var(ix)%dat(1)
         end do
       end if
-      call shr_mpi_scatterV(array_dp_temp(nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), array_dp_temp_local, ierr, cmessage)
+      call shr_mpi_scatterV(array_dp_temp(nHRU_mainstem+1:nHRU), hru_per_proc(0:nNodes-1), array_dp_temp_local, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       do iHru = 1,size(array_dp_temp_local)
         structHRU_local(iHru)%var(ix)%dat(1) = array_dp_temp_local(iHru)
@@ -792,6 +706,8 @@ CONTAINS
     end if ! (masterproc)
   end if ! (nRch_mainstem > 0)
 
+  call MPI_ALLREDUCE(MPI_IN_PLACE, maxtdh, 1, MPI_INTEGER, MPI_MAX, comm, ierr)
+
  END SUBROUTINE comm_ntopo_data
 
 
@@ -809,6 +725,10 @@ CONTAINS
   USE globalData, ONLY: nTribOutlet      !
   USE globalData, ONLY: ixRch_order      ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
   USE globalData, ONLY: global_ix_comm   ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
+  USE globalData, ONLY: NETOPO_trib      ! tributary reach parameter structure
+  USE globalData, ONLY: NETOPO_main      ! mainstem reach parameter structure
+  USE globalData, ONLY: RPARAM_trib      ! tributary reach parameter structure
+  USE globalData, ONLY: RPARAM_main      ! mainstem reach parameter structure
   USE globalData, ONLY: RCHFLX_trib      ! tributary reach flux structure
   USE globalData, ONLY: RCHSTA_trib      ! tributary reach state structure
   USE globalData, ONLY: RCHFLX           ! entire reach flux structure
@@ -826,15 +746,20 @@ CONTAINS
   ! local variables
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
   integer(i4b)                          :: iSeg,jSeg                ! loop indices
-  integer(i4b)                          :: nTbound = 2
   real(dp),     allocatable             :: flux_global(:)           ! basin runoff (m/s) for entire reaches
   real(dp),     allocatable             :: vol_global_tmp(:)        ! temporary reach/lake volume (m3) for entire network
   real(dp),     allocatable             :: flux_local(:)            ! basin runoff (m/s) for tributaries
   real(dp),     allocatable             :: vol_local(:)             ! reach/lake volume (m3) for tributaries
+  real(dp),     allocatable             :: TSEC_local(:)            ! temporary tsec array for allocatable array broadcasting (TSEC is not allocatable array)
 
   ierr=0; message='mpi_restart/'
 
-  call MPI_BCAST(TSEC, nTbound, MPI_DOUBLE_PRECISION, root, comm, ierr)
+  allocate(TSEC_local(1:2))
+  if (masterproc) then
+    TSEC_local(1:2) = TSEC(1:2)
+  end if
+  call shr_mpi_bcast(TSEC_local, ierr, cmessage)
+  TSEC(1:2)=TSEC_local(1:2)
 
   allocate(flux_global(nRch))
   allocate(flux_local(rch_per_proc(pid)))
@@ -1051,12 +976,33 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     if (masterproc) then
+      if (nRch_mainstem>0) then ! populate flood volume (NOTE channel volume is already populated) for mainstem
+        do iSeg = 1, nRch_mainstem
+          RCHFLX_trib(iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+          if (is_lake_sim .and. NETOPO_main(iSeg)%isLake) cycle ! if lake keep 0 for flood_vol
+          if (RCHFLX_trib(iSeg)%ROUTE(idxDW)%REACH_VOL(1) > RPARAM_main(iSeg)%R_STORAGE) then
+            RCHFLX_trib(iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = RCHFLX_trib(iSeg)%ROUTE(idxDW)%REACH_VOL(1) - RPARAM_main(iSeg)%R_STORAGE
+          end if
+        end do
+      end if
       do iSeg = 1, rch_per_proc(pid)
         RCHFLX_trib(nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxDW)%REACH_VOL(1) = vol_local(iSeg)
+        ! populate flood volume
+        RCHFLX_trib(nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+        if (is_lake_sim .and. NETOPO_trib(iSeg)%isLake) cycle ! if lake keep 0 for flood_vol
+        if (vol_local(iSeg) > RPARAM_trib(iSeg)%R_STORAGE) then
+          RCHFLX_trib(nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = vol_local(iSeg)-RPARAM_trib(iSeg)%R_STORAGE
+        end if
       enddo
     else
       do iSeg = 1, rch_per_proc(pid)
         RCHFLX_trib(iSeg)%ROUTE(idxDW)%REACH_VOL(1) = vol_local(iSeg)
+        ! populate flood volume
+        RCHFLX_trib(iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+        if (is_lake_sim .and. NETOPO_trib(iSeg)%isLake) cycle ! if lake keep 0 for flood_vol
+        if (vol_local(iSeg) > RPARAM_trib(iSeg)%R_STORAGE) then
+          RCHFLX_trib(iSeg)%ROUTE(idxDW)%FLOOD_VOL(1) =  vol_local(iSeg)-RPARAM_trib(iSeg)%R_STORAGE
+        end if
       end do
     end if
   end if ! (onRoute(diffusiveWave))
@@ -1143,7 +1089,8 @@ CONTAINS
                       nNodes,        & ! input: number of procs
                       comm,          & ! input: communicator
                       ierr, message, & ! output: error control
-                      scatter_ro)      ! optional input: logical. .true. => scatter global hru runoff to mainstem and tributary
+                      scatter_ro   , & ! optional input: logical. .true. => scatter global hru runoff to mainstem and tributary
+                      enforce_min_runoff) ! optional input: true->enforce min. runoff, false->allow any runoff (e.g., negative)
   ! shared data
   USE globalData, ONLY: NETOPO_trib         ! tributary river netowrk topology structure
   USE globalData, ONLY: NETOPO_main         ! mainstem river netowrk topology structure
@@ -1197,19 +1144,25 @@ CONTAINS
   integer(i4b),             intent(out) :: ierr
   character(len=strLen),    intent(out) :: message                  ! error message
   logical(lgt), optional,   intent(in)  :: scatter_ro               ! logical to indicate if scattering global runoff is required
+  logical(lgt), optional,   intent(in)  :: enforce_min_runoff       ! enforce minimum runoff or not. min runoff is defined in runoffMin in Public_var.f90
   ! local variables
   integer(i4b), allocatable             :: ixRchProcessed(:)        ! reach indice list to be processed
   integer(i4b)                          :: ix1,ix2                  !
   integer(i4b)                          :: ixRoute                  !
   logical(lgt)                          :: doesScatterData          ! temporal logical to indicate if scattering global flux is required
+  logical(lgt)                          :: enfrc_min_ro             ! local variable of enforce_min_runoff
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
 
   ierr=0; message='mpi_route/'
 
+  ! handling optional arguments
+  doesScatterData = .true.
   if (present(scatter_ro)) then
     doesScatterData = scatter_ro
-  else
-    doesScatterData = .true.
+  end if
+  enfrc_min_ro = .true.
+  if (present(enforce_min_runoff))then
+    enfrc_min_ro = enforce_min_runoff
   end if
 
   ! --------------------------------
@@ -1274,7 +1227,8 @@ CONTAINS
                   RCHFLX_trib(ix1:ix2),   &  ! inout: reach flux data structure
                   RCHSTA_trib(ix1:ix2),   &  ! inout: reach state data structure
                   gage_obs_data_trib, &  ! inout: gage obs data for tributary reaches
-                  ierr, cmessage)        ! output: error control
+                  ierr, cmessage,     &  ! output: error control
+                  enfrc_min_ro)          ! optional input: flag to enforce minimum basin runoff input to runoffMin [m3/s]
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call t_stopf ('route/tributary-route')
 
@@ -1310,7 +1264,7 @@ CONTAINS
       ! KWT state communication
       call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
                               tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
-                              RCHSTA_trib(1:nRch_mainstem+nTribOutlet), & ! input:
+                              RCHSTA_trib,         & ! input:
                               RCHSTA_trib,         & ! input:
                               global_ix_main,      & ! input:
                               local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
@@ -1350,7 +1304,8 @@ CONTAINS
                       RCHFLX_trib(1:nRch_mainstem+nTribOutlet),  &  ! inout: reach flux data structure
                       RCHSTA_trib(1:nRch_mainstem+nTribOutlet),  &  ! inout: reach state data structure
                       gage_obs_data_main,      &  ! inout: gage obs data for mainstem reaches
-                      ierr, cmessage)              ! output: error control
+                      ierr, cmessage,          &  ! output: error control
+                      enfrc_min_ro)               ! optional input: flag to enforce minimum basin runoff input to runoffMin [m3/s]
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       call t_stopf ('route/mainstem_route')
@@ -1363,7 +1318,7 @@ CONTAINS
       call t_startf ('route/scatter-kwt-state')
       call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
                               tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
-                              RCHSTA_trib(1:nRch_mainstem+nTribOutlet), & ! input:
+                              RCHSTA_trib,         & ! input:
                               RCHSTA_trib,         & ! input:
                               global_ix_main,      &
                               local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
@@ -2101,7 +2056,7 @@ CONTAINS
     endif ! end of root process
 
     ! will have to broadcast updated ntdh to all proc
-    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
+    call shr_mpi_bcast(ntdh, ierr, cmessage)
 
     if (.not.masterproc) then
       allocate(qfuture(sum(ntdh)),stat=ierr, errmsg=cmessage)
@@ -2193,7 +2148,7 @@ CONTAINS
     call shr_mpi_gatherV(ntdh_trib, nReach, ntdh, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
+    call shr_mpi_bcast(ntdh, ierr, cmessage)
 
     ! total waves in reaches in each proc
     ix2=0
@@ -2304,7 +2259,7 @@ CONTAINS
     endif ! end of root process
 
     ! will have to broadcast updated ntdh to all proc
-    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
+    call shr_mpi_bcast(ntdh, ierr, cmessage)
 
     if (.not.masterproc) then
       allocate(qfuture(sum(ntdh)),stat=ierr, errmsg=cmessage)
@@ -2375,7 +2330,7 @@ CONTAINS
     call shr_mpi_gatherV(ntdh_trib, nReach, ntdh, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
+    call shr_mpi_bcast(ntdh, ierr, cmessage)
 
     ! total waves in reaches in each proc
     ix2=0
@@ -2621,7 +2576,7 @@ CONTAINS
     endif ! end of root process
 
     ! will have to broadcast updated nWave to all proc
-    call MPI_BCAST(nWave, nSeg, MPI_INTEGER, root, comm, ierr)
+    call shr_mpi_bcast(nWave, ierr, cmessage)
 
     ! total waves from all the tributary reaches in each proc
     ix2=0
@@ -2711,7 +2666,7 @@ CONTAINS
     call shr_mpi_gatherV(nWave_trib, nReach, nWave, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call MPI_BCAST(nWave, nSeg, MPI_INTEGER, root, comm, ierr)
+    call shr_mpi_bcast(nWave, ierr, cmessage)
 
     ! total waves in reaches in each proc
     ix2=0
@@ -2953,34 +2908,91 @@ CONTAINS
 
  END SUBROUTINE subrch_struc2array
 
- ! *********************************************************************
- ! public subroutine: send global data
- ! *********************************************************************
- ! send all the necessary public/global variables neccesary in task
- SUBROUTINE pass_global_data(comm, ierr, message)   ! output: error control
-  USE globalData, ONLY: nRch,nHRU         ! number of reaches and hrus in whole network
-  USE globalData, ONLY: iTime             ! time index
-  USE globalData, ONLY: maxtdh            !
-  implicit none
-  ! argument variables
-  integer(i4b),                   intent(in)  :: comm    ! communicator
-  integer(i4b),                   intent(out) :: ierr
-  character(len=strLen),          intent(out) :: message ! error message
 
-  integer(i4b) :: receivemax      ! Receive buffer for MAX over all tasks
+ SUBROUTINE sparse_dist_data(pid, nNodes, nRch_in, reachID_in, structNTOPO, ixNode, ierr, message)   !
+   USE globalData, ONLY: commRch           !
+   USE globalData, ONLY: nRch_mainstem     ! number of mainstem reaches
+   USE globalData, ONLY: nRch_trib         ! number of tributary reaches
+   USE globalData, ONLY: ixRch_order       ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
+   USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
+   implicit none
+   ! argument variables
+   integer(i4b),                   intent(in)  :: pid                      ! proessor id
+   integer(i4b),                   intent(in)  :: nNodes                   ! number of tasks
+   integer(i4b),                   intent(in)  :: nRch_in                  ! number of total reaches
+   integer(i4b),                   intent(in)  :: reachID_in(:)            ! reach ID array
+   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)           ! network topology
+   integer(i4b),                   intent(in)  :: ixNode(:)                ! task assingment for reach
+   integer(i4b),                   intent(out) :: ierr
+   character(len=strLen),          intent(out) :: message                  ! error message
+   integer(i4b)                                :: iSeg,jSeg                ! reach indices
+   integer(i4b)                                :: destSegId(nRch_in)       !
+   integer(i4b)                                :: destSegIndex(nRch_in)    !
+   integer(i4b)                                :: destTask(nRch_in)        !
+   integer(i4b)                                :: destIndex(nRch_in)       !
+   integer(i4b), allocatable                   :: destTask_local(:)        !
+   integer(i4b), allocatable                   :: destIndex_local(:)       !
+   character(len=strLen)                       :: cmessage                 ! error message from subroutine
 
-  ierr=0; message='pass_global_data/'
+   ierr=0; message='sparse_dist_data/'
 
-  ! send scalars
-  call MPI_BCAST(iTime,       1,     MPI_INTEGER,          root, comm, ierr)
-  call MPI_BCAST(nRch,        1,     MPI_INTEGER,          root, comm, ierr)
-  call MPI_BCAST(nHRU,        1,     MPI_INTEGER,          root, comm, ierr)
-  call MPI_BCAST(calendar,  strLen,  MPI_CHARACTER,        root, comm, ierr)
-  call MPI_BCAST(time_units,strLen,  MPI_CHARACTER,        root, comm, ierr)
+   ! data for the entire network, which is scatter to the other tasks
+   destTask(:)=integerMissing
+   destIndex(:)=integerMissing
 
-  CALL MPI_ALLREDUCE(maxtdh, receivemax, 1, MPI_INTEGER, MPI_MAX, comm, ierr)
-  maxtdh = receivemax
+   if (masterproc) then ! this is a root process
+     do iSeg=1,nRch_in
+       jSeg = ixRch_order(iSeg)
+       destSegId(iSeg) = structNTOPO(jSeg)%var(ixNTOPO%destSegId)%dat(1)
+     end do
+     ! matching index in reachID
+     destSegIndex = match_index(reachID_in, destSegId, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- END SUBROUTINE pass_global_data
+     do iSeg = 1,nRch_in
+       ! process only if destination reaches exist
+       if (destSegId(iSeg)/=integerMissing) then
+         ! index of reach for destination (index is based on local array in each task)
+         if (ixNode(destSegIndex(iSeg))>0) then ! if this segment is located in non-main task
+           destIndex(iSeg) = destSegIndex(iSeg)-sum(rch_per_proc(-1:ixNode(destSegIndex(iSeg))-1))
+         else
+           destIndex(iSeg) = destSegIndex(iSeg)
+         end if
+         !  destination task for a reach
+         if (ixNode(destSegIndex(iSeg))==-1) then
+           destTask(iSeg) = 0
+         else
+           destTask(iSeg) = ixNode(destSegIndex(iSeg))
+         end if
+       end if
+     end do
+   end if ! end of masterproc
+
+   allocate(destIndex_local(nRch_trib))
+   allocate(destTask_local(nRch_trib))
+
+   call shr_mpi_scatterV(destIndex(nRch_mainstem+1:nRch_in), rch_per_proc(root:nNodes-1), destIndex_local, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   call shr_mpi_scatterV(destTask(nRch_mainstem+1:nRch_in), rch_per_proc(root:nNodes-1), destTask_local, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   if (masterproc) then ! main task includes mainstems and tributarires
+     allocate(commRch(nRch_mainstem+nRch_trib))
+     if (nRch_mainstem > 0) then ! mainstem
+       commRch(1:nRch_mainstem)%destTask= destTask(1:nRch_mainstem)
+       commRch(1:nRch_mainstem)%destIndex= destIndex(1:nRch_mainstem)
+     end if
+     if (nRch_trib > 0) then ! tributary
+       commRch(nRch_mainstem+1:nRch_mainstem+nRch_trib)%destTask  = destTask_local(1:nRch_trib)
+       commRch(nRch_mainstem+1:nRch_mainstem+nRch_trib)%destIndex = destIndex_local(1:nRch_trib)
+     end if
+   else ! other tasks include only tributary
+     allocate(commRch(nRch_trib))
+     commRch(1:nRch_trib)%destTask  = destTask_local
+     commRch(1:nRch_trib)%destIndex = destIndex_local
+   end if
+
+ END SUBROUTINE sparse_dist_data
 
 END MODULE mpi_process

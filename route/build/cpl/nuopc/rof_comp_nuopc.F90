@@ -6,10 +6,9 @@ module rof_comp_nuopc
 
   use ESMF
   use NUOPC                 , only : NUOPC_CompDerive, NUOPC_CompSetEntryPoint, NUOPC_CompSpecialize
-  use NUOPC                 , only : NUOPC_CompFilterPhaseMap, NUOPC_CompAttributeGet, NUOPC_CompAttributeSet
+  use NUOPC                 , only : NUOPC_CompFilterPhaseMap, NUOPC_CompAttributeGet
   use NUOPC_Model           , only : model_routine_SS           => SetServices
   use NUOPC_Model           , only : model_label_Advance        => label_Advance
-  use NUOPC_Model           , only : model_label_DataInitialize => label_DataInitialize
   use NUOPC_Model           , only : model_label_SetRunClock    => label_SetRunClock
   use NUOPC_Model           , only : model_label_Finalize       => label_Finalize
   use NUOPC_Model           , only : NUOPC_ModelGet
@@ -20,6 +19,7 @@ module rof_comp_nuopc
 
   use public_var            , only : iulog, debug
   use public_var            , only : calendar, simStart, simEnd, time_units
+  use public_var            , only : correct_area
   use globalData            , only : masterproc
   use globalData            , only : iam        => pid
   use globalData            , only : npes       => nNodes
@@ -28,20 +28,22 @@ module rof_comp_nuopc
   use globalData            , only : runMode                     ! "ctsm-coupling" or "standalone" to differentiate some behaviours in mizuRoute
   use globalData            , only : hfile_dayStamp              ! daily history file time stamp - "period-end" or "period-start:
   use globalData            , only : nRoutes                     ! number of active routing methods - for cesm-coupling, limit to one
+  use globalData            , only : version
   use init_model_data       , only : get_mpi_omp, init_model
-  use RunoffMod             , only : rtmCTL
+  use RtmVar                , only : ctl
   use RtmMod                , only : route_ini, route_run
   use RtmTimeManager        , only : shr_timeStr
-  USE RtmVar                , ONLY : cfile_name
-  use RtmVar                , only : inst_index, inst_suffix, inst_name, rofVarSet
+  use RtmVar                , only : cfile_name
+  use RtmVar                , only : brnch_retain_casename, nsrest, caseid, ctitle, hostname, username
+  use RtmVar                , only : inst_index, inst_suffix, inst_name
   use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
-  use RtmVar                , only : coupling_period !day
+  use RtmVar                , only : coupling_period !sec
 
-  use perf_mod              , only : t_startf, t_stopf, t_barrierf
+  use perf_mod              , only : t_startf, t_stopf
   use rof_import_export     , only : advertise_fields, realize_fields
   use rof_import_export     , only : import_fields, export_fields
-  use rof_shr_methods       , only : chkerr, state_setscalar, state_getscalar, state_diagnose, alarmInit
-  use rof_shr_methods       , only : set_component_logging, get_component_instance, log_clock_advance
+  use rof_shr_methods       , only : chkerr, state_setscalar, state_diagnose, alarmInit
+  use rof_shr_methods       , only : set_component_logging, get_component_instance
 
 !$ use omp_lib              , only : omp_set_num_threads
   implicit none
@@ -64,9 +66,11 @@ module rof_comp_nuopc
   integer                 :: flds_scalar_num = 0
   integer                 :: flds_scalar_index_nx = 0
   integer                 :: flds_scalar_index_ny = 0
-  integer                 :: flds_scalar_index_nextsw_cday = 0._r8
+  integer                 :: flds_scalar_index_nextsw_cday = 0
   integer                 :: nthrds
 
+  character(*), parameter :: F00   = "('(mizuRoute_comp_nuopc) ',8a)"
+  character(*), parameter :: F91   = "('(mizuRoute_comp_nuopc) ',73('-'))"
   logical :: write_restart_at_endofrun = .false.
 
   character(*), parameter :: modName =  "(rof_comp_nuopc)"
@@ -157,13 +161,18 @@ contains
     integer           :: mpicom
     character(CL)     :: cvalue
     integer           :: shrlogunit
-    integer           :: n
     character(len=CL) :: logmsg
     logical           :: isPresent, isSet
     character(len=*), parameter :: subname=trim(modName)//':(InitializeAdvertise) '
     character(len=*), parameter :: format = "('("//trim(subname)//") :',A)"
     !-------------------------------------------------------------------------------
 
+    if(masterproc) then
+       write(iulog,F91)
+       write(iulog,F00) 'mizuRoute: start of initialization'
+       write(iulog,F91)
+       call shr_sys_flush(iulog)
+    endif
     rc = ESMF_SUCCESS
     call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
 
@@ -315,24 +324,14 @@ contains
     integer                     :: stop_tod              ! stop time of day (sec)
     integer                     :: curr_ymd              ! Start date (YYYYMMDD)
     integer                     :: curr_tod              ! Start time of day (sec)
-    logical                     :: flood_present         ! flag
-    logical                     :: rof_prognostic        ! flag
     integer                     :: shrlogunit            ! original log unit
     integer                     :: lsize                 ! local size ofarrays
     integer                     :: n,ni                  ! indices
     integer                     :: lbnum                 ! input to memory diagnostic
-    integer                     :: nsrest                ! restart type
     integer                     :: ierr                  ! error
     character(len=CL)           :: cmessage              ! error message
     character(len=CL)           :: simRef                ! date string defining the reference time
-    character(len=CL)           :: username              ! user name
-    character(len=CL)           :: caseid                ! case identifier name
-    character(len=CL)           :: ctitle                ! case description title
-    character(len=CL)           :: hostname              ! hostname of machine running on
-    character(len=CL)           :: model_version         ! model version
     character(len=CL)           :: starttype             ! start-type (startup, continue, branch, hybrid)
-    character(len=CL)           :: stdname, shortname    ! needed for advertise
-    logical                     :: brnch_retain_casename ! flag if should retain the case name on a branch start type
     integer                     :: localPet,localPeCount ! mpi task and thread count variables
     character(len=CL)           :: cvalue
     character(ESMF_MAXSTR)      :: convCIM, purpComp
@@ -405,7 +404,7 @@ contains
 
     call NUOPC_CompAttributeGet(gcomp, name='model_version', value=cvalue, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    read(cvalue,*) model_version
+    read(cvalue,*) version
 
     call NUOPC_CompAttributeGet(gcomp, name='hostname', value=cvalue, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -443,7 +442,7 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Get coupling interval in day
-    call ESMF_TimeIntervalGet( timeStep, d=coupling_period, rc=rc)
+    call ESMF_TimeIntervalGet( timeStep, s_r8=coupling_period, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! get ymd integer and string for start time, end time and reference time
@@ -461,8 +460,6 @@ contains
 
     call ESMF_TimeGet( stopTime, yy=yy, mm=mm, dd=dd, s=stop_tod, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    ! adjust stopTime for mizuRoute clock
-    stopTime = stopTime - timeStep
     call shr_cal_ymd2date(yy,mm,dd,stop_ymd)
     call shr_timeStr( stopTime, simEnd )
 
@@ -508,8 +505,6 @@ contains
     endif
 
     ! Initialize RtmVar module variables
-    ! TODO: the following strings must not be hard-wired - must have module variables
-    ! like seq_infodata_start_type_type - maybe another entry in seq_flds_mod?
     if (     trim(starttype) == trim('startup')) then
        nsrest = nsrStartup
     else if (trim(starttype) == trim('continue') ) then
@@ -521,15 +516,6 @@ contains
        call shr_sys_abort( subname//' ERROR: unknown starttype' )
     end if
 
-    call rofVarSet(&
-         caseid_in=caseid, &
-         ctitle_in=ctitle,   &
-         brnch_retain_casename_in=brnch_retain_casename, &
-         nsrest_in=nsrest, &
-         version_in=model_version,     &
-         hostname_in=hostname, &
-         username_in=username)
-
     !----------------------
     ! Initialize mizuRoute
     !----------------------
@@ -539,22 +525,22 @@ contains
     ! - Initialize number of tracers (ice and liquid) -- NOT ACTIVATED
     ! - Read/process river network input data (global)
     ! - Allocate basins to pes
-    ! - Count and distribute HRUs to rglo2gdc (determine rtmCTL%begr, rtmCTL%endr)
-    ! - Initialize runoff datatype (rtmCTL)
+    ! - Count and distribute HRUs to rglo2gdc (determine ctl%begr, ctl%endr)
+    ! - Initialize runoff datatype (ctl)
 
-    call route_ini(rof_active=rof_prognostic, flood_active=flood_present)
+    call route_ini()
 
     !--------------------------------
     ! generate the mesh and realize fields
     !--------------------------------
 
     ! determine global index array
-    lsize = rtmCTL%endr - rtmCTL%begr + 1
+    lsize = ctl%endr - ctl%begr + 1
     allocate(gindex(lsize))
     ni = 0
-    do n = rtmCTL%begr,rtmCTL%endr
+    do n = ctl%begr,ctl%endr
        ni = ni + 1
-       gindex(ni) = rtmCTL%gindex(n)
+       gindex(ni) = ctl%gindex(n)
     end do
 
     if ( .not. allocated(gindex) )then
@@ -630,14 +616,14 @@ contains
     ! realize actively coupled fields
     !--------------------------------
 
-    call realize_fields(gcomp,  Emesh, flds_scalar_name, flds_scalar_num, rc)
+    call realize_fields(gcomp,  Emesh, flds_scalar_name, flds_scalar_num, correct_area, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     !--------------------------------
     ! Create mizuRoute export state
     !--------------------------------
 
-    call export_fields(gcomp, rc)
+    call export_fields(gcomp, ctl%begr, ctl%endr, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Set global grid size scalars in export state
@@ -652,6 +638,12 @@ contains
     !----------------------------------------------------------------------------
     ! Reset shr logging
     !----------------------------------------------------------------------------
+    if(masterproc) then
+       write(iulog,F91)
+       write(iulog,F00) 'mizuRoute: end of initialization'
+       write(iulog,F91)
+       call shr_sys_flush(iulog)
+    endif
 
     call shr_file_setLogUnit (shrlogunit)
 
@@ -706,11 +698,9 @@ contains
     ! local variables:
     type(ESMF_Clock)  :: clock
     type(ESMF_Alarm)  :: alarm
-    type(ESMF_Time)   :: currTime
     type(ESMF_Time)   :: nextTime
     type(ESMF_State)  :: importState
     type(ESMF_State)  :: exportState
-    character(CL)     :: cvalue
     integer           :: shrlogunit    ! original log unit
     integer           :: ymd_sync, ymd ! current date (YYYYMMDD)
     integer           :: yr_sync, yr   ! current year
@@ -752,7 +742,7 @@ contains
 
     call t_startf ('lc_mizuRoute_import')
 
-    call import_fields(gcomp, rc)
+    call import_fields(gcomp, ctl%begr, ctl%endr, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     call t_stopf ('lc_mizuRoute_import')
@@ -808,7 +798,7 @@ contains
     call shr_cal_ymd2date(yr_sync, mon_sync, day_sync, ymd_sync)
     write(rdate,'(i4.4,"-",i2.2,"-",i2.2,"-",i5.5)') yr_sync, mon_sync, day_sync, tod_sync
 
-    ! Advance mizuRoute time step then run mizuRoute (MODIFIY THIS COMMENT FOR MIZUROUTE: export data is in rtmCTL and Trunoff data types)
+    ! Advance mizuRoute time step then run mizuRoute (MODIFIY THIS COMMENT FOR MIZUROUTE: export data is in ctl and Trunoff data types)
     call route_run(rstwr)
     !call advance_timestep()
 
@@ -816,10 +806,10 @@ contains
     ! Pack export state to mediator
     !--------------------------------
 
-    ! (MODIFIY THIS COMMENT FOR MIZUROUTE: input is rtmCTL%runoff, output is r2x)
+    ! (MODIFIY THIS COMMENT FOR MIZUROUTE: input is ctl%runoff, output is r2x)
     call t_startf ('lc_rof_export')
 
-    call export_fields(gcomp, rc)
+    call export_fields(gcomp, ctl%begr, ctl%endr, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     call t_stopf ('lc_rof_export')
@@ -1003,8 +993,6 @@ contains
     integer, intent(out) :: rc
 
     ! local variables
-    character(*), parameter :: F00   = "('(mizuRoute_comp_nuopc) ',8a)"
-    character(*), parameter :: F91   = "('(mizuRoute_comp_nuopc) ',73('-'))"
     character(len=*),parameter  :: subname=trim(modName)//':(ModelFinalize) '
     !-------------------------------------------------------------------------------
 

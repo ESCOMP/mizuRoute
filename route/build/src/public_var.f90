@@ -28,9 +28,9 @@ MODULE public_var
   real(dp),    parameter,public   :: maxTimeDiff=1/secprday ! time difference tolerance for input checks
   real(dp),    parameter,public   :: verySmall=tiny(1.0_dp) ! a very small number
   real(dp),    parameter,public   :: min_slope=1.e-6_dp     ! minimum slope
-  real(dp),    parameter,public   :: runoffMin=1.e-15_dp    ! minimum runoff from each basin
   real(dp),    parameter,public   :: negRunoffTol=-1.e-3_dp ! nagative runoff tolerance
-  real(dp),    parameter,public   :: lakeWBtol=1.e-3_dp     ! lake water balance tolerance
+  real(dp),    parameter,public   :: lakeWBtol=2.e-2_dp     ! lake water balance tolerance
+  real(dp),    parameter,public   :: negVolTol=-1.0e-50_dp  ! negative channel volume tolerance
 
   ! routing related constants
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
@@ -40,8 +40,6 @@ MODULE public_var
   integer(i4b),parameter,public   :: maxLevel=20            ! maximum mainstem levels used for OMP domain decomposition
 
   ! constants for general use
-  real(dp),    parameter,public   :: MaxPosVal=1.e36_dp     ! maximum value for positive value
-  real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: integerMissing=-9999   ! missing value for integers
   real(sp),    parameter,public   :: floatMissing=-9999._sp ! missing value for real32 numbers
   real(dp),    parameter,public   :: realMissing=-9999._dp  ! missing value for real64 numbers
@@ -90,15 +88,15 @@ MODULE public_var
   character(len=strLen),public    :: output_dir           = charMissing     ! directory for routed flow output (netCDF)
   character(len=strLen),public    :: restart_dir          = charMissing     ! directory for restart output (netCDF)
   ! RUN CONTROL
-  character(len=strLen),public    :: case_name            = ''              ! name of simulation
+  character(len=strLen),public    :: case_name            = charMissing     ! name of simulation
   logical(lgt),public             :: continue_run         = .false.         ! T-> append output in existing history files. F-> write output in new history file
-  character(len=strLen),public    :: simStart             = ''              ! date string defining the start of the simulation
-  character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
+  character(len=strLen),public    :: simStart             = charMissing     ! date string defining the start of the simulation
+  character(len=strLen),public    :: simEnd               = charMissing     ! date string defining the end of the simulation
   character(len=strLen),public    :: newFileFrequency     = 'yearly'        ! frequency for new output files (daily, monthly, yearly, single)
   character(len=strLen),public    :: outputFrequency      = '1'             ! output frequency (integer for multiple of simulation time step or daily, monthly or yearly)
   character(len=strLen),public    :: outputNameOption     = 'specific'      ! option for routing method dependent output names (e.g., routedRunoff) - generic or specific (default)
   integer(i4b)         ,public    :: nOutFreq             = integerMissing  ! integer output frequency
-  character(len=10)    ,public    :: routOpt              = '0'             ! routing scheme options  0: accum runoff, 1:IRF, 2:KWT, 3:KW, 4:MC, 5:DW
+  character(len=10)    ,public    :: routOpt              = '1'             ! routing scheme options  0: accum runoff, 1:IRF, 2:KWT, 3:KW, 4:MC, 5:DW
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   logical(lgt)         ,public    :: floodplain           = .false.         ! logical if flood water is computed or not (floodplain is added)
   integer(i4b)         ,public    :: hw_drain_point       = 2               ! how to add inst. runoff in reach for headwater HRUs. 1->top of reach, 2->bottom of reach (default)
@@ -120,23 +118,23 @@ MODULE public_var
   logical(lgt)         ,public    :: checkMassBalance     = .false.         ! logical if entire domain water balance is computed
   real(dp)             ,public    :: dt                   = realMissing     ! simulation time step (seconds)
   ! RIVER NETWORK TOPOLOGY
-  character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
+  character(len=strLen),public    :: fname_ntopOld        = charMissing     ! old filename containing stream network topology information
   logical(lgt)         ,public    :: ntopAugmentMode      = .false.         ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
-  character(len=strLen),public    :: fname_ntopNew        = ''              ! new filename containing stream network topology information
-  character(len=strLen),public    :: dname_sseg           = ''              ! dimension name of segment in river network data
-  character(len=strLen),public    :: dname_nhru           = ''              ! dimension name of hru in river network data
+  character(len=strLen),public    :: fname_ntopNew        = charMissing     ! new filename containing stream network topology information
+  character(len=strLen),public    :: dname_sseg           = 'seg'           ! dimension name of segment in river network data
+  character(len=strLen),public    :: dname_nhru           = 'hru'           ! dimension name of hru in river network data
   ! RUNOFF, EVAPORATION AND PRECIPITATION FILE
   character(len=strLen),public    :: fname_qsim           = charMissing     ! runoff netCDF name
-  character(len=strLen),public    :: vname_qsim           = charMissing     ! variable name for runoff
-  character(len=strLen),public    :: vname_evapo          = charMissing     ! variable name for actual evapoartion
-  character(len=strLen),public    :: vname_precip         = charMissing     ! variable name for precipitation
+  character(len=strLen),public    :: vname_qsim           = 'runoff'        ! variable name for runoff
+  character(len=strLen),public    :: vname_evapo          = 'evap'          ! variable name for actual evapoartion
+  character(len=strLen),public    :: vname_precip         = 'precip'        ! variable name for precipitation
   character(len=strLen),public    :: vname_solute         = charMissing     ! variable name for solute mass flux
-  character(len=strLen),public    :: vname_time           = charMissing     ! variable name for time
-  character(len=strLen),public    :: vname_hruid          = charMissing     ! variable name for runoff hru id
-  character(len=strLen),public    :: dname_time           = charMissing     ! dimension name for time
-  character(len=strLen),public    :: dname_hruid          = charMissing     ! dimension name for hru in runoff data
-  character(len=strLen),public    :: dname_xlon           = charMissing     ! dimension name for x (j, longitude) dimension
-  character(len=strLen),public    :: dname_ylat           = charMissing     ! dimension name for y (i, latitude) dimension
+  character(len=strLen),public    :: vname_time           = 'time'          ! variable name for time
+  character(len=strLen),public    :: vname_hruid          = 'hru'           ! variable name for runoff hru id
+  character(len=strLen),public    :: dname_time           = 'time'          ! dimension name for time
+  character(len=strLen),public    :: dname_hruid          = 'hru'           ! dimension name for hru in runoff data
+  character(len=strLen),public    :: dname_xlon           = 'lon'           ! dimension name for x (j, longitude) dimension
+  character(len=strLen),public    :: dname_ylat           = 'lat'           ! dimension name for y (i, latitude) dimension
   character(len=strLen),public    :: units_qsim           = charMissing     ! units of runoff data
   character(len=strLen),public    :: units_cc             = charMissing     ! units of concentration data
   real(dp)             ,public    :: dt_ro                = realMissing     ! runoff time step (seconds)
@@ -144,26 +142,27 @@ MODULE public_var
   character(len=strLen),public    :: ro_time_units        = charMissing     ! time units used in ro netcdf. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
   character(len=strLen),public    :: ro_calendar          = charMissing     ! calendar used in ro netcdf
   character(len=strLen),public    :: ro_time_stamp        = 'start'         ! time stamp used in runoff input - start (default), middle, or end, otherwise error
+  real(dp)             ,public    :: runoffMin            = 0._dp           ! minimum runoff volume [m3/s] from HRU. used to be 1.e-15_dp
   ! Water-management input netCDF - water abstraction/infjection or lake target volume
-  character(len=strLen),public    :: fname_wm             = ''              ! the txt file name that includes nc files holesing the abstraction, injection, target volume values
-  character(len=strLen),public    :: vname_flux_wm        = ''              ! variable name for abstraction or injection from or to a river segment
-  character(len=strLen),public    :: vname_vol_wm         = ''              ! variable name for target volume when lake is_lake_sim is on
-  character(len=strLen),public    :: vname_time_wm        = ''              ! variable name for time
-  character(len=strLen),public    :: vname_segid_wm       = ''              ! variable name for runoff hru id
-  character(len=strLen),public    :: dname_time_wm        = ''              ! dimension name for time
-  character(len=strLen),public    :: dname_segid_wm       = ''              ! dimension name for hru in runoff data
+  character(len=strLen),public    :: fname_wm             = charMissing     ! the txt file name that includes nc files holesing the abstraction, injection, target volume values
+  character(len=strLen),public    :: vname_flux_wm        = charMissing     ! variable name for abstraction or injection from or to a river segment
+  character(len=strLen),public    :: vname_vol_wm         = charMissing     ! variable name for target volume when lake is_lake_sim is on
+  character(len=strLen),public    :: vname_time_wm        = 'time'          ! variable name for time
+  character(len=strLen),public    :: vname_segid_wm       = 'seg'           ! variable name for runoff hru id
+  character(len=strLen),public    :: dname_time_wm        = 'time'          ! dimension name for time
+  character(len=strLen),public    :: dname_segid_wm       = 'seg'           ! dimension name for hru in runoff data
   real(dp)             ,public    :: dt_wm                = realMissing     ! water-management time step (seconds)
   ! RUNOFF REMAPPING
   logical(lgt),         public    :: is_remap             = .false.         ! logical whether or not runnoff needs to be mapped to river network HRU
   character(len=strLen),public    :: fname_remap          = charMissing     ! runoff mapping netCDF name
-  character(len=strLen),public    :: vname_hruid_in_remap = charMissing     ! variable name for river network hru id
-  character(len=strLen),public    :: vname_weight         = charMissing     ! variable name for areal weights of runoff HRUs within each river network
-  character(len=strLen),public    :: vname_qhruid         = charMissing     ! variable name for runoff HRU ID
-  character(len=strLen),public    :: vname_num_qhru       = charMissing     ! variable for numbers of runoff HRUs within each river network HRU
-  character(len=strLen),public    :: vname_i_index        = charMissing     ! variable for numbers of y (latitude) index if runoff file is grid
-  character(len=strLen),public    :: vname_j_index        = charMissing     ! variable for numbers of x (longitude) index if runoff file is grid
-  character(len=strLen),public    :: dname_hru_remap      = charMissing     ! dimension name for river network HRU
-  character(len=strLen),public    :: dname_data_remap     = charMissing     ! dimension name for runoff HRU ID
+  character(len=strLen),public    :: vname_hruid_in_remap = 'polyid'        ! variable name for river network hru id
+  character(len=strLen),public    :: vname_weight         = 'weight'        ! variable name for areal weights of runoff HRUs within each river network
+  character(len=strLen),public    :: vname_qhruid         = 'overlapPolyId' ! variable name for runoff HRU ID
+  character(len=strLen),public    :: vname_num_qhru       = 'overlaps'     ! variable for numbers of runoff HRUs within each river network HRU
+  character(len=strLen),public    :: vname_i_index        = 'i_index'       ! variable for numbers of y (latitude) index if runoff file is grid
+  character(len=strLen),public    :: vname_j_index        = 'j_index'       ! variable for numbers of x (longitude) index if runoff file is grid
+  character(len=strLen),public    :: dname_hru_remap      = 'polyid'        ! dimension name for river network HRU
+  character(len=strLen),public    :: dname_data_remap     = 'data'          ! dimension name for runoff HRU ID
   ! RESTART OPTION
   character(len=strLen),public    :: restart_write        = 'never'         ! restart write option (case-insensitive): never, last, specified, yearly, monthly, daily
   character(len=strLen),public    :: restart_date         = charMissing     ! specifed restart date
@@ -177,11 +176,11 @@ MODULE public_var
   character(len=strLen),public    :: gageMetaFile         = charMissing     ! name of the gauge metadata csv
   logical(lgt),public             :: outputAtGage         = .false.         ! logical; T-> history file output at only gauge points
   character(len=strLen),public    :: fname_gageObs        = charMissing     ! gauge data netcdf name
-  character(len=strLen),public    :: vname_gageFlow       = charMissing     ! variable name for gauge flow data
-  character(len=strLen),public    :: vname_gageSite       = charMissing     ! variable name for site name data
-  character(len=strLen),public    :: vname_gageTime       = charMissing     ! variable name for time data
-  character(len=strLen),public    :: dname_gageSite       = charMissing     ! dimension name for gauge site
-  character(len=strLen),public    :: dname_gageTime       = charMissing     ! dimension name for time
+  character(len=strLen),public    :: vname_gageFlow       = 'flow'          ! variable name for gauge flow data
+  character(len=strLen),public    :: vname_gageSite       = 'site'          ! variable name for site name data
+  character(len=strLen),public    :: vname_gageTime       = 'time'          ! variable name for time data
+  character(len=strLen),public    :: dname_gageSite       = 'site'          ! dimension name for gauge site
+  character(len=strLen),public    :: dname_gageTime       = 'time'          ! dimension name for time
   integer(i4b)         ,public    :: strlen_gageSite      = 30              ! maximum character length for site name
   ! OUTPUT OPTIONS
   real(dp)             ,public    :: histTimeStamp_offset = 0._dp           ! time stamp offset [second] from a start of time step
@@ -207,5 +206,7 @@ MODULE public_var
   ! CESM Coupling variables
   character(len=32)    ,public    :: bypass_routing_option = 'direct_in_place' ! bypass routing model method: direct_in_place or direct_to_outlet
   character(len=32)    ,public    :: qgwl_runoff_option    = 'threshold'       ! method for handling qgwl runoff: all, negative, or threshold
+  logical(lgt)         ,public    :: correct_area          = .false.           ! .true. => correct area based on differenec between model and coupler areas.
+  logical(lgt)         ,public    :: ice_runoff            = .true.            ! .true. => ice sent to coupler separately from liquid, otherwise combined with liquid
 
 END MODULE public_var

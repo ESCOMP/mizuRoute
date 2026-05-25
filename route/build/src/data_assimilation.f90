@@ -57,28 +57,31 @@ contains
    verbose = .false.
    if(NETOPO_in(segIndex)%REACHID == desireId) verbose = .true.
 
+   associate(Qerror => RCHFLX_out(segIndex)%ROUTE(idxRoute)%Qerror,  &
+             Qelapsed => RCHFLX_out(segIndex)%Qelapsed)
+
    if (RCHFLX_out(segIndex)%Qobs>0._dp) then ! there is observation
-     RCHFLX_out(segIndex)%ROUTE(idxRoute)%Qerror = RCHFLX_out(segIndex)%ROUTE(idxRoute)%REACH_Q - RCHFLX_out(segIndex)%Qobs ! compute error
+     Qerror = RCHFLX_out(segIndex)%ROUTE(idxRoute)%REACH_Q - RCHFLX_out(segIndex)%Qobs ! compute error
    end if
 
-   if (RCHFLX_out(segIndex)%Qelapsed > qBlendPeriod) then
-     RCHFLX_out(segIndex)%ROUTE(idxRoute)%Qerror=0._dp
+   if (Qelapsed > qBlendPeriod) then
+     Qerror=0._dp
    end if
 
-   if (RCHFLX_out(segIndex)%Qelapsed <= qBlendPeriod) then
+   if (Qelapsed <= qBlendPeriod) then
      select case(QerrTrend)
        case(const)
-         Qcorrect = RCHFLX_out(segIndex)%ROUTE(idxRoute)%Qerror
+         Qcorrect = Qerror
        case(linear)
-         Qcorrect = RCHFLX_out(segIndex)%ROUTE(idxRoute)%Qerror*(1._dp - real(RCHFLX_out(segIndex)%Qelapsed,dp)/real(qBlendPeriod, dp))
+         Qcorrect = Qerror*(1._dp - real(Qelapsed,dp)/real(qBlendPeriod, dp))
        case(logistic)
          x0 =0.25; y0 =0.90
          k = log(1._dp/y0-1._dp)/(qBlendPeriod/2._dp-qBlendPeriod*x0)
-         Qcorrect = RCHFLX_out(segIndex)%ROUTE(idxRoute)%Qerror/(1._dp + exp(-k*(1._dp*RCHFLX_out(segIndex)%Qelapsed-qBlendPeriod/2._dp)))
+         Qcorrect = Qerror/(1._dp + exp(-k*(1._dp*Qelapsed-qBlendPeriod/2._dp)))
        case(exponential)
-         if (RCHFLX_out(segIndex)%ROUTE(idxRoute)%Qerror/=0._dp) then
-           k = log(0.1_dp/abs(RCHFLX_out(segIndex)%ROUTE(idxRoute)%Qerror))/(1._dp*qBlendPeriod)
-           Qcorrect = RCHFLX_out(segIndex)%ROUTE(idxRoute)%Qerror*exp(k*RCHFLX_out(segIndex)%Qelapsed)
+         if (Qerror/=0._dp) then
+           k = log(0.1_dp/abs(Qerror))/(1._dp*qBlendPeriod)
+           Qcorrect = Qerror*exp(k*Qelapsed)
          else
            Qcorrect = 0._dp
          end if
@@ -88,6 +91,8 @@ contains
      Qcorrect=0._dp
    end if
    RCHFLX_out(segIndex)%ROUTE(idxRoute)%REACH_Q = max(RCHFLX_out(segIndex)%ROUTE(idxRoute)%REACH_Q-Qcorrect, 0._dp)
+
+   end associate
 
  end subroutine direct_insertion
 
