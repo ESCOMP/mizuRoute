@@ -34,7 +34,7 @@ The tables below dimensions and variables in the river data netCDF with minimum 
 
    * - Control key
      - Type
-     - default name
+     - Default name
      - Description
    * - ``<dname_sseg>``
      - NetCDF dimension name
@@ -53,7 +53,7 @@ The tables below dimensions and variables in the river data netCDF with minimum 
 
    * - Control key
      - Type
-     - default name
+     - Default name
      - Variable type
      - dimension(s)
      - unit
@@ -158,7 +158,7 @@ Requirement of control keys for runoff netCDF information depends on the options
 
    * - Control key
      - Type
-     - default name
+     - Default name
      - Description
    * - ``<dname_time>``
      - NetCDF dimension name
@@ -176,7 +176,7 @@ Requirement of control keys for runoff netCDF information depends on the options
 
    * - Control key
      - Type
-     - default name
+     - Default name
      - Variable type
      - dimension(s)
      - unit
@@ -215,7 +215,7 @@ Requirement of control keys for runoff netCDF information depends on the options
 
    * - Control key
      - Type
-     - default name
+     - Default name
      - Description
    * - ``<dname_time>``
      - NetCDF dimension name
@@ -233,7 +233,7 @@ Requirement of control keys for runoff netCDF information depends on the options
 
    * - Control key
      - Type
-     - default name
+     - Default name
      - Variable type
      - dimension(s)
      - unit
@@ -272,7 +272,7 @@ Requirement of control keys for runoff netCDF information depends on the options
 
    * - Control key
      - Type
-     - default name
+     - Default name
      - Description
    * - ``<dname_time>``
      - NetCDF dimension name
@@ -295,7 +295,7 @@ Requirement of control keys for runoff netCDF information depends on the options
 
    * - Control key
      - Type
-     - default name
+     - Default name
      - Variable type
      - dimension(s)
      - unit
@@ -359,7 +359,7 @@ Both runoff input option 3 (vector runoff) and option 3 (gridded runoff) have co
 
    * - Control key
      - Type
-     - default name
+     - Default name
      - Description
    * - ``<dname_hru_remap>``
      - NetCDF dimension name
@@ -381,7 +381,7 @@ However, hydrologic model HRU runoff and gridded runoff requires a different set
 
    * - Control key
      - Type
-     - default name
+     - Default name
      - Variable type
      - dimension(s)
      - Description of variable
@@ -424,7 +424,7 @@ However, hydrologic model HRU runoff and gridded runoff requires a different set
 
    * - Control key
      - Type
-     - default name
+     - Default name
      - Variable type
      - dimension(s)
      - Description of variable
@@ -574,7 +574,115 @@ For ``<restart_hour>`` to take effec, the simulation time step (``<dt_qsim>``) m
 Water management file (optional)
 --------------------------------
 
+In addition to the required runoff input (typically provided to mizuRoute as areal-average values), users may optionally supply water management inputs to represent human influences on the hydrological system. These include processes such as bifurcations, abstractions, return flows to river segments or lakes, and prescribed target volumes for lakes and reservoirs. Such inputs enable the simulation of more complex, time-dependent operational behaviors that are not captured by the default parameterizations or assumptions implemented in mizuRoute.
 
+For example, interbasin water transfers can be represented by extracting water from one river segment and injecting it into another. Similarly, irrigation withdrawals from lakes or reservoirs can be prescribed explicitly rather than relying on internally parameterized demand formulations. These inputs may originate from external water management models or decision-based datasets outside of mizuRoute.
+
+Three logical control keys are used to activate water management functionality (see :ref:`Water management logical options`). When ``<is_flux_wm>`` is set to True, mizuRoute reads water management input files containing the variable ``<vname_flux_wm>``, which represents time series of water injections to or abstractions from river segments or lakes.
+
+When ``<is_vol_wm>`` is set to True, the model expects time series of target storage volumes (in ``m³``) for managed lakes and reservoirs, provided through ``<vname_vol_wm>``. These target volumes guide reservoir operations toward prescribed storage states over time. The ``<is_vol_wm_jumpstart>`` flag controls the initial storage conditions: when enabled, lake and reservoir storage is initialized at the first time step to match the first available target volume, which can help reduce model spin-up time.
+
+.. list-table:: Control keys for activating water management options
+   :header-rows: 1
+   :widths: 25 15 15 45
+   :name: Water management logical options
+
+   * - Control key
+     - Type
+     - Default
+     - Description
+   * - ``<is_flux_wm>``
+     - logical
+     - F
+     - If ``True``, externally provided fluxes to or from river segments
+       or lakes (e.g., abstraction or injection) are included in the routing.
+       The water management input file(s) must be provided and include the
+       ``<vname_flux_wm>`` variable.
+   * - ``<is_vol_wm>``
+     - logical
+     - F
+     - If ``True``, target volume operations for managed lakes and reservoirs
+       are activated. The water management input file(s) must be provided and
+       include the ``<vname_vol_wm>`` variable.
+   * - ``<is_vol_wm_jumpstart>``
+     - logical
+     - F
+     - If ``True``, the model initializes lake storage using the first
+       available target volume, which can reduce model spin-up time.
+
+The following control keys define the input files, as well as the variable and dimension names, used to read water management data. These inputs are specified per river segment—regardless of whether the runoff input requires remapping—and are interpreted consistently with the routing network defined in the model :ref:`Runoff_data`.
+
+.. list-table:: Control keys for water management input files and variables
+   :header-rows: 1
+   :widths: 25 20 20 15 15 10 35
+   :name: Water management input specification
+
+   * - Control key
+     - Type
+     - Default name
+     - Variable type
+     - Dimension(s)
+     - Unit
+     - Description
+   * - ``<fname_wm>``
+     - file name
+     - --
+     - string
+     - --
+     - --
+     - Text file containing an ordered list of NetCDF files with water
+       management data.
+   * - ``<vname_flux_wm>``
+     - variable name
+     - --
+     - float
+     - time, seg
+     - m³/s
+     - Variable for water management fluxes (e.g., abstraction, injection,
+       or diversions) applied to river segments or lakes.
+   * - ``<vname_vol_wm>``
+     - variable name
+     - --
+     - float
+     - time, seg
+     - m³
+     - Variable for target reservoir or lake volume used in managed storage
+       operations.
+   * - ``<vname_time_wm>``
+     - variable name
+     - time
+     - float
+     - time
+     - --
+     - Name of the time variable in the NetCDF files.
+   * - ``<vname_segid_wm>``
+     - variable name
+     - seg
+     - int
+     - seg
+     - --
+     - Name of the segment identifier variable in the NetCDF files.
+   * - ``<dname_time_wm>``
+     - dimension name
+     - time
+     - --
+     - --
+     - --
+     - Name of the time dimension in the water management data.
+   * - ``<dname_segid_wm>``
+     - dimension name
+     - seg
+     - --
+     - --
+     - --
+     - Name of the routing segment dimension in the water management data.
+   * - ``<dt_wm>``
+     - real
+     - --
+     - float
+     - --
+     - sec
+     - Time step of the water management data in seconds.
 
 
 .. _GaugeData_file:
@@ -635,7 +743,7 @@ The observed discharge data is stored in netCDF and specifications are given in 
 
    * - Control key
      - Type
-     - default name
+     - Default name
      - Description
    * - ``<dname_gageTime>``
      - NetCDF dimension name
@@ -653,7 +761,7 @@ The observed discharge data is stored in netCDF and specifications are given in 
 
    * - Control key
      - Type
-     - default name
+     - Default name
      - Variable type
      - dimension(s)
      - Description of variable
