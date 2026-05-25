@@ -16,11 +16,11 @@ The lake module simulates the water balance by accounting for the primary fluxes
 **Input fluxes:**
 
 - Upstream river discharge
-- Direct precipitation or other fluxes onto the lake surface
+- Direct precipitation or other areal fluxes onto the lake
 
 **Output fluxes:**
 
-- Evaporation or other fluxes from the lake surface
+- Evaporation or other areal fluxes from the lake
 - Outflow discharge (for exorheic lakes)
 
 Lake storage evolves dynamically as a function of these fluxes, allowing the model to resolve lake and reservoir behavior over time.
