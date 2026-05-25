@@ -5,6 +5,7 @@ Lake Routing Schemes
 
 The lake component in mizuRoute provides a flexible framework for representing the water balance of both natural lakes and managed reservoirs within a river routing network.
 
+
 .. _Lake_Water_Balance_Representation_scheme:
 
 Lake Water Balance Representation
@@ -15,11 +16,11 @@ The lake module simulates the water balance by accounting for the primary fluxes
 **Input fluxes:**
 
 - Upstream river discharge
-- Direct precipitation onto the lake surface
+- Direct precipitation or other fluxes onto the lake surface
 
 **Output fluxes:**
 
-- Evaporation from the lake surface
+- Evaporation or other fluxes from the lake surface
 - Outflow discharge (for exorheic lakes)
 
 Lake storage evolves dynamically as a function of these fluxes, allowing the model to resolve lake and reservoir behavior over time.
@@ -28,18 +29,33 @@ The water balance of a lake or reservoir in mizuRoute can be expressed as:
 
 .. math::
 
-   \frac{dS}{dt} = I - O + (P - E + G)\,A - F_{a,i}
+   \frac{dS}{dt} = I - O + F_{\mathrm{eff}}\,A - F_{a,i}
 
 where:
 
 - :math:`S` [m³] is the lake or reservoir storage
-- :math:`I` and :math:`O` [m³ s⁻¹] are the inflow and outflow, respectively
-- :math:`P` and :math:`E` [m s⁻¹] are precipitation and evaporation over the lake surface
-- :math:`G` [m s⁻¹] represents groundwater exchange with the lake
+- :math:`I` and :math:`O` [m³ s⁻¹] are inflow and outflow, respectively
 - :math:`A` [m²] is the lake surface area
+- :math:`F_{\mathrm{eff}}` [m s⁻¹] is the effective areal forcing over the lake
 - :math:`F_{a,i}` [m³ s⁻¹] is the abstraction or injection flux provided as a time series
 
 The flux :math:`F_{a,i}` is defined such that positive values represent abstraction (water removal), provided sufficient water is available in the river segment or lake, while negative values represent injection.
+
+The effective forcing term can be decomposed as:
+
+.. math::
+
+   F_{\mathrm{eff}} = P - E + G
+
+where:
+
+- :math:`P` [m s⁻¹] is precipitation over the lake surface
+- :math:`E` [m s⁻¹] is evaporation from the lake surface
+- :math:`G` [m s⁻¹] represents groundwater exchange with the lake
+
+In mizuRoute, precipitation and evaporation can be explicitly represented, depending on the model configuration. Users may choose to apply precipitation and evaporation separately, or use an effective precipitation approach in which these terms are already combined externally (e.g., by a land surface model providing runoff or net water flux to the lake).
+
+Groundwater exchange is not explicitly represented in the current implementation. However, it may be incorporated externally either as part of an effective runoff or within the effective precipitation term, depending on how the forcing data are constructed.
 
 For further details on the formulation, see
 `Gharari et al., 2024 <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022WR032400>`_.
