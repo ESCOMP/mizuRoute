@@ -3,79 +3,78 @@
 Lake Routing Schemes
 ====================
 
-The lake component in mizuRoute provides a flexible framework for representing
-both natural lakes and managed reservoirs within a river routing network.
+The lake component in mizuRoute provides a flexible framework for representing the water balance of both natural lakes and managed reservoirs within a river routing network.
+
+.. _Lake_Water_Balance_Representation_scheme:
+
+Lake Water Balance Representation
+---------------------------------
+
+The lake module simulates the water balance by accounting for the primary fluxes entering and leaving the system.
+
+**Input fluxes:**
+
+- Upstream river discharge
+- Direct precipitation onto the lake surface
+
+**Output fluxes:**
+
+- Evaporation from the lake surface
+- Outflow discharge (for exorheic lakes)
+
+Lake storage evolves dynamically as a function of these fluxes, allowing the model to resolve lake and reservoir behavior over time.
+
+The water balance of a lake or reservoir in mizuRoute can be expressed as:
+
+.. math::
+
+   \frac{dS}{dt} = I - O + (P - E + G)\,A - F_{a,i}
+
+where:
+
+- :math:`S` [m³] is the lake or reservoir storage
+- :math:`I` and :math:`O` [m³ s⁻¹] are the inflow and outflow, respectively
+- :math:`P` and :math:`E` [m s⁻¹] are precipitation and evaporation over the lake surface
+- :math:`G` [m s⁻¹] represents groundwater exchange with the lake
+- :math:`A` [m²] is the lake surface area
+- :math:`F_{a,i}` [m³ s⁻¹] is the abstraction or injection flux provided as a time series
+
+The flux :math:`F_{a,i}` is defined such that positive values represent abstraction (water removal), provided sufficient water is available in the river segment or lake, while negative values represent injection.
+
+For further details on the formulation, see
+`Gharari et al., 2024 <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022WR032400>`_.
+
+.. _Lake_Types_scheme:
 
 Lake Types
 ----------
 
 Two types of lakes are supported:
 
-- **Exorheic lakes**: Lakes with an outlet, allowing water to flow downstream.
-- **Endorheic lakes**: Closed basins with no surface outflow, where water
-  leaves the system only through evaporation or infiltration.
+- **Exorheic lakes**: lakes with an outlet, allowing water to flow downstream.
+- **Endorheic lakes**: closed basins with no surface outflow, where water leaves the system only through evaporation or infiltration.
 
-Water Balance Representation
-----------------------------
-
-The lake module simulates the water balance by accounting for the primary
-fluxes entering and leaving the lake system.
-
-**Input fluxes:**
-- Upstream river discharge
-- Direct precipitation onto the lake surface
-
-**Output fluxes:**
-- Evaporation from the lake surface
-- Outflow discharge (for exorheic lakes)
-
-Lake storage evolves dynamically as a function of these fluxes, enabling the
-model to resolve lake behavior over time.
+.. _Lake_parametric_models_scheme:
 
 Lake Routing Formulations
 -------------------------
 
-mizuRoute includes multiple formulations to represent lake dynamics, each
-varying in complexity and data requirements. Currently, three lake models are
-implemented (see :ref:`Lake_res_model` for details).
+One commonly used approach is **parametric lake models**, which relate lake inflow and storage to outflow through functional relationships. These formulations are computationally efficient and well suited for large-scale applications. mizuRoute includes multiple formulations to represent lake dynamics, each varying in complexity and data requirements; currently, three lake models are implemented (see :ref:`Lake_res_model` for details).
 
-One commonly used approach is **parametric lake models**, which relates
-lake inflow and storage to outflow through functional
-relationships. These formulations are computationally efficient and well suited
-for large-scale applications.
+.. _Lake_Target_Volume_scheme:
 
 Target Volume
 -------------
 
-The model also supports a simplified representation of reservoir operations
-through a **target volume** mechanism.
+The model also supports a simplified representation of reservoir operations through a **target volume** mechanism.
 
-- If the current storage is below the target volume, water is retained.
-- If storage exceeds the target volume, excess water is released downstream.
+The target volume is provided as a time series in the water management input file for each lake or reservoir. This approach enables approximation of reservoir rule curves and their temporal variability, incorporation of in situ or satellite-based storage observations, and the ability to inform mizuRoute using outputs from more complex reservoir operation models during events such as floods or other regulated conditions; for more details, see :ref:`Lake_Target_Volume`.
 
-The target volume is typically provided as a time series in the water management input file for each lake or reservoir. This approach enables a first-order approximation of reservoir rule curves without requiring explicit operational policies. Alternatively, it can be used by the user to incorporate more complex management information derived from expert knowledge or external water management models. For more details, see: :ref:Water management input file <WaterManagement_file>
-
-.. note::
-
-   This simplified operational scheme may introduce numerical uncertainties,
-   particularly under rapidly varying flow conditions. Care should be taken
-   when interpreting results for highly regulated systems.
+.. _Lake_Abstraction_scheme:
 
 Water Management Fluxes
 -----------------------
 
-In addition to physically based formulations, mizuRoute supports a
-data-driven representation of lake and reservoir management.
+In addition to physically based formulations, mizuRoute supports a data-driven representation of lake and reservoir management, where users can prescribe external input and output fluxes.
 
-Users can prescribe:
-
-- Water withdrawals from lakes
-- Artificial inflows (e.g., diversions)
-- Managed releases
-
-These fluxes are provided as time series, similar to the treatment of
-regulated river segments. This functionality enables the representation of
-human interventions in the hydrological system.
-
-For details on the required input format, see:
-:ref:`Water management input file <WaterManagement_file>`
+These fluxes are provided as time series, similar to the treatment of regulated river segments, enabling representation of human interventions in the hydrological system; in addition, this framework allows interaction with other hydrological processes, such as exchanges with groundwater or other connected storage components. For details on the required input format, see :ref:`Lake_Abstraction`.

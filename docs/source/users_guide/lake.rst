@@ -3,8 +3,8 @@
 Lake and Reservoir Models
 =========================
 
-To simulate lakes, the variable ``<is_lake_sim>`` in the control file **must be set to true**.  
-By default, this flag is set to ``false``; therefore, unless explicitly specified, ``mizuRoute`` does not simulate lakes.  
+To simulate lakes, the variable ``<is_lake_sim>`` in the control file **must be set to true**.
+By default, this flag is set to ``false``; therefore, unless explicitly specified, ``mizuRoute`` does not simulate lakes.
 Instead, ``mizuRoute`` treats lakes as regular river reaches, using the provided reach length or slope from the network topology file. If these values are unavailable, default parameters are applied—typically a reach length of 100 meters or a minimum slope value (e.g., 0.00001)—for lake elements represented as river segments.
 
 .. list-table:: Global control keys for lake simulation
@@ -74,7 +74,9 @@ The following variables need to be specified in the network topology file for ea
      - flag (0/1)
      - Flag to follow the provided target volume for the lake (``1`` = yes, ``0`` = no).
 
+The variable defined by ``varname_islake`` identifies whether a river network element is classified as a lake or reservoir within the routing topology. The variable defined by ``varname_lakeModelType`` specifies the lake model type, including endorheic (closed) systems or one of the parametric lake formulations implemented in mizuRoute.
 
+In addition, when the water management option is enabled (see :ref:`WaterManagement_file`), the lake or reservoir simulation can be driven by externally provided target storage values. In this case, the variable ``vname_vol_wm`` is used to prescribe time series of target volumes (in m³), which override the default parametric lake formulation and force the system to follow the externally specified reservoir operation behavior.
 
 For further reading about the below formulation, please see
 `Gharari et al., 2024 <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022WR032400>`_.
@@ -92,10 +94,16 @@ This model does not require any specific parameters.
 To designate a lake as endorheic, set the corresponding flag in the network topology file to ``0`` (variable identified by ``<varname_lakeModelType>``).
 
 
+.. _Lake_parametric_models:
+
+Lake and reservoir parametric models
+------------------------------------
+
+
 .. _Lake_model_Doll:
 
 Storage-based model (Döll)
---------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The least complex lake model in *mizuRoute-Lake* is the Döll formulation
 (based on Döll, 2003; Hanasaki, 2006).
@@ -161,7 +169,7 @@ Where:
 .. _Lake_model_Hanasaki:
 
 Demand-based model (Hanasaki)
------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Hanasaki 2006 formulation represents reservoirs with explicit consideration of water demand.
 It calculates target release based on storage, inflow, and demand, differentiating between “within-a-year”
@@ -292,7 +300,7 @@ and “multi-year” reservoirs.
 .. _Lake_model_HYPE:
 
 Elevation-based model (Hydropower Reservoir Formulation from HYPE)
-------------------------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The HYPE formulation describes the representation of a hydropower reservoir in *mizuRoute-Lake*.
 This includes parameters for spillways, turbine operations, and reservoir management rules.
@@ -439,3 +447,30 @@ Where the parameters are defined as:
 - :math:`Q_{\mathrm{emg}}` = emergency spillway outflow
 - :math:`Q_{\mathrm{main}}` = main hydropower production outflow
 - :math:`O` = final outflow from the reservoir (m³/s) (network topology variable name is identified by control key ``<varname_HYP_Qsim_mode>``)
+
+.. _Lake_Target_Volume:
+
+Lake Target Volume
+------------------
+
+To accommodate more complex lake and reservoir behavior, each lake can optionally be assigned a target volume time series. Lakes using this functionality are specified in the network topology file using the flag ``<varname_LakeTargVol>``. In addition, the corresponding target volume time series must be provided in the optional water management input files (see :ref:`WaterManagement_file`).
+
+This capability allows representation of dynamics that are not captured by the parametric lake models, such as rule curves (provided as time series) or more complex reservoir drawdown operations. It also enables integration of external data sources, including in situ lake level measurements, storage estimates, or remote sensing products (e.g., satellite altimetry-derived storage changes).
+
+The target volume operation follows a simple rule:
+
+1. If lake or reservoir storage is **below** the target volume, outflow is
+   restricted to retain water in storage.
+2. If lake or reservoir storage is **above** the target volume, excess water
+   is released downstream.
+
+.. note::
+
+   Target volume scheme may introduce numerical uncertainties, particularly under rapidly varying flow conditions. Care should be taken when interpreting results.
+
+.. _Lake_Abstraction:
+
+Lake Abstraction
+----------------
+
+mizuRoute also has the capability, in addition to the parameterix model simulation for a lake or reservoir, to accound for a time series of abstraction or injection of water into a lake. This capabilty allows more flexible mdoeling for the reservoir with two outlets for example (one can be simulated with parameteric formulation, while the second can be emulated using a target realse timesers). additinally the more complex hydrological fluxes such as interaction of lake and reserovir water balance with external hydrological and groundwatetre level can be captured in this model. For using of this approach the water managemtn optional intpu files and their control keys should be activate :ref:`WaterManagement_file`.
