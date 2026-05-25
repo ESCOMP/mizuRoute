@@ -3,77 +3,65 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 # mizuRoute
-MizuRoute is a tool that takes runoff data from a hydrologic or land surface model to compute streamflow in a user-defined catchment-based (vector) river network.
-A user can add Lakes into the river network, allowing the model to simulate discharge and volume in rivers and lakes (natural lakes or reservoir).
 
-MizuRoute uses Message Passing Interface (MPI) for parallel computing to work on multi-decdal to a century simulation over large river networks (e.g., the river network over the contiguous United States).
+## Overview
 
-MizuRoute can be run in two ways: 
+MizuRoute is a river model for simulating streamflow through user-defined, catchment-based vector river network. It takes runoff or lateral inflow (river model forcing) from a hydrologic, land surface model, or other data sources and routes water through rivers, lakes, and reservoirs.
+MizuRoute is designed for multiple applications, including stand-alone hydrologic and water-resources studies, regional and continental river-routing experiments, model intercomparison studies, and coupled Earth system modeling. 
+MizuRoute supports parallel computing with Passing Interface (MPI), enabling multi-decdal to a century simulations over large and fine scale river networks such as regional, continental or global domains.
+We are also intereseted in expanding modeling capability, for example, tracers, stream temperature , data assimilations etc., as optional features, in addition to streamflow estimations.
 
-1. Stand-alone mode - users needs provides their own runoff time series as a model input. 
-2. CESM coupled model - MizuRoute runs as a river model component in Community Earth System Model (CESM).
-Currently, mizuRoute is coupled to Community Terrestrial Systems Model ([CTSM](https://github.com/ESCOMP/CTSM)), the land-model component of CESM. 
+## Applications and use cases
 
+MizuRoute is used in several ways:
 
-## To get started for a stand-alone mode
-1. Obtaining mizuRoute package. Just to use the tool, download the package by clicking “Download Zip” button on right column. 
+2. **Hydrologic and water-resources modeling**  
+   MizuRoute can be applied to regional or continental river networks for hydrologic studies, practical water-resource planning such as climate-impact assessments, and hydrologic model evaluation via observed streamflow comparison.
 
-2. To compile the codes, and prepare for the input data, please refer to [User's Guide](https://mizuroute.readthedocs.io/en/main/)
+3. **Coupled Earth System Modeling**  
+   MizuRoute can be used as a river model component in Earth System Model to study feedbacks from river to terrestial hydrologic system and discharge into oscean. 
 
-3. A user is encouraged to start with example data to get familiarize the process. Link to testCase data are given in [testCase data](https://mizuroute.readthedocs.io/en/main/users_guide/testCase.html) in User's Guide.
+4. **Method development and community research**  
+   MizuRoute is intended to support development and testing of routing methods, lake/reservoir representations, network datasets, coupling strategies, and hydraulic or hydrologic process improvements.
 
-## To get started for ctsm coupling mode
+## Getting started
 
-User interested in using mizuRoute with CTSM is referred to CESM's user guide. Here, quick guide is provided.  
+mizuRoute is commonly used in two configurations:
 
-1. Obtain CTSM code from [github](https://github.com/ESCOMP/CTSM/tree/master)
+1. **Stand-alone model** 
+   Users provide river model forcing time series as well asl a river network to simulate streamflow, river storage, lake/reservoir volume, and related routing diagnostics. This is how majorty of users use.
+   Please refer to [getting started stand-alone mode](docs/starting_stand-alone_mode.md) 
 
-2. Create the case
+2. **ESM/land model coupled mode** 
+   Currently, mizuRoute is coupled to Community Terrestrial Systems Model ([CTSM](https://github.com/ESCOMP/CTSM)), the land-model component of Community Earth System Model([CESM](https://www.cesm.ucar.edu/models)). For this use, river model forcing is directly from CTSM.
+   Please refer to [getting started CTSM coupled mode](docs/starting_ctsm_couple_mode.md) 
+   
+Most new users interested in rive routing applications should begin with [getting started stand-alone mode](docs/starting_stand-alone_mode.md) and [mizuRoute documentation](http://mizuRoute.readthedocs.io/).
+Users interested in coupled Earth system simulations should consult the CESM/CTSM documentation in addition to the mizuRoute documentation.
 
-   ```bash
-   cd cime/scripts
-   ```
+## Community model and contributions
 
-   ```bash
-   ./create_newcase --case <testcase> --mach derecho --res f09_f09_rHDMAlk_mg17 -compset I2000Clm60SpMizGs 
-   ```
-   (`./create_newcase -help --` to get help on the script)
+mizuRoute is a multi-application, community river routing model. It supports stand-alone hydrologic and water-resources applications as well as coupled Earth system modeling applications, currently supporting CTSM and will be fully coupled with CESM. 
+The project welcomes contributions including but not limited to, modernizing the code structure, improving model physics, numerical methods, input/output workflows, testing, documentation, and usability across these applications. Also other model coupling (hydrologic, land-surface, water quality) is also welcomed.
 
-3. Setup the case
+For small changes, such as documentation updates or minor bug fixes, contributors may open pull request directly. For larger changes, such as new routing schemes, changes to input/output formats, data-structure refactoring, or modifications that may affect CESM/CTSM coupling, contributors are encouraged to open a GitHub issue first. This allows maintainers and interested users to discuss the proposed augmentation, identify possible impacts on existing workflows, coordinate with ongoing development, and agree on a review strategy before implementation.
 
-   ```bash
-   cd <testcase>
-   ```
+A suggested contribution process is:
 
-   ```bash
-   ./xmlchange id1=val1,id2=val2  # to make changes to any settings in the env_*.xml files
-   ./case.setup
-   ```
-   (./case.setup -help -- to get help on the script)
+1. Open an issue describing the proposed change, motivation, expected application, and likely impacts.
+2. Discuss the proposed design with maintainers and interested community members.
+3. Develop the change in a feature branch in your fork.
+4. Add or update tests, examples, and documentation.
+5. Open a pull request for review.
 
-3. Add any namelist changes to the `user_nl_*` files
-
-   ```bash
-   $EDITOR user_nl_*
-   ```
-
-4. Compile the code
-
-   ```bash
-   ./case.build
-   ```
-
-5. Submit the run
-
-   ```bash
-   ./case.submit
-   ```
 
 ## Prerequisite 
- 1. Linux commands.
- 2. Geographic Information System to develop and visualize river network data
- 3. python or similar other languages to analyze/visualize data, prepare for the input
- 4. Fortran (if a user desires to change the codes)
+To effectively work with mizuRoute, users and developers benefit from having the following working commands. 
+ 1. Linux basic commands.
+ 2. python or similar other languages to analyze/visualize data, prepare for the input.
+ 3. Geographic Information System to develop and visualize river network data (recommended).
+ 4. Modern Fortran (fortran 90 or later), if a user desires to change the codes.
+ 5. git, if a user desires contributions to development.
 
 
 ## Funding
@@ -85,5 +73,4 @@ User interested in using mizuRoute with CTSM is referred to CESM's user guide. H
 
 LICENSE
 -------
-
 mizuRoute is [licensed](LICENSE.txt) under Apache 2.0
