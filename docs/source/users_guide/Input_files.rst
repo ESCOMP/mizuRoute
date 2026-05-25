@@ -574,18 +574,13 @@ For ``<restart_hour>`` to take effec, the simulation time step (``<dt_qsim>``) m
 Water management file (optional)
 --------------------------------
 
-In addition to runoff data (typically provided to mizuRoute as areal-average
-forcing), users can specify optional water management inputs to enable a more
-realistic representation of lake and reservoir operations.
+In addition to the required runoff input (typically provided to mizuRoute as areal-average values), users may optionally supply water management inputs to represent human influences on the hydrological system. These include processes such as bifurcations, abstractions, return flows to river segments or lakes, and prescribed target volumes for lakes and reservoirs. Such inputs enable the simulation of more complex, time-dependent operational behaviors that are not captured by the default parameterizations or assumptions implemented in mizuRoute.
 
-These options allow the model to represent:
+For example, interbasin water transfers can be represented by extracting water from one river segment and injecting it into another. Similarly, irrigation withdrawals from lakes or reservoirs can be prescribed explicitly rather than relying on internally parameterized demand formulations. These inputs may originate from external water management models or decision-based datasets outside of mizuRoute.
 
-- Direct fluxes (abstraction, injection, or diversions)
-- Target storage behavior for regulated lakes and reservoirs
-- Time-dependent operational constraints
+Three logical control keys are used to activate water management functionality (see :ref:`Water management logical options`). When ``<is_flux_wm>`` is set to True, mizuRoute reads water management input files containing the variable ``<vname_flux_wm>``, which represents time series of water injections to or abstractions from river segments or lakes.
 
-The following logical control keys activate different components of the
-water management module.
+When ``<is_vol_wm>`` is set to True, the model expects time series of target storage volumes (in ``m³``) for managed lakes and reservoirs, provided through ``<vname_vol_wm>``. These target volumes guide reservoir operations toward prescribed storage states over time. The ``<is_vol_wm_jumpstart>`` flag controls the initial storage conditions: when enabled, lake and reservoir storage is initialized at the first time step to match the first available target volume, which can help reduce model spin-up time.
 
 .. list-table:: Control keys for activating water management options
    :header-rows: 1
@@ -615,9 +610,7 @@ water management module.
      - If ``True``, the model initializes lake storage using the first
        available target volume, which can reduce model spin-up time.
 
-The following control keys define the input files and variable/dimension
-names used to read water management forcing data (analogous to runoff input
-files).
+The following control keys define the input files, as well as the variable and dimension names, used to read water management data. These inputs are specified per river segment—regardless of whether the runoff input requires remapping—and are interpreted consistently with the routing network defined in the model :ref:`Runoff_data`.
 
 .. list-table:: Control keys for water management input files and variables
    :header-rows: 1
@@ -664,7 +657,7 @@ files).
      - Name of the time variable in the NetCDF files.
    * - ``<vname_segid_wm>``
      - variable name
-     - segid
+     - seg
      - int
      - seg
      - --
