@@ -225,20 +225,18 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     #----------------------------------------------------
 
     fname_state_in = ctl.get("fname_state_in")
-    if run_type == 'branch' or run_type == 'hybrid':
-        run_refcase = case.get_value("RUN_REFCASE")
-        run_refdate = case.get_value("RUN_REFDATE")
-        run_tod = case.get_value("RUN_REFTOD")
-        filename = "%s.mizuroute%s.r.%s-%s.nc" %(run_refcase, inst_string, run_refdate, run_tod)
-        if not os.path.exists(os.path.join(rundir, filename)):
-            filename = "%s.mizuroute.r.%s-%s.nc" %(run_refcase, run_refdate, run_tod)
 
-        fname_state_in = filename
+    if fname_state_in.strip() == '' or fname_state_in.strip() == 'STATE_IN_NC':
+        if run_type == 'branch' or run_type == 'hybrid':
+            run_refcase = case.get_value("RUN_REFCASE")
+            run_refdate = case.get_value("RUN_REFDATE")
+            run_tod = case.get_value("RUN_REFTOD")
+            filename = "%s.mizuroute%s.r.%s-%s.nc" %(run_refcase, inst_string, run_refdate, run_tod)
+            if not os.path.exists(os.path.join(rundir, filename)):
+                filename = "%s.mizuroute.r.%s-%s.nc" %(run_refcase, run_refdate, run_tod)
 
-    elif fname_state_in.strip() == '':
-        fname_state_in = "empty"
-    else:
-        if ctl.get('fname_state_in') == 'STATE_IN_NC':
+            fname_state_in = filename
+        else:
             fname_state_in = "empty"
 
     ctl.set( "fname_state_in", fname_state_in )
