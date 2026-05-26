@@ -183,7 +183,8 @@ CONTAINS
                        inputFileInfo,    & ! output: input file information
                        ierr, message)      ! output: error control
 
-  USE globalData,          ONLY: masterproc
+  USE globalData,          ONLY: masterproc     ! root task logical. root task-> .true., otherwise-> .false.
+  USE globalData,          ONLY: multiProcs     ! MPI multi-processors logical. single task -> .true., otherwise-> .false.
   USE dataTypes,           ONLY: inFileInfo     ! the data type for storing the infromation of the nc files and its attributes
   USE datetime_data,       ONLY: datetime       ! datetime data
   USE ascii_utils,         ONLY: file_open      ! open file (performs a few checks as well)
@@ -215,7 +216,6 @@ CONTAINS
   integer(i4b)                                      :: iFile            ! counter for forcing files
   integer(i4b)                                      :: nFile            ! number of nc files identified in the text file
   integer(i4b)                                      :: nTime            ! hard coded for now
-  integer(i4b)                                      :: ierr_dummy       ! dummy error code, for checking nc file
   logical(lgt)                                      :: existAttr        ! attribute exists or not
   logical(lgt)                                      :: file_exists      ! flag to check if a file exists or not
   logical(lgt)                                      :: infile_exists    ! flag to check if infile exists or not
@@ -224,10 +224,8 @@ CONTAINS
   character(len=strLen)                             :: infilename       ! input filename
   character(len=strLen),allocatable                 :: dataLines(:)     ! vector of lines of information (non-comment lines)
   character(len=strLen)                             :: cmessage         ! error message of downwind routine
-  character(len=strLen)                             :: message_dummy    ! dummy error message, for checking nc file
 
   ierr=0; message='inFile_pop/'
-  ierr_dummy=0; message_dummy=''
 
   ! build filename and its path containing list of NetCDF files
   ! then construct a character array including the file paths
@@ -239,7 +237,7 @@ CONTAINS
 
   if (masterproc) then
     ! check if the provided input file is netcdf
-    is_nc =  is_netcdf_file (infilename, ierr_dummy, message_dummy)
+    is_nc =  is_netcdf_file (infilename, ierr, cmessage)
     if (is_nc) then
       ! allocate the dataLines
       allocate(dataLines(1))
@@ -260,6 +258,9 @@ CONTAINS
       ! get a list of character strings from non-commented lines
       call get_vlines(funit,dataLines,ierr,cmessage)
       if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
+      ! ascii file reading is done, so close it
+      close(unit=funit,iostat=ierr) ! close ascii file
+      if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
       ! remove the tmp file
       if (.not. infile_exists) then ! assume to to be wildcard, remove tmp file
         call execute_command_line("rm -f "//trim(tmp_file_list))
@@ -291,85 +292,103 @@ CONTAINS
 
   ! poputate the forcingInfo structure with filenames, and time variables/attributes
   do iFile=1,nFile
-
     ! set forcing file name
     inputFileInfo(iFile)%infilename = trim(dataLines(iFile))
+  end do
 
-    ! get the time units. if not exsit in netcdfs, provided from the control file
-    existAttr = check_attr(trim(inputFileInfo(iFile)%infilename), time_var_name, 'units')
-    if (existAttr) then
-      call get_var_attr(trim(inputFileInfo(iFile)%infilename), &
-                        time_var_name, 'units', inputFileInfo(iFile)%unit, ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    else
-      if (trim(time_units_in)==charMissing) then
-        write(cmessage,'(2A)') trim(time_var_name),'. No units in time attribute nor provided in <ro_time_units> in control file'
-        ierr=10; message=trim(message)//trim(cmessage); return
+  ! Now, netCDF time variable metadata needs to be read in, for this process, just use main task.
+  if (masterproc) then
+    do iFile=1,nFile
+      ! get the time units. if not exsit in netcdfs, provided from the control file
+      existAttr = check_attr(trim(inputFileInfo(iFile)%infilename), time_var_name, 'units')
+      if (existAttr) then
+        call get_var_attr(trim(inputFileInfo(iFile)%infilename), &
+                          time_var_name, 'units', inputFileInfo(iFile)%unit, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      else
+        if (trim(time_units_in)==charMissing) then
+          write(cmessage,'(2A)') trim(time_var_name),'. No units in time attribute nor provided in <ro_time_units> in control file'
+          ierr=10; message=trim(message)//trim(cmessage); return
+        end if
+        inputFileInfo(iFile)%unit = time_units_in
       end if
-      inputFileInfo(iFile)%unit = time_units_in
-    end if
 
-    ! get the calendar. if not exsit in netcdfs, provided from the control file
-    existAttr = check_attr(trim(inputFileInfo(iFile)%infilename), time_var_name, 'calendar')
-    if (existAttr) then
-      call get_var_attr(trim(inputFileInfo(iFile)%infilename), &
-                        time_var_name, 'calendar', inputFileInfo(iFile)%calendar, ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    else
-      if (trim(calendar_in)==charMissing) then
-        write(cmessage,'(2A)') trim(time_var_name),'. No calendar in time attribute nor provided in <ro_calendar> in control file'
-        ierr=10; message=trim(message)//trim(cmessage); return
+      ! get the calendar. if not exsit in netcdfs, provided from the control file
+      existAttr = check_attr(trim(inputFileInfo(iFile)%infilename), time_var_name, 'calendar')
+      if (existAttr) then
+        call get_var_attr(trim(inputFileInfo(iFile)%infilename), &
+                          time_var_name, 'calendar', inputFileInfo(iFile)%calendar, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      else
+        if (trim(calendar_in)==charMissing) then
+          write(cmessage,'(2A)') trim(time_var_name),'. No calendar in time attribute nor provided in <ro_calendar> in control file'
+          ierr=10; message=trim(message)//trim(cmessage); return
+        end if
+        inputFileInfo(iFile)%calendar = calendar_in
       end if
-      inputFileInfo(iFile)%calendar = calendar_in
-    end if
 
-    ! get the dimension of the time to populate nTime and pass it to the get_nc file
-    call get_nc_dim_len(trim(inputFileInfo(iFile)%infilename), &
-                        time_dim_name, inputFileInfo(iFile)%nTime, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      ! get the dimension of the time to populate nTime and pass it to the get_nc file
+      call get_nc_dim_len(trim(inputFileInfo(iFile)%infilename), &
+                          time_dim_name, inputFileInfo(iFile)%nTime, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    nTime = inputFileInfo(iFile)%nTime ! the length of time varibale for each nc file
+      nTime = inputFileInfo(iFile)%nTime ! the length of time varibale for each nc file
 
-    ! allocate space for time varibale of each file
-    allocate(inputFileInfo(iFile)%timeVar(nTime))
-    if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for inputFileInfo(:)%timeVar'; return; end if
+      ! allocate space for time varibale of each file
+      allocate(inputFileInfo(iFile)%timeVar(nTime))
+      if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for inputFileInfo(:)%timeVar'; return; end if
 
-    ! get the time varibale
-    call get_nc(trim(inputFileInfo(iFile)%infilename), &
-                time_var_name, inputFileInfo(iFile)%timeVar, 1, nTime, ierr, cmessage) ! does it needs timeVar(:)
+      ! get the time varibale
+      call get_nc(trim(inputFileInfo(iFile)%infilename), &
+                  time_var_name, inputFileInfo(iFile)%timeVar, 1, nTime, ierr, cmessage) ! does it needs timeVar(:)
 
-    ! get the time multiplier needed to convert time to units of days for each nc file
-    t_unit = trim( inputFileInfo(iFile)%unit(1:index(inputFileInfo(iFile)%unit,' ')) )
-    select case( trim(t_unit) )
-      case('seconds','second','sec','s'); convTime2sec=1._dp
-      case('minutes','minute','min','m'); convTime2sec=secprmin
-      case('hours'  ,'hour'  ,'hr' ,'h'); convTime2sec=secprhour
-      case('days'   ,'day'   ,'d');       convTime2sec=secprday
-      case default
-        ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'
-        return
-    end select
-    ! convert timeValue unit to second
-    inputFileInfo(iFile)%timeVar(:) = inputFileInfo(iFile)%timeVar(:)*convTime2sec
+      ! get the time multiplier needed to convert time to units of days for each nc file
+      t_unit = trim( inputFileInfo(iFile)%unit(1:index(inputFileInfo(iFile)%unit,' ')) )
+      select case( trim(t_unit) )
+        case('seconds','second','sec','s'); convTime2sec=1._dp
+        case('minutes','minute','min','m'); convTime2sec=secprmin
+        case('hours'  ,'hour'  ,'hr' ,'h'); convTime2sec=secprhour
+        case('days'   ,'day'   ,'d');       convTime2sec=secprday
+        case default
+          ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'
+          return
+      end select
+      ! convert timeValue unit to second
+      inputFileInfo(iFile)%timeVar(:) = inputFileInfo(iFile)%timeVar(:)*convTime2sec
+    end do
+  end if
 
+  ! then broadcast inputFileInfo metadata read in from metcdf to the other tasks
+  if (multiProcs) then
+    do iFile=1,nFile
+      call shr_mpi_bcast(inputFileInfo(iFile)%unit, ierr, cmessage)
+      if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
+
+      call shr_mpi_bcast(inputFileInfo(iFile)%calendar, ierr, cmessage)
+      if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
+
+      call shr_mpi_bcast(inputFileInfo(iFile)%nTime, ierr, cmessage)
+      if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
+
+      call shr_mpi_bcast(inputFileInfo(iFile)%timeVar, ierr, cmessage)
+      if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
+    end do
+  end if
+
+  do iFile=1,nFile
     ! get the reference datetime from the nc file
     call inputFileInfo(iFile)%refDatetime%str2datetime(trim(inputFileInfo(iFile)%unit), inputFileInfo(iFile)%calendar, &
                                                       & ierr, message)
     if(ierr/=0) then; message=trim(message)//trim(cmessage)//' inputFileInfo%refDatetime%str2datetime'; return; endif
-
-    ! populated the index of the iTimebound for each nc file
+    ! populated the 1st and last index of time step for each file w.r.t. the entire time step
     if (iFile==1) then
-      inputFileInfo(iFile)%iTimebound(1) = 1
-      inputFileInfo(iFile)%iTimebound(2) = nTime
+      inputFileInfo(iFile)%iTimeBound(1) = 1
+      inputFileInfo(iFile)%iTimeBound(2) = inputFileInfo(iFile)%nTime
     else ! if multiple files specfied in the txt file
-      inputFileInfo(iFile)%iTimebound(1) = inputFileInfo(iFile-1)%iTimebound(2) + 1 ! the last index from the perivous nc file + 1
-      inputFileInfo(iFile)%iTimebound(2) = inputFileInfo(iFile-1)%iTimebound(2) + nTime ! the last index from the perivous nc file + 1
+      inputFileInfo(iFile)%iTimeBound(1) = inputFileInfo(iFile-1)%iTimebound(2) + 1
+      inputFileInfo(iFile)%iTimeBound(2) = inputFileInfo(iFile-1)%iTimebound(2) + inputFileInfo(iFile)%nTime
     endif
-
   end do
-
-  close(unit=funit,iostat=ierr) ! close ascii file
-  if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
 
  END SUBROUTINE inFile_pop
 
