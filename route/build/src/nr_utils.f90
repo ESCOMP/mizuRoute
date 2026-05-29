@@ -1,7 +1,8 @@
 MODULE nr_utils
 
 USE nrtype
-USE public_var
+USE public_var, ONLY: iulog
+USE public_var, ONLY: integerMissing  ! missing value for integer number
 
 implicit none
 
@@ -113,8 +114,8 @@ CONTAINS
  ! *************************************************************************************************
  pure SUBROUTINE indexx_i4b(arr,index)
  implicit none
- integer(i4b), dimension(:), intent(IN) :: arr
- integer(i4b), dimension(:), intent(OUT) :: index
+ integer(i4b), dimension(:), intent(in) :: arr
+ integer(i4b), dimension(:), intent(out) :: index
  integer(i4b), parameter :: NN=15, NSTACK=50
  integer(i4b) :: a
  integer(i4b) :: n,k,i,j,indext,jstack,l,r
@@ -193,7 +194,7 @@ CONTAINS
  implicit none
  integer(i8b), dimension(:), intent(in) :: arr
  integer(i4b), dimension(:), intent(out) :: index
- integer(i4b), PARAMETER :: NN=15, NSTACK=50
+ integer(i4b), parameter :: NN=15, NSTACK=50
  integer(i8b) :: a
  integer(i4b) :: n,k,i,j,indext,jstack,l,r
  integer(i4b), dimension(NSTACK) :: istack

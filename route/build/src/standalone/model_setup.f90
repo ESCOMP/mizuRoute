@@ -101,7 +101,7 @@ CONTAINS
    end if
 
    ! restart initialization
-   call init_state_data(pid, nNodes, comm, ierr, cmessage)
+   call init_state_data(pid, nNodes, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    if (qmodOption==1) then
@@ -712,6 +712,7 @@ CONTAINS
    USE public_var,  ONLY: is_vol_wm            ! logical whether or not target volume should be read
    USE globalData,  ONLY: nHRU                 ! number of HRUs over the entire domain
    USE globalData,  ONLY: nRch                 ! number of reaches over the entire domain
+   USE globalData,  ONLY: nTracer              ! number of tracers
    USE globalData,  ONLY: basinID              ! basin ID
    USE globalData,  ONLY: reachID              ! reach ID
    USE globalData,  ONLY: inFileInfo_ro        ! metadata of the ro/evap/p input files
@@ -780,7 +781,7 @@ CONTAINS
    runoff_data%basinRunoff(:) = realMissing
 
    if (tracer) then
-     allocate(runoff_data%basinSolute(nHRU), source=realMissing,  stat=ierr, errmsg=cmessage)
+     allocate(runoff_data%basinSolute(nHRU,nTracer), source=realMissing,  stat=ierr, errmsg=cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
 
