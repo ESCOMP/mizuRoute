@@ -44,7 +44,14 @@ def _main_func():
             paths = [os.path.join(caseroot,"SourceMods","src.mizuroute"),
                      os.path.join(rof_root,"route","build","src"),
                      os.path.join(rof_root,"route","build","cpl"),
-                     os.path.join(rof_root,"route","build","cpl",driver)]
+                     os.path.join(rof_root,"route","build","cpl",driver),
+                     os.path.join(rof_root,"externals","toml-f","src"),
+                     os.path.join(rof_root,"externals","toml-f","src","tomlf"),
+                     os.path.join(rof_root,"externals","toml-f","src","tomlf","build"),
+                     os.path.join(rof_root,"externals","toml-f","src","tomlf","de"),
+                     os.path.join(rof_root,"externals","toml-f","src","tomlf","structure"),
+                     os.path.join(rof_root,"externals","toml-f","src","tomlf","type"),
+                     os.path.join(rof_root,"externals","toml-f","src","tomlf","utils")]
             with open(filepath_file, "w") as filepath:
                 filepath.write("\n".join(paths))
                 filepath.write("\n")

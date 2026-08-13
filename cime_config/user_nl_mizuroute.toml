@@ -1,0 +1,13 @@
+#----------------------------------------------------------------------------------
+# This is for changes to the mizuRoute control file only
+# Changes to the namelist file need to go in the user_nl_mizuRoute file
+#
+# See ../route/settings/SAMPLE-coupled.toml
+#
+# Here are some examples (remove the leading #):
+#
+# newFileFrequency = "monthly" # Ending comment
+# route_opt = 2 # Ending comment
+# doesAccumRunoff = 1 # Ending comment
+#
+#----------------------------------------------------------------------------------

@@ -247,24 +247,36 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
             expect(os.path.exists(fname_state_in), "mizuRoute restart file does NOT exist: "+fname_state_in)
 
     # Read in the user control file for the case and change settings to it
-    file_src = "user_nl_mizuroute_control"
-    user_ctl_file = os.path.join(caseroot, file_src + inst_string)
-    if ( not os.path.exists( user_ctl_file ) ):
-       safe_copy( os.path.join( srcroot, "cime_config", file_src), user_ctl_file )
+    file_src_toml = "user_nl_mizuroute.toml"
+    file_src_control = "user_nl_mizuroute_control"
+    user_file_toml = os.path.join(caseroot, file_src_toml + inst_string)
+    user_file_control = os.path.join(caseroot, file_src_control + inst_string)
+
+    if os.path.exists(user_file_toml):
+        user_ctl_file = user_file_toml
+    elif os.path.exists(user_file_control):
+        user_ctl_file = user_file_control
+    else:
+        # Copy default user_nl_mizuroute.toml template into $CASEROOT if neither user control file exists yet
+        safe_copy( os.path.join( srcroot, "cime_config", file_src_toml), user_file_toml )
+        user_ctl_file = user_file_toml
+
     usrctl = mizuRoute_control()
     usrctl.read( user_ctl_file, allowEmpty=True )
     for element in usrctl.get_elmList():
-       value = ctl.get( element )
-       expect( value != "UNSET", "Element in the user_nl_mizuroute_control file is NOT in the control file: "+element )
-       ctl.set( element, usrctl.get( element ) )
+       value = usrctl.get( element )
+       expect( ctl.get(element) != "UNSET", "Element in the user control file is NOT in the template control file: "+element )
+       ctl.set( element, value )
 
     #----------------------------------------------------
     # Write output files
     #----------------------------------------------------
-    control_file = os.path.join(confdir, "mizuRoute.control")
+    control_file = os.path.join(confdir, "mizuroute.toml")
+    control_legacy_file = os.path.join(confdir, "mizuRoute.control")
     nml_file = os.path.join(confdir, "mizuRoute_in")
     write_nml_in_file(case, nmlgen, confdir, nml_file )
     ctl.write( control_file )
+    ctl.write_legacy( control_legacy_file )
 
 ###############################################################################
 def write_nml_in_file(case, nmlgen, confdir, nml_file):
@@ -297,7 +309,7 @@ def buildnml(case, caseroot, compname):
     #----------------------------------------------------
     # Construct the control file generator
     #----------------------------------------------------
-    sampleFile = srcroot + "/route/settings/SAMPLE-coupled.control"
+    sampleFile = srcroot + "/route/settings/SAMPLE-coupled.toml"
     ctl = mizuRoute_control()
     ctl.read( sampleFile )
 
@@ -335,7 +347,7 @@ def buildnml(case, caseroot, compname):
     # copy control files to rundir
     if os.path.isdir(rundir):
        for destdir in [rundir, caseroot+"/CaseDocs"]:
-          for nfile in ["mizuRoute.control", "mizuRoute_in" ]:
+          for nfile in ["mizuroute.toml", "mizuRoute.control", "mizuRoute_in" ]:
              file_src = os.path.join(confdir, nfile )
              file_dest = os.path.join(destdir, nfile )
              if inst_string:

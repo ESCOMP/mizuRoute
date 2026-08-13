@@ -40,7 +40,7 @@ MODULE RtmVar
   integer,           public            :: rtmhist_ndens  = 1                        ! namelist: output density of netcdf history files
   integer,           public            :: rtmhist_mfilt  = 30                       ! namelist: number of time samples per tape
   integer,           public            :: rtmhist_nhtfrq = 0                        ! namelist: history write freq(0=monthly)
-  character(len=256),public            :: cfile_name     = 'mizuRoute.control'
+  character(len=256),public            :: cfile_name     = 'mizuroute.toml'
   character(len=256),public            :: para_xxxx      = 'mizuRoute_in'
   ! Miscellaneous variables
   logical,           public            :: barrier_timers = .false.       ! barrier timers

@@ -156,8 +156,8 @@ MOD_PATH = $(F_MASTER)build/
 EXE_PATH = $(F_MASTER)bin
 
 # External libraries (if used)
-EXTLIBS =
-EXTINCLUDES =
+EXTLIBS = $(F_MASTER)../externals/toml-f/_install/lib/libtoml-f.a
+EXTINCLUDES = -I$(F_MASTER)../externals/toml-f/_install/include/toml-f/modules
 
 #========================================================================
 # Assemble all of the sub-routines
