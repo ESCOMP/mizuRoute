@@ -13,20 +13,24 @@ To obtain the mizuRoute code and the optional externals you need to do the follo
 
    This will create a directory ``my_mizuRoute_sandbox/`` in your current working directory.
 
+#. Go to mizuRoute working directory. ::
+
+      cd my_mizuRoute_sandbox
+
 #. Run **git-fleximod**. ::
 
-      ./bin/git-fleximod -g .gitmodules update 
+      ./bin/git-fleximod -g .gitmodules update
 
-   **./bin/git-fleximod** is a python wrapper script that calls actual git-fleximod located under .lib/git-fleximod. 
-   The git-fleximod ulitity downloads source codes of external libraries specified in **.gitmodules**. mizuRoute now uses 
-   only one external library (parallel-io).
+   **./bin/git-fleximod** is a python wrapper script that calls actual git-fleximod located under .lib/git-fleximod.
+   The git-fleximod ulitity downloads source codes of external libraries specified in **.gitmodules**. mizuRoute now uses
+   only one external library (parallelIO).
 
-   NOTE: 
+   NOTE:
 
    This second step is only required if you are going to use
-   one of the external libraries in the mizuRoute build (currently pio).
+   one of the external libraries in the mizuRoute build (currently parallelIO).
 
-   If this is the first time to download external libraries, you may need to create a directory under libraries 
+   If this is the first time to download external libraries, you may need to create a directory under libraries
    before run **git-fleximod**. e.g.,::
 
      mkdir -p libraries/parallelio
@@ -40,7 +44,7 @@ The file **.gitmodules** in your top-level mizuRoute directory tells
 **git-fleximod** which tag/branch of external libraries
 that should be brought in to generate your sandbox.
 
-NOTE: git-fleximod will always attempt to make the working copy 
+NOTE: git-fleximod will always attempt to make the working copy
 exactly match the externals description. If
 you manually modify an external without updating .gitmodules, e.g. switch
 to a different tag, then rerunning checkout_externals will switch you
@@ -87,7 +91,7 @@ you would simply do the following::
 
 You should **not** use this method if you have made any source code
 changes, or if you have any ongoing mizuRoute simulations that you want
-to saze that were created from this sandbox. In these cases, it is often 
+to saze that were created from this sandbox. In these cases, it is often
 easiest to do a second **git clone**.
 
 Pointing to a different version of an external
