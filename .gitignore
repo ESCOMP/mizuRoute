@@ -48,6 +48,7 @@ buildlibc
 /route/build/src/tmp
 
 # CMAKE files created
+cmake_build
 CMakeFiles
 CMakeCache.txt
 cmake_install.cmake
