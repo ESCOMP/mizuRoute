@@ -12,11 +12,12 @@ The components to be tested should be called directly from the software source c
 To build an executable for each test:
 
 ```bash
+cd <test_name>
 cmake -S . -B cmake_build
 cmake --build cmake_build
 ```
 
 To run the test,
 ```bash
-<test_name>/cmake_build/test.exe
+./cmake_build/test.exe
 ```
