@@ -30,6 +30,7 @@ MODULE RtmMod
   implicit none
   logical, parameter :: verbose=.false.
   integer, parameter :: iRoute=1        ! index of routing method chosen. cesm-coupled run allows only one option (5 options available), this is always 1.
+  real(r8), allocatable :: depth_to_vol(:)  ! conversion factor based on local area [m2] from kg/m2(=mm) to m3
 
   private
   public route_ini          ! Initialize mizuRoute
@@ -228,6 +229,9 @@ CONTAINS
     else ! other processors
       call get_hru_area(NETOPO_trib, RPARAM_trib, verbose=verbose)
     end if
+
+    allocate(depth_to_vol(ctl%lnumr))
+    depth_to_vol = 1.e-3_r8*ctl%area(ctl%begr:ctl%endr)
 
     if ( any(ctl%gindex(ctl%begr:ctl%endr) < 1) )then
       call shr_sys_abort(trim(subname)//"bad gindex < 1")
@@ -438,7 +442,7 @@ CONTAINS
     call t_startf('mizuRoute_bypass_route')
 
     allocate(qSend(ctl%lnumr))
-    qSend = 0._r8
+    qSend = 0._r8  ! initialize with zero because changing part of qgwl, a part of qsub, and a part of qsur sequentially
 
     select case(trim(bypass_routing_option))
       case('direct_in_place')
@@ -481,6 +485,9 @@ CONTAINS
           ctl%qsur(begr:endr, nt_liq) = 0._r8
         end where
 
+        ! --- convert direct unit (kg/m3/s==mm/s to m3/s)
+        ctl%direct(begr:endr, nt_liq) = ctl%direct(begr:endr, nt_liq)*depth_to_vol(begr:endr)
+
       case('direct_to_outlet')
         ! ----  qgwl [mm/s]
         select case(trim(qgwl_runoff_option))
@@ -501,8 +508,8 @@ CONTAINS
         end where
 
         ! Distribute "direct runoff to ocean" to targe reach (i.e., outlet of river network)
+        qSend(begr:endr) = qSend(begr:endr)*depth_to_vol(begr:endr)
         call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct(:,nt_liq), fillvalue=0._r8)
-        call shr_mpi_barrier(mpicom_rof) ! AI says no need to call mpi barrier
 
       case default; call shr_sys_abort(trim(subname)//'unexpected bypass_routing_option')
     end select
@@ -511,12 +518,9 @@ CONTAINS
 
     call t_startf('mizuRoute_direct_to_outlet_land_ice')
 
-    qSend(:) = 0._r8
-    qSend(begr:endr) = qSend(begr:endr) + ctl%qsur(begr:endr, nt_ice) + ctl%qsub(begr:endr, nt_ice) + ctl%qgwl(begr:endr, nt_ice)
-
     ! Distribute "direct runoff to ocean" to targe reach (i.e., outlet of river network)
+    qSend(begr:endr) = (ctl%qsur(begr:endr, nt_ice) + ctl%qsub(begr:endr, nt_ice) + ctl%qgwl(begr:endr, nt_ice))*depth_to_vol(begr:endr)
     call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct(:,nt_ice), fillvalue=0._r8)
-    call shr_mpi_barrier(mpicom_rof) ! AI says no need to call mpi barrier
 
     ! Set ctl%qsur, ctl%qsub and ctl%qgwl to zero for nt_ice
     ctl%qsur(:,nt_ice) = 0._r8
@@ -528,8 +532,11 @@ CONTAINS
     call t_startf('mizuRoute_direct_to_outlet_glc_runoff')
     if (ctl%rof_from_glc) then
       ! Distribute "direct runoff to ocean" to targe reach (i.e., outlet of river network)
-      call shr_mpi_sparse_distribute(ctl%qglc_liq(:), commRch(:)%destTask, commRch(:)%destIndex, ctl%direct_glc(:,nt_liq), fillvalue=0._r8)
-      call shr_mpi_sparse_distribute(ctl%qglc_ice(:), commRch(:)%destTask, commRch(:)%destIndex, ctl%direct_glc(:,nt_ice), fillvalue=0._r8)
+      qSend(begr:endr) = ctl%qglc_liq(begr:endr)*depth_to_vol(begr:endr)
+      call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct_glc(:,nt_liq), fillvalue=0._r8)
+
+      qSend(begr:endr) = ctl%qglc_ice(begr:endr)*depth_to_vol(begr:endr)
+      call shr_mpi_sparse_distribute(qSend, commRch(:)%destTask, commRch(:)%destIndex, ctl%direct_glc(:,nt_ice), fillvalue=0._r8)
     else
       ctl%direct_glc(:,:) = 0._r8
     end if
@@ -539,6 +546,7 @@ CONTAINS
     call t_startf('mizuRoute_mapping_runoff')
 
     ! Transfer actual irrigation rate [mm/s] to river segment
+    ! unit conversion mm/s to m3/s is done in mizuRoute code
     if (masterproc) then
       if (nRch_mainstem > 0) then ! mainstem
         call basin2reach(ctl%qirrig_actual(1:nHRU_mainstem), NETOPO_main, RPARAM_main, flux_wm_main, &
@@ -639,6 +647,11 @@ CONTAINS
       call get_river_export_data(NETOPO_trib, RCHFLX_trib)
     end if
 
+    ctl%direct(:,ctl%nt_liq) =ctl%direct(:,ctl%nt_liq) / depth_to_vol(:)
+    ctl%direct(:,ctl%nt_ice) =ctl%direct(:,ctl%nt_ice) / depth_to_vol(:)
+    ctl%direct_glc(:,ctl%nt_liq) =ctl%direct_glc(:,ctl%nt_liq) / depth_to_vol(:)
+    ctl%direct_glc(:,ctl%nt_ice) =ctl%direct_glc(:,ctl%nt_ice) / depth_to_vol(:)
+
     call t_stopf('mizuRoute_prep_export')
 
     end associate
@@ -658,7 +671,8 @@ CONTAINS
                                    offset)
 
     ! Descriptions: get exporting variables
-    !  - discharge [kg/m2/s]=[mm/s]
+    !  - discharge [kg/m2/s = mm/s]
+    !  - direct runoff transfer [mm/s]
     !  - water volume per HUC area [m]
     !  - flood [mm/s]
     !  NOTE 1) offset (optional input): in main processor, index for ctl variable is based on 1 through nHRU_mainstem+nHRU_trib
@@ -709,7 +723,7 @@ CONTAINS
         end if
         if (update_q) then
           if (NETOPO_in(iRch)%DREACHI==-1 .and. NETOPO_in(iRch)%DREACHK<=0) then ! if reach is the outlet
-            ctl%discharge(ix,ctl%nt_liq) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)/ctl%area(ix)/0.001_r8
+            ctl%discharge(ix,ctl%nt_liq) = RCHFLX_in(iRch)%ROUTE(iRoute)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)/(depth_to_vol(ix))
           end if
         end if
         if (update_fld) then
@@ -717,6 +731,7 @@ CONTAINS
         end if
       end do
     end do
+
   END SUBROUTINE
 
   SUBROUTINE RtmRestGetfile()
