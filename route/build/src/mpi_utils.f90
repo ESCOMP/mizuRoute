@@ -46,7 +46,8 @@ MODULE mpi_utils
   INTERFACE shr_mpi_scatterV ; module procedure &
     shr_mpi_scatterIntV,    &
     shr_mpi_scatterRealV,   &
-    shr_mpi_scatterLogicalV
+    shr_mpi_scatterLogicalV,&
+    shr_mpi_scatterRealV_2d
   END INTERFACE
 
   INTERFACE shr_mpi_gatherV ; module procedure &
@@ -444,6 +445,95 @@ CONTAINS
                       mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_scatterRealV
+
+  SUBROUTINE shr_mpi_scatterRealV_2d(global_array, num_per_proc, local_array, ierr, message)
+
+    implicit none
+    ! Arguments
+    real(dp),              intent(in)    :: global_array(:,:)   ! root: (nGlobal, nVar)
+    integer(i4b),          intent(in)    :: num_per_proc(0:nNodes-1)  ! input: number of elements per proc
+    real(dp), allocatable, intent(inout) :: local_array(:,:)    ! all:  (nLocal,  nVar)
+    integer(i4b),          intent(out)   :: ierr
+    character(strLen),     intent(out)   :: message
+    ! Local variables
+    integer(i4b) :: myid
+    integer(i4b) :: j
+    integer(i4b) :: nVar
+    integer(i4b) :: nLocal
+    integer(i4b) :: nGlobal
+    integer(i4b) :: istart, iend
+    integer(i4b) :: k1, k2
+    integer(i4b) :: sendcounts(0:nNodes-1)
+    integer(i4b) :: displs(0:nNodes-1)
+    real(dp), allocatable :: sendbuf(:)
+    real(dp), allocatable :: recvbuf(:)
+
+    ierr = 0; message = 'shr_mpi_scatterRealV_2d/'
+
+    ! nVar must be known on all ranks.
+    ! If global_array is only allocated on root, root determines nVar,
+    ! then broadcasts it.
+    if (masterproc) then
+      nGlobal = size(global_array, 1)
+      nVar    = size(global_array, 2)
+    else
+      nGlobal = -1
+      nVar    = -1
+    endif
+
+    call MPI_BCAST(nVar, 1, MPI_INTEGER, root, mpicom_route, ierr)
+    if (ierr /= 0) then; message = trim(message)//'MPI_BCAST failed for nVar';return;endif
+
+    nLocal = num_per_proc(pid)   ! assuming pid is 0-based
+
+    if (allocated(local_array)) then
+      deallocate(local_array)
+    endif
+
+    allocate(local_array(nLocal, nVar), source=0._dp, stat=ierr)
+    if (ierr/=0) then;message = trim(message)//'problem allocating local_array';return;endif
+
+    sendcounts(:) = num_per_proc(:) * nVar
+    displs(0) = 0
+    do myid = 1, nNodes-1
+      displs(myid) = displs(myid-1) + sendcounts(myid-1)
+    enddo
+
+    allocate(recvbuf(nLocal*nVar), stat=ierr)
+    if (ierr /= 0) then; message = trim(message)//'problem allocating recvbuf';return; endif
+
+    if (masterproc) then
+      allocate(sendbuf(sum(sendcounts)), stat=ierr)
+      if (ierr /= 0) then; message = trim(message)//'problem allocating sendbuf';return;endif
+
+      ! Pack by processor, preserving local_array(:,j) column-major layout.
+      do myid = 0, nNodes-1
+        iend = sum(num_per_proc(0:myid))
+        istart = iend - num_per_proc(myid) + 1
+
+        do j = 1, nVar
+          k1 = displs(myid) + (j-1)*num_per_proc(myid) + 1
+          k2 = k1 + num_per_proc(myid) - 1
+
+          if (num_per_proc(myid) > 0) then
+            sendbuf(k1:k2) = global_array(istart:iend, j)
+          endif
+        enddo
+      enddo
+    else
+      allocate(sendbuf(0), stat=ierr)
+    endif
+
+    call MPI_SCATTERV(sendbuf, sendcounts, displs, MPI_DOUBLE_PRECISION, &
+                      recvbuf, nLocal*nVar, MPI_DOUBLE_PRECISION,       &
+                      root, mpicom_route, ierr)
+    if (ierr /= 0) then;message = trim(message)//'MPI_SCATTERV failed';return; endif
+
+    if (nLocal*nVar > 0) then
+      local_array = reshape(recvbuf, shape(local_array))
+    endif
+
+  END SUBROUTINE shr_mpi_scatterRealV_2d
 
   ! ----------------------------------
   ! SCATTERV - 1D logical array
