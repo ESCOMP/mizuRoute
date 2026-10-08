@@ -36,7 +36,18 @@ ifdef MPIINC_PATHLIST
   INCLDIR += -I$(MPIINC)
 endif
 CPPDEFS += -DHAVE_MPI
-CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=mpif90
+
+ifdef MPIFC
+  CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=$(MPIFC)
+else
+  CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=mpif90
+endif
+
+ifdef MPICC
+  CMAKE_OPTS += -DCMAKE_C_COMPILER=$(MPICC)
+else ifdef CC
+  CMAKE_OPTS += -DCMAKE_C_COMPILER=$(CC)
+endif
 
 ifeq "$(isGPTL)" "yes"
   PIO_ENABLE_TIMING = ON
