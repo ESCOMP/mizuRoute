@@ -578,7 +578,7 @@ In addition to the required runoff input (typically provided to mizuRoute as are
 
 For example, interbasin water transfers can be represented by extracting water from one river segment and injecting it into another. Similarly, irrigation withdrawals from lakes or reservoirs can be prescribed explicitly rather than relying on internally parameterized demand formulations. These inputs may originate from external water management models or decision-based datasets outside of mizuRoute.
 
-Three logical control keys are used to activate water management functionality (see :ref:`Water management logical options`). When ``<is_flux_wm>`` is set to True, mizuRoute reads water management input files containing the variable ``<vname_flux_wm>``, which represents time series of water injections to or abstractions from river segments or lakes.
+Three logical control keys are used to activate water management functionality (see :ref:`Water management logical options`). When ``<is_flux_wm>`` is set to True, mizuRoute reads water management input files containing the variable ``<vname_flux_wm>``, which represents time series of abstractions (positive value) from or water injections (negative value) to  river segments or lakes.
 
 When ``<is_vol_wm>`` is set to True, the model expects time series of target storage volumes (in ``m³``) for managed lakes and reservoirs, provided through ``<vname_vol_wm>``. These target volumes guide reservoir operations toward prescribed storage states over time. The ``<is_vol_wm_jumpstart>`` flag controls the initial storage conditions: when enabled, lake and reservoir storage is initialized at the first time step to match the first available target volume, which can help reduce model spin-up time.
 
@@ -638,8 +638,7 @@ The following control keys define the input files, as well as the variable and d
      - float
      - time, seg
      - m³/s
-     - Variable for water management fluxes (e.g., abstraction, injection,
-       or diversions) applied to river segments or lakes.
+     - Variable for water management fluxes (i.e., abstraction or injection) applied to river segments or lakes. Note that positive (negative) value indicates abstraction (injection).
    * - ``<vname_vol_wm>``
      - variable name
      - --
