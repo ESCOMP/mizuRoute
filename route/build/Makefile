@@ -70,6 +70,10 @@ ifndef F_MASTER
  $(error F_MASTER is not set. Please set F_MASTER to parent directory of build directory)
 endif
 
+# Convert F_MASTER to an absolute path to prevent command-line relative paths
+# (e.g. F_MASTER=../) from evaluating incorrectly inside recursive sub-makes.
+override F_MASTER := $(abspath $(F_MASTER))/
+
 FLAGS_OMP =
 ifeq "$(isOpenMP)" "yes"
  ifeq "$(FC)" "nvidia"
