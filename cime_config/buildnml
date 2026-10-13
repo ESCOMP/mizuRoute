@@ -246,22 +246,48 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
             nmlgen.set_value( "fname_state_in", value=os.path.join(rundir, fname_state_in) )
             expect(os.path.exists(fname_state_in), "mizuRoute restart file does NOT exist: "+fname_state_in)
 
-    # Read in the user control file for the case and change settings to it
-    file_src = "user_nl_mizuroute_control"
-    user_ctl_file = os.path.join(caseroot, file_src + inst_string)
-    if ( not os.path.exists( user_ctl_file ) ):
-       safe_copy( os.path.join( srcroot, "cime_config", file_src), user_ctl_file )
-    usrctl = mizuRoute_control()
-    usrctl.read( user_ctl_file, allowEmpty=True )
-    for element in usrctl.get_elmList():
-       value = ctl.get( element )
-       expect( value != "UNSET", "Element in the user_nl_mizuroute_control file is NOT in the control file: "+element )
-       ctl.set( element, usrctl.get( element ) )
+    # Check component defaults file in cime_config
+    default_file_toml = os.path.join(srcroot, "cime_config", "user_nl_mizuroute_toml")
+    default_file_control = os.path.join(srcroot, "cime_config", "user_nl_mizuroute_control")
+    default_file_plain = os.path.join(srcroot, "cime_config", "user_nl_mizuroute")
+
+    has_def_toml = os.path.exists(default_file_toml) or os.path.exists(default_file_plain)
+    has_def_control = os.path.exists(default_file_control)
+
+    expect(not (has_def_toml and has_def_control),
+           "Both TOML and control format default template files exist in cime_config. Exactly one must be present.")
+    expect(has_def_toml or has_def_control,
+           "Neither user_nl_mizuroute_toml nor user_nl_mizuroute_control default file exists in cime_config.")
+
+    # Check user override files in caseroot
+    user_file_toml = os.path.join(caseroot, "user_nl_mizuroute_toml" + inst_string)
+    user_file_control = os.path.join(caseroot, "user_nl_mizuroute_control" + inst_string)
+    user_file_plain = os.path.join(caseroot, "user_nl_mizuroute" + inst_string)
+
+    has_user_toml = os.path.exists(user_file_toml)
+    has_user_control = os.path.exists(user_file_control)
+
+    expect(not (has_user_toml and has_user_control),
+           "Both TOML and control format user override files exist in CASEROOT. Please use only one format.")
+
+    usrctl = None
+    if has_user_toml:
+        usrctl = mizuRoute_control.from_toml( user_file_toml, allowEmpty=True )
+    elif has_user_control:
+        usrctl = mizuRoute_control.from_control( user_file_control, allowEmpty=True )
+    elif os.path.exists(user_file_plain):
+        usrctl = mizuRoute_control.from_toml( user_file_plain, allowEmpty=True )
+
+    if usrctl is not None:
+        for element in usrctl.get_elmList():
+            value = usrctl.get( element )
+            expect( ctl.get(element) != "UNSET", "Element in the user control file is NOT in the template control file: "+element )
+            ctl.set( element, value )
 
     #----------------------------------------------------
     # Write output files
     #----------------------------------------------------
-    control_file = os.path.join(confdir, "mizuRoute.control")
+    control_file = os.path.join(confdir, "mizuroute_toml")
     nml_file = os.path.join(confdir, "mizuRoute_in")
     write_nml_in_file(case, nmlgen, confdir, nml_file )
     ctl.write( control_file )
@@ -297,9 +323,8 @@ def buildnml(case, caseroot, compname):
     #----------------------------------------------------
     # Construct the control file generator
     #----------------------------------------------------
-    sampleFile = srcroot + "/route/settings/SAMPLE-coupled.control"
-    ctl = mizuRoute_control()
-    ctl.read( sampleFile )
+    sampleFile = srcroot + "/route/settings/SAMPLE-coupled_toml"
+    ctl = mizuRoute_control.from_toml( sampleFile )
 
     #----------------------------------------------------
     # Do some checking
@@ -335,7 +360,7 @@ def buildnml(case, caseroot, compname):
     # copy control files to rundir
     if os.path.isdir(rundir):
        for destdir in [rundir, caseroot+"/CaseDocs"]:
-          for nfile in ["mizuRoute.control", "mizuRoute_in" ]:
+          for nfile in ["mizuroute_toml", "mizuRoute_in" ]:
              file_src = os.path.join(confdir, nfile )
              file_dest = os.path.join(destdir, nfile )
              if inst_string:

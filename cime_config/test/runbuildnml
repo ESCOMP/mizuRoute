@@ -1,5 +1,6 @@
 #!/bin/bash
-# Run the buildnmal for mizuRoute, assing it's under a CTSM or CESM checkout
+# Run buildnml for mizuRoute under a CTSM or CESM checkout
+
 cd ../../../../cime >& /dev/null
 if [ $? != 0 ]; then
    echo "cime directory does not exist where expected"
@@ -9,24 +10,48 @@ export CIMEROOT=`pwd`
 echo "CIMEROOT = $CIMEROOT"
     
 cd -
-cp ../user_nl_* .
-mkdir CaseDocs
-echo "Run the help option"
+mkdir -p CaseDocs
+
+echo "1. Run the help option"
 ../buildnml --help > /dev/null
 if [ $? != 0 ] ; then
-   echo "test FAIL"
+   echo "help test FAIL"
    exit -1
 fi
-echo "Try a simple test"
+
+echo "2. Test TOML user control file (user_nl_mizuroute_toml)"
+rm -rf user_* Buildconf/mizurouteconf/* CaseDocs/*
+touch user_nl_mizuroute
+cp ../user_nl_mizuroute_toml user_nl_mizuroute_toml
+echo "newFileFrequency = \"monthly\"" >> user_nl_mizuroute_toml
 ../buildnml `pwd` --verbose
 if [ $? != 0 ] ; then
-   echo "test FAIL"
+   echo "TOML test FAIL"
+   exit -1
+fi
+
+echo "3. Test Legacy user control file (user_nl_mizuroute_control)"
+rm -rf user_* Buildconf/mizurouteconf/* CaseDocs/*
+touch user_nl_mizuroute
+echo "<newFileFrequency>     monthly  ! Test comment" > user_nl_mizuroute_control
+../buildnml `pwd` --verbose
+if [ $? != 0 ] ; then
+   echo "Legacy control test FAIL"
+   exit -1
+fi
+
+echo "4. Test Dual-Format conflict detection (expect failure when both exist)"
+rm -rf user_* Buildconf/mizurouteconf/* CaseDocs/*
+touch user_nl_mizuroute
+cp ../user_nl_mizuroute_toml user_nl_mizuroute_toml
+echo "<newFileFrequency>     monthly  ! Test comment" > user_nl_mizuroute_control
+../buildnml `pwd` --verbose >& /dev/null
+if [ $? == 0 ] ; then
+   echo "Dual-format conflict test FAIL (should have thrown error when both formats exist)"
    exit -1
 else
-   echo "Cat the results...."
-   cat Buildconf/mizurouteconf/mizuRoute*
-   echo "input_data_list..."
-   cat Buildconf/mizuroute.input_data_list
+   echo "Dual-format conflict test PASSED (correctly rejected ambiguous dual formats)"
 fi
+
 rm -rf user_* run/* Buildconf/mizurouteconf/* Buildconf/* CaseDocs
-echo "Successfully ran test"
+echo "Successfully ran all buildnml tests"

@@ -4,91 +4,323 @@ MODULE read_control_module
 
 USE nrtype
 USE public_var
+USE tomlf, ONLY: toml_table, toml_error, toml_key, toml_stat, &
+                 toml_load, &
+                 toml_get_value => get_value
 
 implicit none
 
+INTERFACE get_toml_val
+   MODULE PROCEDURE get_toml_val_char
+   MODULE PROCEDURE get_toml_val_int
+   MODULE PROCEDURE get_toml_val_dp
+   MODULE PROCEDURE get_toml_val_sp
+   MODULE PROCEDURE get_toml_val_bool
+END INTERFACE get_toml_val
+
 private
 public::read_control
+public::read_control_toml
+public::read_control_legacy
 
 CONTAINS
 
  ! =======================================================================================================
- ! public subroutine: read the control file
+ ! public subroutine: read the control file (generic dispatcher based on file suffix)
  ! =======================================================================================================
  SUBROUTINE read_control(ctl_fname, err, message)
+   USE ascii_utils, ONLY: lower            ! convert string to lower case
 
- ! global vars
- USE globalData, ONLY: time_conv,length_conv   ! conversion factors
- USE globalData, ONLY: time_conv_solute        ! time conversion factor for solute mass
- USE globalData, ONLY: mass_conv_solute        ! mass conversion factors
- USE globalData, ONLY: masterproc              ! procs id and number of procs
- ! metadata structures
- USE globalData, ONLY: meta_HRU                ! HRU properties
- USE globalData, ONLY: meta_HRU2SEG            ! HRU-to-segment mapping
- USE globalData, ONLY: meta_SEG                ! stream segment properties
- USE globalData, ONLY: meta_NTOPO              ! network topology
- USE globalData, ONLY: meta_PFAF               ! pfafstetter code
- USE globalData, ONLY: meta_rflx               ! river flux variables
- USE globalData, ONLY: meta_hflx               ! river flux variables
- USE globalData, ONLY: isColdStart             ! initial river state - cold start (T) or from restart file (F)
- USE globalData, ONLY: nRoutes                 ! number of active routing methods
- USE globalData, ONLY: routeMethods            ! active routing method index and id
- USE globalData, ONLY: onRoute                 ! logical to indicate actiive routing method(s)
- USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
-                       idxKW,idxMC,idxDW
- USE globalData, ONLY: runMode                 ! mizuRoute run mode: standalone, cesm-coupling
- ! index of named variables in each structure
- USE var_lookup, ONLY: ixHRU
- USE var_lookup, ONLY: ixHRU2SEG
- USE var_lookup, ONLY: ixSEG
- USE var_lookup, ONLY: ixNTOPO
- USE var_lookup, ONLY: ixPFAF
- USE var_lookup, ONLY: ixRFLX
- USE var_lookup, ONLY: ixHFLX
- ! external subroutines
- USE ascii_utils, ONLY: file_open        ! open file (performs a few checks as well)
- USE ascii_utils, ONLY: get_vlines       ! get a list of character strings from non-comment lines
- USE ascii_utils, ONLY: lower            ! convert string to lower case
- USE nr_utils,    ONLY: char2int         ! convert integer number to a array containing individual digits
+   implicit none
+   ! argument variables
+   character(*), intent(in)          :: ctl_fname               ! name of the control file
+   integer(i4b),intent(out)          :: err                     ! error code
+   character(*),intent(out)          :: message                 ! error message
+   ! Local variables
+   character(len=strLen)             :: cmessage                ! error message of downwind routine
+   logical(lgt)                      :: is_toml                 ! true if control file is in TOML format
 
- implicit none
- ! argument variables
- character(*), intent(in)          :: ctl_fname               ! name of the control file
- integer(i4b),intent(out)          :: err                     ! error code
- character(*),intent(out)          :: message                 ! error message
- ! Local variables
- character(len=strLen),allocatable :: cLines(:)               ! vector of character strings
- character(len=strLen)             :: cName,cData             ! name and data from cLines(iLine)
- character(len=strLen)             :: cLength,cTime           ! length and time units
- character(len=strLen)             :: cMass                   ! mass units needed only when tracer is on
- logical(lgt)                      :: isGeneric               ! temporal logical scalar
- logical(lgt)                      :: onlyOneRouting          ! temporal logical scalar
- integer(i4b)                      :: ipos                    ! index of character string
- integer(i4b)                      :: ibeg_name               ! start index of variable name in string cLines(iLine)
- integer(i4b)                      :: iend_name               ! end index of variable name in string cLines(iLine)
- integer(i4b)                      :: iend_data               ! end index of data in string cLines(iLine)
- integer(i4b)                      :: iLine                   ! index of line in cLines
- integer(i4b)                      :: iunit                   ! file unit
- integer(i4b)                      :: io_error                ! error in I/O
- integer(i4b)                      :: iRoute                  ! loop index
- character(len=strLen)             :: cmessage                ! error message from subroutine
+   err=0; message='read_control/'
 
- err=0; message='read_control/'
+   is_toml = .false.
+   if (len_trim(ctl_fname) >= 5) then
+      if (lower(ctl_fname(len_trim(ctl_fname)-4:len_trim(ctl_fname))) == '_toml' .or. &
+          lower(ctl_fname(len_trim(ctl_fname)-4:len_trim(ctl_fname))) == '.toml') then
+         is_toml = .true.
+      endif
+   endif
 
- ! *** get a list of character strings from non-comment lines ****
- ! open file (also returns un-used file unit used to open the file)
- call file_open(trim(ctl_fname),iunit,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage);return;endif
+   if (is_toml) then
+      call read_control_toml(ctl_fname, err, cmessage)
+   else
+      call read_control_legacy(ctl_fname, err, cmessage)
+   endif
+   if (err /= 0) message = trim(message) // trim(cmessage)
 
- ! get a list of character strings from non-comment lines
- call get_vlines(iunit,cLines,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage);return;endif
+ END SUBROUTINE read_control
 
- close(iunit)
+ ! =======================================================================================================
+ ! public subroutine: read TOML format control file
+ ! =======================================================================================================
+ SUBROUTINE read_control_toml(ctl_fname, err, message)
+   ! global vars
+   USE globalData
+   USE var_lookup
 
- if (masterproc) then
-   write(iulog,'(2a)') new_line('a'), '---- read control file --- '
- end if
+   implicit none
+   ! argument variables
+   character(*), intent(in)          :: ctl_fname               ! name of the control file
+   integer(i4b),intent(out)          :: err                     ! error code
+   character(*),intent(out)          :: message                 ! error message
+   ! Local variables
+   type(toml_table), allocatable     :: table                   ! TOML root table structure
+   type(toml_error), allocatable     :: error                   ! TOML parser error
+   type(toml_key), allocatable       :: keys(:)                 ! list of keys in TOML table
+   integer(i4b)                      :: iKey                    ! loop index
+
+   err=0; message='read_control_toml/'
+
+   if (masterproc) then
+      write(iulog,'(2a)') new_line('a'), '---- read TOML control file --- '
+   end if
+
+   ! Open and parse TOML control file using toml-f library
+   call toml_load(table, trim(ctl_fname), error=error)
+
+   if (allocated(error)) then
+      err = 20
+      message = trim(message) // 'failed to parse TOML control file: ' // trim(error%message)
+      return
+   endif
+
+   ! Validate keys in TOML control file against known control variables
+   call table%get_keys(keys)
+   if (allocated(keys)) then
+      do iKey = 1, size(keys)
+         if (.not. is_valid_control_key(keys(iKey)%key)) then
+            err = 20
+            message = trim(message) // 'unexpected variable in TOML control file: ' // trim(keys(iKey)%key)
+            return
+         endif
+      end do
+   endif
+
+   ! Extract variables from TOML table using toml-f interface
+   call get_toml_val(table, "ancil_dir", ancil_dir)
+   call get_toml_val(table, "input_dir", input_dir)
+   call get_toml_val(table, "output_dir", output_dir)
+   call get_toml_val(table, "restart_dir", restart_dir)
+   call get_toml_val(table, "case_name", case_name)
+   call get_toml_val(table, "sim_start", simStart)
+   call get_toml_val(table, "sim_end", simEnd)
+   call get_toml_val(table, "continue_run", continue_run)
+   call get_toml_val(table, "route_opt", routOpt)
+   call get_toml_val(table, "doesBasinRoute", doesBasinRoute)
+   call get_toml_val(table, "dt_qsim", dt)
+   call get_toml_val(table, "floodplain", floodplain)
+   call get_toml_val(table, "hw_drain_point", hw_drain_point)
+   call get_toml_val(table, "tracer", tracer)
+   call get_toml_val(table, "is_lake_sim", is_lake_sim)
+   call get_toml_val(table, "lakeRegulate", lakeRegulate)
+   call get_toml_val(table, "LakeInputOption", LakeInputOption)
+   call get_toml_val(table, "is_flux_wm", is_flux_wm)
+   call get_toml_val(table, "is_vol_wm", is_vol_wm)
+   call get_toml_val(table, "is_vol_wm_jumpstart", is_vol_wm_jumpstart)
+   call get_toml_val(table, "scale_factor_runoff", scale_factor_runoff)
+   call get_toml_val(table, "offset_value_runoff", offset_value_runoff)
+   call get_toml_val(table, "scale_factor_Ep", scale_factor_Ep)
+   call get_toml_val(table, "offset_value_Ep", offset_value_Ep)
+   call get_toml_val(table, "is_Ep_upward_negative", is_Ep_upward_negative)
+   call get_toml_val(table, "scale_factor_prec", scale_factor_prec)
+   call get_toml_val(table, "offset_value_prec", offset_value_prec)
+   call get_toml_val(table, "min_length_route", min_length_route)
+   call get_toml_val(table, "fname_ntopOld", fname_ntopOld)
+   call get_toml_val(table, "ntopAugmentMode", ntopAugmentMode)
+   call get_toml_val(table, "fname_ntopNew", fname_ntopNew)
+   call get_toml_val(table, "dname_nhru", dname_nhru)
+   call get_toml_val(table, "dname_sseg", dname_sseg)
+   call get_toml_val(table, "fname_qsim", fname_qsim)
+   call get_toml_val(table, "vname_qsim", vname_qsim)
+   call get_toml_val(table, "vname_evapo", vname_evapo)
+   call get_toml_val(table, "vname_precip", vname_precip)
+   call get_toml_val(table, "vname_solute", vname_solute)
+   call get_toml_val(table, "vname_time", vname_time)
+   call get_toml_val(table, "vname_hruid", vname_hruid)
+   call get_toml_val(table, "dname_time", dname_time)
+   call get_toml_val(table, "dname_hruid", dname_hruid)
+   call get_toml_val(table, "dname_xlon", dname_xlon)
+   call get_toml_val(table, "dname_ylat", dname_ylat)
+   call get_toml_val(table, "units_qsim", units_qsim)
+   call get_toml_val(table, "units_cc", units_cc)
+   call get_toml_val(table, "dt_ro", dt_ro)
+   call get_toml_val(table, "input_fillvalue", input_fillvalue)
+   call get_toml_val(table, "ro_calendar", ro_calendar)
+   call get_toml_val(table, "ro_time_units", ro_time_units)
+   call get_toml_val(table, "ro_time_stamp", ro_time_stamp)
+   call get_toml_val(table, "runoffMin", runoffMin)
+   call get_toml_val(table, "fname_wm", fname_wm)
+   call get_toml_val(table, "vname_flux_wm", vname_flux_wm)
+   call get_toml_val(table, "vname_vol_wm", vname_vol_wm)
+   call get_toml_val(table, "vname_time_wm", vname_time_wm)
+   call get_toml_val(table, "vname_segid_wm", vname_segid_wm)
+   call get_toml_val(table, "dname_time_wm", dname_time_wm)
+   call get_toml_val(table, "dname_segid_wm", dname_segid_wm)
+   call get_toml_val(table, "dt_wm", dt_wm)
+   call get_toml_val(table, "is_remap", is_remap)
+   call get_toml_val(table, "fname_remap", fname_remap)
+   call get_toml_val(table, "vname_hruid_in_remap", vname_hruid_in_remap)
+   call get_toml_val(table, "vname_weight", vname_weight)
+   call get_toml_val(table, "vname_qhruid", vname_qhruid)
+   call get_toml_val(table, "vname_num_qhru", vname_num_qhru)
+   call get_toml_val(table, "vname_i_index", vname_i_index)
+   call get_toml_val(table, "vname_j_index", vname_j_index)
+   call get_toml_val(table, "dname_hru_remap", dname_hru_remap)
+   call get_toml_val(table, "dname_data_remap", dname_data_remap)
+   call get_toml_val(table, "restart_write", restart_write)
+   call get_toml_val(table, "restart_date", restart_date)
+   call get_toml_val(table, "restart_month", restart_month)
+   call get_toml_val(table, "restart_day", restart_day)
+   call get_toml_val(table, "restart_hour", restart_hour)
+   call get_toml_val(table, "fname_state_in", fname_state_in)
+   call get_toml_val(table, "param_nml", param_nml)
+   call get_toml_val(table, "qmodOption", qmodOption)
+   call get_toml_val(table, "qBlendPeriod", qBlendPeriod)
+   call get_toml_val(table, "QerrTrend", QerrTrend)
+   call get_toml_val(table, "hydGeometryOption", hydGeometryOption)
+   call get_toml_val(table, "topoNetworkOption", topoNetworkOption)
+   call get_toml_val(table, "computeReachList", computeReachList)
+   call get_toml_val(table, "gageMetaFile", gageMetaFile)
+   call get_toml_val(table, "outputAtGage", outputAtGage)
+   call get_toml_val(table, "fname_gageObs", fname_gageObs)
+   call get_toml_val(table, "vname_gageFlow", vname_gageFlow)
+   call get_toml_val(table, "vname_gageSite", vname_gageSite)
+   call get_toml_val(table, "vname_gageTime", vname_gageTime)
+   call get_toml_val(table, "dname_gageSite", dname_gageSite)
+   call get_toml_val(table, "dname_gageTime", dname_gageTime)
+   call get_toml_val(table, "strlen_gageSite", strlen_gageSite)
+   call get_toml_val(table, "pio_netcdf_format", pio_netcdf_format)
+   call get_toml_val(table, "pio_netcdf_type", pio_typename)
+   call get_toml_val(table, "debug", debug)
+   call get_toml_val(table, "seg_outlet", idSegOut)
+   call get_toml_val(table, "desireId", desireId)
+   call get_toml_val(table, "checkMassBalance", checkMassBalance)
+   call get_toml_val(table, "maxPfafLen", maxPfafLen)
+   call get_toml_val(table, "pfafMissing", pfafMissing)
+   call get_toml_val(table, "time_units", time_units)
+   call get_toml_val(table, "newFileFrequency", newFileFrequency)
+   call get_toml_val(table, "outputFrequency", outputFrequency)
+   call get_toml_val(table, "outputNameOption", outputNameOption)
+   call get_toml_val(table, "histTimeStamp_offset", histTimeStamp_offset)
+   call get_toml_val(table, "outputInflow", outputInflow)
+   call get_toml_val(table, "qgwl_runoff_option", qgwl_runoff_option)
+   call get_toml_val(table, "bypass_routing_option", bypass_routing_option)
+   call get_toml_val(table, "correct_area", correct_area)
+   call get_toml_val(table, "ice_runoff", ice_runoff)
+   call get_toml_val(table, "varname_area", meta_HRU(ixHRU%area)%varName)
+   call get_toml_val(table, "varname_HRUid", meta_HRU2SEG(ixHRU2SEG%HRUid)%varName)
+   call get_toml_val(table, "varname_HRUindex", meta_HRU2SEG(ixHRU2SEG%HRUindex)%varName)
+   call get_toml_val(table, "varname_hruSegId", meta_HRU2SEG(ixHRU2SEG%hruSegId)%varName)
+   call get_toml_val(table, "varname_hruSegIndex", meta_HRU2SEG(ixHRU2SEG%hruSegIndex)%varName)
+   call get_toml_val(table, "varname_length", meta_SEG(ixSEG%length)%varName)
+   call get_toml_val(table, "varname_slope", meta_SEG(ixSEG%slope)%varName)
+   call get_toml_val(table, "varname_width", meta_SEG(ixSEG%width)%varName)
+   call get_toml_val(table, "varname_depth", meta_SEG(ixSEG%depth)%varName)
+   call get_toml_val(table, "varname_sideSlope", meta_SEG(ixSEG%sideSlope)%varName)
+   call get_toml_val(table, "varname_man_n", meta_SEG(ixSEG%man_n)%varName)
+   call get_toml_val(table, "varname_floodplainSlope", meta_SEG(ixSEG%floodplainSlope)%varName)
+   call get_toml_val(table, "varname_hruArea", meta_SEG(ixSEG%hruArea)%varName)
+   call get_toml_val(table, "varname_weight", meta_SEG(ixSEG%weight)%varName)
+   call get_toml_val(table, "varname_timeDelayHist", meta_SEG(ixSEG%timeDelayHist)%varName)
+   call get_toml_val(table, "varname_upsArea", meta_SEG(ixSEG%upsArea)%varName)
+   call get_toml_val(table, "varname_hruContribIx", meta_NTOPO(ixNTOPO%hruContribIx)%varName)
+   call get_toml_val(table, "varname_hruContribId", meta_NTOPO(ixNTOPO%hruContribId)%varName)
+   call get_toml_val(table, "varname_segId", meta_NTOPO(ixNTOPO%segId)%varName)
+   call get_toml_val(table, "varname_segIndex", meta_NTOPO(ixNTOPO%segIndex)%varName)
+   call get_toml_val(table, "varname_downSegId", meta_NTOPO(ixNTOPO%downSegId)%varName)
+   call get_toml_val(table, "varname_downSegIndex", meta_NTOPO(ixNTOPO%downSegIndex)%varName)
+   call get_toml_val(table, "varname_upSegIds", meta_NTOPO(ixNTOPO%upSegIds)%varName)
+   call get_toml_val(table, "varname_upSegIndices", meta_NTOPO(ixNTOPO%upSegIndices)%varName)
+   call get_toml_val(table, "varname_rchOrder", meta_NTOPO(ixNTOPO%rchOrder)%varName)
+   call get_toml_val(table, "varname_lakeId", meta_NTOPO(ixNTOPO%lakeId)%varName)
+   call get_toml_val(table, "varname_lakeIndex", meta_NTOPO(ixNTOPO%lakeIndex)%varName)
+   call get_toml_val(table, "varname_isLakeInlet", meta_NTOPO(ixNTOPO%isLakeInlet)%varName)
+   call get_toml_val(table, "varname_islake", meta_NTOPO(ixNTOPO%islake)%varName)
+   call get_toml_val(table, "varname_lakeModelType", meta_NTOPO(ixNTOPO%lakeModelType)%varName)
+   call get_toml_val(table, "varname_LakeTargVol", meta_NTOPO(ixNTOPO%LakeTargVol)%varName)
+   call get_toml_val(table, "varname_userTake", meta_NTOPO(ixNTOPO%userTake)%varName)
+   call get_toml_val(table, "varname_goodBasin", meta_NTOPO(ixNTOPO%goodBasin)%varName)
+   call get_toml_val(table, "varname_pfafCode", meta_PFAF(ixPFAF%code)%varName)
+   call get_toml_val(table, "varname_D03_Coefficient", meta_SEG(ixSEG%D03_Coefficient)%varName)
+   call get_toml_val(table, "varname_H06_denominator", meta_SEG(ixSEG%H06_denominator)%varName)
+
+   ! Output history flags
+   call get_toml_val(table, "basRunoff", meta_hflx(ixHFLX%basRunoff)%varFile)
+   call get_toml_val(table, "instRunoff", meta_rflx(ixRFLX%instRunoff)%varFile)
+   call get_toml_val(table, "dlayRunoff", meta_rflx(ixRFLX%dlayRunoff)%varFile)
+   call get_toml_val(table, "sumUpstreamRunoff", meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile)
+   call get_toml_val(table, "KWTroutedRunoff", meta_rflx(ixRFLX%KWTroutedRunoff)%varFile)
+   call get_toml_val(table, "IRFroutedRunoff", meta_rflx(ixRFLX%IRFroutedRunoff)%varFile)
+   call get_toml_val(table, "KWroutedRunoff", meta_rflx(ixRFLX%KWroutedRunoff)%varFile)
+   call get_toml_val(table, "DWroutedRunoff", meta_rflx(ixRFLX%DWroutedRunoff)%varFile)
+   call get_toml_val(table, "MCroutedRunoff", meta_rflx(ixRFLX%MCroutedRunoff)%varFile)
+   call get_toml_val(table, "IRFvolume", meta_rflx(ixRFLX%IRFvolume)%varFile)
+   call get_toml_val(table, "KWTvolume", meta_rflx(ixRFLX%KWTvolume)%varFile)
+   call get_toml_val(table, "KWvolume", meta_rflx(ixRFLX%KWvolume)%varFile)
+   call get_toml_val(table, "MCvolume", meta_rflx(ixRFLX%MCvolume)%varFile)
+   call get_toml_val(table, "DWvolume", meta_rflx(ixRFLX%DWvolume)%varFile)
+   call get_toml_val(table, "KWfloodVolume", meta_rflx(ixRFLX%KWheight)%varFile)
+   call get_toml_val(table, "KWheight", meta_rflx(ixRFLX%KWheight)%varFile)
+   call get_toml_val(table, "MCfloodVolume", meta_rflx(ixRFLX%MCheight)%varFile)
+   call get_toml_val(table, "MCheight", meta_rflx(ixRFLX%MCheight)%varFile)
+   call get_toml_val(table, "DWfloodVolume", meta_rflx(ixRFLX%DWheight)%varFile)
+   call get_toml_val(table, "DWheight", meta_rflx(ixRFLX%DWheight)%varFile)
+   call get_toml_val(table, "localSolute", meta_rflx(ixRFLX%localSolute)%varFile)
+   call get_toml_val(table, "soluteFlux", meta_rflx(ixRFLX%DWsoluteFlux)%varFile)
+   call get_toml_val(table, "soluteMass", meta_rflx(ixRFLX%DWsoluteMass)%varFile)
+
+   call validate_and_finalize_control(err, message)
+
+ END SUBROUTINE read_control_toml
+
+ ! =======================================================================================================
+ ! public subroutine: read legacy format control file
+ ! =======================================================================================================
+ SUBROUTINE read_control_legacy(ctl_fname, err, message)
+   ! global vars
+   USE globalData
+   USE var_lookup
+   USE ascii_utils, ONLY: file_open        ! open file (performs a few checks as well)
+   USE ascii_utils, ONLY: get_vlines       ! get a list of character strings from non-comment lines
+
+   implicit none
+   ! argument variables
+   character(*), intent(in)          :: ctl_fname               ! name of the control file
+   integer(i4b),intent(out)          :: err                     ! error code
+   character(*),intent(out)          :: message                 ! error message
+   ! Local variables
+   character(len=strLen),allocatable :: cLines(:)               ! vector of character strings
+   character(len=strLen)             :: cName,cData             ! name and data from cLines(iLine)
+   integer(i4b)                      :: ibeg_name               ! start index of variable name in string cLines(iLine)
+   integer(i4b)                      :: iend_name               ! end index of variable name in string cLines(iLine)
+   integer(i4b)                      :: iend_data               ! end index of data in string cLines(iLine)
+   integer(i4b)                      :: iLine                   ! index of line in cLines
+   integer(i4b)                      :: iunit                   ! file unit
+   integer(i4b)                      :: io_error                ! error in I/O
+   character(len=strLen)             :: cmessage                ! error message from subroutine
+
+   err=0; message='read_control_legacy/'
+
+   if (masterproc) then
+      write(iulog,'(2a)') new_line('a'), '---- read control file --- '
+   end if
+
+   call file_open(trim(ctl_fname),iunit,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage);return;endif
+
+   call get_vlines(iunit,cLines,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage);return;endif
+
+   close(iunit)
 
  ! loop through the non-comment lines in the input file, and extract the name and the information
  do iLine=1,size(cLines)
@@ -384,7 +616,57 @@ CONTAINS
 
  end do  ! looping through lines in the control file
 
- ! ---------- Perform minor processing and checking control variables ----------------------------------------
+ call validate_and_finalize_control(err, message)
+
+ END SUBROUTINE read_control_legacy
+
+ ! =======================================================================================================
+ ! private subroutine: common validation and post-processing for control variables
+ ! =======================================================================================================
+ SUBROUTINE validate_and_finalize_control(err, message)
+   ! global vars
+   USE globalData, ONLY: time_conv,length_conv   ! conversion factors
+   USE globalData, ONLY: time_conv_solute        ! time conversion factor for solute mass
+   USE globalData, ONLY: mass_conv_solute        ! mass conversion factors
+   USE globalData, ONLY: masterproc              ! procs id and number of procs
+   ! metadata structures
+   USE globalData, ONLY: meta_HRU                ! HRU properties
+   USE globalData, ONLY: meta_HRU2SEG            ! HRU-to-segment mapping
+   USE globalData, ONLY: meta_SEG                ! stream segment properties
+   USE globalData, ONLY: meta_NTOPO              ! network topology
+   USE globalData, ONLY: meta_PFAF               ! pfafstetter code
+   USE globalData, ONLY: meta_rflx               ! river flux variables
+   USE globalData, ONLY: meta_hflx               ! river flux variables
+   USE globalData, ONLY: isColdStart             ! initial river state - cold start (T) or from restart file (F)
+   USE globalData, ONLY: nRoutes                 ! number of active routing methods
+   USE globalData, ONLY: routeMethods            ! active routing method index and id
+   USE globalData, ONLY: onRoute                 ! logical to indicate actiive routing method(s)
+   USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
+                         idxKW,idxMC,idxDW
+   USE globalData, ONLY: runMode                 ! mizuRoute run mode: standalone, cesm-coupling
+   ! index of named variables in each structure
+   USE var_lookup, ONLY: ixHRU
+   USE var_lookup, ONLY: ixHRU2SEG
+   USE var_lookup, ONLY: ixSEG
+   USE var_lookup, ONLY: ixNTOPO
+   USE var_lookup, ONLY: ixPFAF
+   USE var_lookup, ONLY: ixRFLX
+   USE var_lookup, ONLY: ixHFLX
+   USE nr_utils,    ONLY: char2int         ! convert integer number to a array containing individual digits
+   USE ascii_utils, ONLY: lower           ! convert string to lower case
+
+   implicit none
+   integer(i4b), intent(out)          :: err                     ! error code
+   character(*), intent(out)          :: message                 ! error message
+   character(len=strLen)             :: cLength,cTime           ! length and time units
+   character(len=strLen)             :: cMass                   ! mass units needed only when tracer is on
+   integer(i4b)                      :: ipos                    ! index of character string
+   logical(lgt)                      :: isGeneric, onlyOneRouting
+   integer(i4b)                      :: iRoute                  ! loop index
+
+   err=0; message='validate_and_finalize_control/'
+
+   ! ---------- Perform minor processing and checking control variables ----------------------------------------
 
  ! ---------- directory option  ---------------------------------------------------------------------
  if (trim(restart_dir)==charMissing) then
@@ -724,6 +1006,131 @@ CONTAINS
    meta_rflx(ixRFLX%DWsoluteMass)%varFile = .false.
  endif
 
- END SUBROUTINE read_control
+  END SUBROUTINE validate_and_finalize_control
+
+ ! =======================================================================================================
+ ! private function: validate control variable key name
+ ! =======================================================================================================
+ PURE LOGICAL FUNCTION is_valid_control_key(key)
+   character(*), intent(in) :: key
+   select case(trim(key))
+   case('ancil_dir', 'input_dir', 'output_dir', 'restart_dir', &
+        'case_name', 'sim_start', 'sim_end', 'continue_run', 'route_opt', &
+        'doesBasinRoute', 'dt_qsim', 'floodplain', 'hw_drain_point', 'tracer', &
+        'is_lake_sim', 'lakeRegulate', 'LakeInputOption', 'is_flux_wm', 'is_vol_wm', &
+        'is_vol_wm_jumpstart', 'scale_factor_runoff', 'offset_value_runoff', &
+        'scale_factor_Ep', 'offset_value_Ep', 'is_Ep_upward_negative', &
+        'scale_factor_prec', 'offset_value_prec', 'min_length_route', &
+        'fname_ntopOld', 'ntopAugmentMode', 'fname_ntopNew', 'dname_nhru', 'dname_sseg', &
+        'fname_qsim', 'vname_qsim', 'vname_evapo', 'vname_precip', 'vname_solute', &
+        'vname_time', 'vname_hruid', 'dname_time', 'dname_hruid', 'dname_xlon', 'dname_ylat', &
+        'units_qsim', 'units_cc', 'dt_ro', 'input_fillvalue', 'ro_calendar', &
+        'ro_time_units', 'ro_time_stamp', 'runoffMin', 'fname_wm', 'vname_flux_wm', &
+        'vname_vol_wm', 'vname_time_wm', 'vname_segid_wm', 'dname_time_wm', &
+        'dname_segid_wm', 'dt_wm', 'is_remap', 'fname_remap', 'vname_hruid_in_remap', &
+        'vname_weight', 'vname_qhruid', 'vname_num_qhru', 'vname_i_index', 'vname_j_index', &
+        'dname_hru_remap', 'dname_data_remap', 'restart_write', 'restart_date', &
+        'restart_month', 'restart_day', 'restart_hour', 'fname_state_in', 'param_nml', &
+        'qmodOption', 'qBlendPeriod', 'QerrTrend', 'hydGeometryOption', 'topoNetworkOption', &
+        'computeReachList', 'gageMetaFile', 'outputAtGage', 'fname_gageObs', 'vname_gageFlow', &
+        'vname_gageSite', 'vname_gageTime', 'dname_gageSite', 'dname_gageTime', 'strlen_gageSite', &
+        'pio_netcdf_format', 'pio_netcdf_type', 'debug', 'seg_outlet', 'desireId', &
+        'checkMassBalance', 'maxPfafLen', 'pfafMissing', 'time_units', 'newFileFrequency', &
+        'outputFrequency', 'outputNameOption', 'histTimeStamp_offset', 'outputInflow', &
+        'qgwl_runoff_option', 'bypass_routing_option', 'correct_area', 'ice_runoff', &
+        'varname_area', 'varname_HRUid', 'varname_HRUindex', 'varname_hruSegId', &
+        'varname_hruSegIndex', 'varname_length', 'varname_slope', 'varname_width', &
+        'varname_depth', 'varname_sideSlope', 'varname_man_n', 'varname_floodplainSlope', &
+        'varname_hruArea', 'varname_weight', 'varname_timeDelayHist', 'varname_upsArea', &
+        'varname_basUnderLake', 'varname_rchUnderLake', 'varname_minFlow', 'varname_D03_MaxStorage', &
+        'varname_D03_Coefficient', 'varname_D03_Power', 'varname_D03_S0', 'varname_HYP_E_emr', &
+        'varname_HYP_E_lim', 'varname_HYP_E_min', 'varname_HYP_E_zero', 'varname_HYP_Qrate_emr', &
+        'varname_HYP_Erate_emr', 'varname_HYP_Qrate_prim', 'varname_HYP_Qrate_amp', &
+        'varname_HYP_Qrate_phs', 'varname_HYP_prim_F', 'varname_HYP_A_avg', 'varname_HYP_Qsim_mode', &
+        'varname_H06_Smax', 'varname_H06_alpha', 'varname_H06_envfact', 'varname_H06_S_ini', &
+        'varname_H06_c1', 'varname_H06_c2', 'varname_H06_exponent', 'varname_H06_denominator', &
+        'varname_H06_c_compare', 'varname_H06_frac_Sdead', 'varname_H06_E_rel_ini', &
+        'varname_H06_I_Jan', 'varname_H06_I_Feb', 'varname_H06_I_Mar', 'varname_H06_I_Apr', &
+        'varname_H06_I_May', 'varname_H06_I_Jun', 'varname_H06_I_Jul', 'varname_H06_I_Aug', &
+        'varname_H06_I_Sep', 'varname_H06_I_Oct', 'varname_H06_I_Nov', 'varname_H06_I_Dec', &
+        'varname_H06_D_Jan', 'varname_H06_D_Feb', 'varname_H06_D_Mar', 'varname_H06_D_Apr', &
+        'varname_H06_D_May', 'varname_H06_D_Jun', 'varname_H06_D_Jul', 'varname_H06_D_Aug', &
+        'varname_H06_D_Sep', 'varname_H06_D_Oct', 'varname_H06_D_Nov', 'varname_H06_D_Dec', &
+        'varname_H06_purpose', 'varname_H06_I_mem_F', 'varname_H06_D_mem_F', 'varname_H06_I_mem_L', &
+        'varname_H06_D_mem_L', 'varname_hruContribIx', 'varname_hruContribId', 'varname_segId', &
+        'varname_segIndex', 'varname_downSegId', 'varname_downSegIndex', 'varname_upSegIds', &
+        'varname_upSegIndices', 'varname_rchOrder', 'varname_lakeId', 'varname_lakeIndex', &
+        'varname_isLakeInlet', 'varname_islake', 'varname_lakeModelType', 'varname_LakeTargVol', &
+        'varname_userTake', 'varname_goodBasin', 'varname_pfafCode', 'basRunoff', 'instRunoff', &
+        'dlayRunoff', 'sumUpstreamRunoff', 'KWTroutedRunoff', 'IRFroutedRunoff', 'KWroutedRunoff', &
+        'DWroutedRunoff', 'MCroutedRunoff', 'IRFvolume', 'KWTvolume', 'KWvolume', 'MCvolume', &
+        'DWvolume', 'KWfloodVolume', 'KWheight', 'MCfloodVolume', 'MCheight', 'DWfloodVolume', &
+        'DWheight', 'localSolute', 'soluteFlux', 'soluteMass', 'KWTinflow', 'IRFinflow', &
+        'KWinflow', 'MCinflow', 'DWinflow')
+      is_valid_control_key = .true.
+   case default
+      is_valid_control_key = .false.
+   end select
+ END FUNCTION is_valid_control_key
+
+ SUBROUTINE get_toml_val_char(table, key, var)
+    type(toml_table), intent(inout) :: table
+    character(*), intent(in) :: key
+    character(*), intent(out) :: var
+    character(len=:), allocatable :: str_val
+    integer :: stat
+    call toml_get_value(table, key, str_val, stat=stat)
+    if (stat == toml_stat%success .and. allocated(str_val)) then
+       var = str_val
+    endif
+ END SUBROUTINE get_toml_val_char
+
+ SUBROUTINE get_toml_val_int(table, key, var)
+    type(toml_table), intent(inout) :: table
+    character(*), intent(in) :: key
+    integer(i4b), intent(inout) :: var
+    integer :: int_val
+    integer :: stat
+    call toml_get_value(table, key, int_val, stat=stat)
+    if (stat == toml_stat%success) then
+       var = int(int_val, i4b)
+    endif
+ END SUBROUTINE get_toml_val_int
+
+ SUBROUTINE get_toml_val_dp(table, key, var)
+    type(toml_table), intent(inout) :: table
+    character(*), intent(in) :: key
+    real(dp), intent(inout) :: var
+    real(dp) :: real_val
+    integer :: stat
+    call toml_get_value(table, key, real_val, stat=stat)
+    if (stat == toml_stat%success) then
+       var = real_val
+    endif
+ END SUBROUTINE get_toml_val_dp
+
+ SUBROUTINE get_toml_val_sp(table, key, var)
+    type(toml_table), intent(inout) :: table
+    character(*), intent(in) :: key
+    real(sp), intent(inout) :: var
+    real(sp) :: real_val
+    integer :: stat
+    call toml_get_value(table, key, real_val, stat=stat)
+    if (stat == toml_stat%success) then
+       var = real_val
+    endif
+ END SUBROUTINE get_toml_val_sp
+
+ SUBROUTINE get_toml_val_bool(table, key, var)
+    type(toml_table), intent(inout) :: table
+    character(*), intent(in) :: key
+    logical(lgt), intent(inout) :: var
+    logical :: bool_val
+    integer :: stat
+    call toml_get_value(table, key, bool_val, stat=stat)
+    if (stat == toml_stat%success) then
+       var = bool_val
+    endif
+ END SUBROUTINE get_toml_val_bool
 
 END MODULE read_control_module
