@@ -90,7 +90,7 @@ do while (.not.finished)
   endif
 
   call t_startf ('route-total')
-  call mpi_route(pid, nNodes, mpicom_route, ierr, cmessage)
+  call mpi_route(pid, nNodes, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
   call t_stopf ('route-total')
 

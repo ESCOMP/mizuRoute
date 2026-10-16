@@ -46,10 +46,11 @@ MODULE var_lookup
   integer(i4b)     :: mol_kw       = integerMissing   !  6. kw finite difference computational molecule
   integer(i4b)     :: mol_mc       = integerMissing   !  7. mc finite difference computational molecule
   integer(i4b)     :: mol_dw       = integerMissing   !  8. kw finite difference computational molecule
-  integer(i4b)     :: tdh_irf      = integerMissing   !  9. irf routed future channel flow in a segment
-  integer(i4b)     :: tdh          = integerMissing   ! 10. uh routed future overland flow
-  integer(i4b)     :: nchars       = integerMissing   ! 11. number of characters
-  integer(i4b)     :: hist_fil     = integerMissing   ! 12. history filenames
+  integer(i4b)     :: tracer       = integerMissing   !  9. number of tracer
+  integer(i4b)     :: tdh_irf      = integerMissing   ! 10. irf routed future channel flow in a segment
+  integer(i4b)     :: tdh          = integerMissing   ! 11. uh routed future overland flow
+  integer(i4b)     :: nchars       = integerMissing   ! 12. number of characters
+  integer(i4b)     :: hist_fil     = integerMissing   ! 13. history filenames
  endtype iLook_stateDims
  ! For river discharge variables
  type, public  ::  iLook_qDims
@@ -253,6 +254,7 @@ MODULE var_lookup
  ! tracer states
  type, public  ::  iLook_tracer
   integer(i4b)     :: mass           = integerMissing  ! 1. constituent mass (mg)
+  integer(i4b)     :: csub           = integerMissing  ! 2. constituent concentration at sub-reach (mg/m3)
  endtype iLook_tracer
  ! Basin IRF state/fluxes
  type, public  ::  iLook_IRFbas
@@ -301,7 +303,7 @@ MODULE var_lookup
  type(iLook_struct)   ,public,parameter :: ixStruct    = iLook_struct   ( 1, 2, 3, 4, 5)
  type(iLook_dims)     ,public,parameter :: ixDims      = iLook_dims     ( 1, 2, 3, 4, 5, 6, 7)
  type(iLook_stateDims),public,parameter :: ixStateDims = iLook_stateDims( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &
-                                                                         11, 12)
+                                                                         11,12,13)
  type(iLook_qDims)    ,public,parameter :: ixQdims     = iLook_qDims    ( 1, 2, 3, 4)
  type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      ( 1)
  type(iLook_HRU2SEG)  ,public,parameter :: ixHRU2SEG   = iLook_HRU2SEG  ( 1, 2, 3, 4)
@@ -323,7 +325,7 @@ MODULE var_lookup
                                                                          31)
  type(iLook_HFLX)     ,public,parameter :: ixHFLX      = iLook_HFLX     ( 1)
  type(iLook_basinQ)   ,public,parameter :: ixBasinQ    = iLook_basinQ   ( 1)
- type(iLook_tracer)   ,public,parameter :: ixTracer    = iLook_tracer   ( 1)
+ type(iLook_tracer)   ,public,parameter :: ixTracer    = iLook_tracer   ( 1, 2)
  type(iLook_IRFbas)   ,public,parameter :: ixIRFbas    = iLook_IRFbas   ( 1)
  type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      ( 1, 2, 3)
  type(iLook_basTracer),public,parameter :: ixBasTracer = iLook_basTracer( 1)

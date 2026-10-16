@@ -73,6 +73,7 @@ CONTAINS
                     ierr, message)     ! output: error control
 
  USE globalData, ONLY: FRAC_FUTURE     !
+ USE globalData, ONLY: nTracer         ! number of tracers
  USE public_var, ONLY: is_lake_sim     ! logical whether or not lake should be simulated
  USE public_var, ONLY: tracer          ! logical whether or not tracer is on
 
@@ -84,6 +85,7 @@ CONTAINS
  integer(i4b), intent(out)                :: ierr                  ! error code
  character(*), intent(out)                :: message               ! error message
  ! Local variables
+ integer(i4b)                             :: iTrace                ! loop index
  real(dp),     allocatable                :: FRAC_FUTURE_local(:)  ! local FRAC_FUTURE so that it can be changed for lakes to impulse
  integer(i4b)                             :: ntdh                  ! number of time steps in IRF
  character(len=strLen)                    :: cmessage              ! error message from subroutine
@@ -100,10 +102,12 @@ CONTAINS
    RCHFLX_out(iSeg)%QFUTURE(:) = 0._dp
   end if
 
-  if (.not.allocated(RCHFLX_out(iSeg)%solute_future) .and. tracer)then
-    ntdh = size(FRAC_FUTURE)
-    allocate(RCHFLX_out(iSeg)%solute_future(ntdh), source=0._dp, stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'unable to allocate space for RCHFLX_out(segIndex)%solute_future'; return; endif
+  if (tracer)then
+    if (.not.allocated(RCHFLX_out(iSeg)%solute_future))then
+      ntdh = size(FRAC_FUTURE)
+      allocate(RCHFLX_out(iSeg)%solute_future(ntdh,nTracer), source=0._dp, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'unable to allocate RCHFLX_out(segIndex)%solute_future'; return; endif
+    end if
   end if
 
   allocate(FRAC_FUTURE_local, source=FRAC_FUTURE, stat=ierr)
@@ -125,13 +129,15 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if(tracer) then
-    ! perform river network UH routing
-    call irf_conv(FRAC_FUTURE_local,                       &  ! input: unit hydrograph
-                  RCHFLX_out(iSeg)%BASIN_solute_inst, &  ! input: upstream fluxes
-                  RCHFLX_out(iSeg)%solute_future,     &  ! inout: updated solute future time series
-                  RCHFLX_out(iSeg)%BASIN_solute,      &  ! inout: updated fluxes at reach
-                 ierr, message)                               ! output: error control
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    do iTrace=1,nTracer
+      ! perform river network UH routing
+      call irf_conv(FRAC_FUTURE_local,                       &  ! input: unit hydrograph
+                    RCHFLX_out(iSeg)%BASIN_solute_inst(iTrace), &  ! input: upstream fluxes
+                    RCHFLX_out(iSeg)%solute_future(:,iTrace),   &  ! inout: updated solute future time series
+                    RCHFLX_out(iSeg)%BASIN_solute(iTrace),      &  ! inout: updated fluxes at reach
+                   ierr, message)                               ! output: error control
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end do
   end if
 
  END SUBROUTINE hru_irf
