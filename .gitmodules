@@ -34,7 +34,7 @@ fxrequired = ToplevelRequired
 fxDONOTUSEurl = https://github.com/NCAR/ParallelIO
 
 [submodule "toml-f"]
-path = externals/toml-f
+path = libraries/toml-f
 url = https://github.com/toml-f/toml-f.git
 fxtag = v0.5.2
 fxrequired = Required

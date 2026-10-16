@@ -46,11 +46,11 @@ def _main_func():
             incroot = case.get_value("INCROOT")
             srcroot = case.get_value("SRCROOT")
 
-            tomlf_src = os.path.join(rof_root, "externals", "toml-f")
+            tomlf_src = os.path.join(rof_root, "libraries", "toml-f")
             if not os.path.exists(os.path.join(tomlf_src, "CMakeLists.txt")):
-                tomlf_src = os.path.join(rof_root, "..", "externals", "toml-f")
+                tomlf_src = os.path.join(rof_root, "..", "libraries", "toml-f")
             if not os.path.exists(os.path.join(tomlf_src, "CMakeLists.txt")):
-                tomlf_src = os.path.join(srcroot, "externals", "toml-f")
+                tomlf_src = os.path.join(srcroot, "libraries", "toml-f")
 
             expect(os.path.exists(os.path.join(tomlf_src, "CMakeLists.txt")),
                    "Could not find toml-f CMakeLists.txt at %s" % tomlf_src)
