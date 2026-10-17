@@ -8,6 +8,8 @@ if [ $? != 0 ]; then
 fi
 export CIMEROOT=`pwd`
 echo "CIMEROOT = $CIMEROOT"
+# Unset NCAR_HOST to avoid mock text fixtures
+unset NCAR_HOST
     
 cd -
 mkdir -p CaseDocs
@@ -19,7 +21,16 @@ if [ $? != 0 ] ; then
    exit -1
 fi
 
-echo "2. Test TOML user control file (user_nl_mizuroute_toml)"
+echo "2. Test initial building of case (that user_nl_mizuroute_toml gets copied in)"
+rm -rf user_* Buildconf/mizurouteconf/* CaseDocs/*
+touch user_nl_mizuroute
+../buildnml `pwd` --verbose
+if [ $? != 0 ] ; then
+   echo "Default case test FAIL"
+   exit -1
+fi
+
+echo "3. Test TOML user control file (user_nl_mizuroute_toml)"
 rm -rf user_* Buildconf/mizurouteconf/* CaseDocs/*
 touch user_nl_mizuroute
 cp ../user_nl_mizuroute_toml user_nl_mizuroute_toml
@@ -30,7 +41,7 @@ if [ $? != 0 ] ; then
    exit -1
 fi
 
-echo "3. Test Legacy user control file (user_nl_mizuroute_control)"
+echo "4. Test Legacy user control file (user_nl_mizuroute_control)"
 rm -rf user_* Buildconf/mizurouteconf/* CaseDocs/*
 touch user_nl_mizuroute
 echo "<newFileFrequency>     monthly  ! Test comment" > user_nl_mizuroute_control
@@ -40,7 +51,7 @@ if [ $? != 0 ] ; then
    exit -1
 fi
 
-echo "4. Test Dual-Format conflict detection (expect failure when both exist)"
+echo "5. Test Dual-Format conflict detection (expect failure when both exist)"
 rm -rf user_* Buildconf/mizurouteconf/* CaseDocs/*
 touch user_nl_mizuroute
 cp ../user_nl_mizuroute_toml user_nl_mizuroute_toml

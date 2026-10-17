@@ -246,41 +246,30 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
             nmlgen.set_value( "fname_state_in", value=os.path.join(rundir, fname_state_in) )
             expect(os.path.exists(fname_state_in), "mizuRoute restart file does NOT exist: "+fname_state_in)
 
-    # Check component defaults file in cime_config
-    default_file_toml = os.path.join(srcroot, "cime_config", "user_nl_mizuroute_toml")
-    default_file_control = os.path.join(srcroot, "cime_config", "user_nl_mizuroute_control")
-    default_file_plain = os.path.join(srcroot, "cime_config", "user_nl_mizuroute")
+    case_user_file_toml = os.path.join(caseroot, "user_nl_mizuroute_toml" + inst_string)
+    case_user_file_control = os.path.join(caseroot, "user_nl_mizuroute_control" + inst_string)
 
-    has_def_toml = os.path.exists(default_file_toml) or os.path.exists(default_file_plain)
-    has_def_control = os.path.exists(default_file_control)
+    has_user_toml = os.path.exists(case_user_file_toml)
+    has_user_control = os.path.exists(case_user_file_control)
 
-    expect(not (has_def_toml and has_def_control),
-           "Both TOML and control format default template files exist in cime_config. Exactly one must be present.")
-    expect(has_def_toml or has_def_control,
-           "Neither user_nl_mizuroute_toml nor user_nl_mizuroute_control default file exists in cime_config.")
-
-    # Check user override files in caseroot
-    user_file_toml = os.path.join(caseroot, "user_nl_mizuroute_toml" + inst_string)
-    user_file_control = os.path.join(caseroot, "user_nl_mizuroute_control" + inst_string)
-    user_file_plain = os.path.join(caseroot, "user_nl_mizuroute" + inst_string)
-
-    has_user_toml = os.path.exists(user_file_toml)
-    has_user_control = os.path.exists(user_file_control)
+    if not has_user_toml and not has_user_control:
+        # Stage user control template into CASEROOT if no user control file exists yet
+        src_file_toml = os.path.join(srcroot, "cime_config", "user_nl_mizuroute_toml")
+        safe_copy(src_file_toml, case_user_file_toml)
+        has_user_toml = True
 
     expect(not (has_user_toml and has_user_control),
            "Both TOML and control format user override files exist in CASEROOT. Please use only one format.")
 
-    usrctl = None
+    case_user_vars = None
     if has_user_toml:
-        usrctl = mizuRoute_control.from_toml( user_file_toml, allowEmpty=True )
+        case_user_vars = mizuRoute_control.from_toml( case_user_file_toml, allowEmpty=True )
     elif has_user_control:
-        usrctl = mizuRoute_control.from_control( user_file_control, allowEmpty=True )
-    elif os.path.exists(user_file_plain):
-        usrctl = mizuRoute_control.from_toml( user_file_plain, allowEmpty=True )
+        case_user_vars = mizuRoute_control.from_control( case_user_file_control, allowEmpty=True )
 
-    if usrctl is not None:
-        for element in usrctl.get_elmList():
-            value = usrctl.get( element )
+    if case_user_vars is not None:
+        for element in case_user_vars.get_elmList():
+            value = case_user_vars.get( element )
             expect( ctl.get(element) != "UNSET", "Element in the user control file is NOT in the template control file: "+element )
             ctl.set( element, value )
 
