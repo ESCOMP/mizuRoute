@@ -32,7 +32,8 @@ def _main_func():
         rof_root = case.get_value("COMP_ROOT_DIR_ROF")
         gmake_j = case.get_value("GMAKE_J")
         gmake = case.get_value("GMAKE")
-        driver = case.get_value("COMP_INTERFACE").lower()
+        comp_interface = case.get_value("COMP_INTERFACE")
+        driver = comp_interface.lower() if comp_interface else ""
 
         expect( driver == "nuopc", "mizuRoute only has a nuopc COMP_INTERFACE" )
         #-------------------------------------------------------
