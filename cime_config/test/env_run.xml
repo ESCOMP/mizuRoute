@@ -20,6 +20,7 @@ Sample env_run.xml file that allows buildnml to be run for testing in this direc
     <entry id="RUN_TYPE" value="startup">
     </entry>
     <entry id="CONTINUE_RUN" value="FALSE">
+      <type>logical</type>
     </entry>
 
     <entry id="RUN_REFDIR" value="cesm2_init">
@@ -36,6 +37,7 @@ Sample env_run.xml file that allows buildnml to be run for testing in this direc
     </entry>
 
     <entry id="ROF_NCPL" value="1">
+      <type>integer</type>
     </entry>
     <entry id="NCPL_BASE_PERIOD" value="day">
     </entry>

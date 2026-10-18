@@ -62,13 +62,13 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     casename = case.get_value("CASE")
     run_type = case.get_value("RUN_TYPE")
     run_start = case.get_value("RUN_STARTDATE")
-    continue_run = str(case.get_value("CONTINUE_RUN"))
+    continue_run = case.get_value("CONTINUE_RUN")
     #----------------------------------------------------
     # Settings that depend on the resolution
     #----------------------------------------------------
     dname_sseg = "seg"
     dname_nhru = "hru"
-    is_lake_sim = "F"
+    is_lake_sim = False
     ancil_dir = dindir+"/rof/mizuRoute/ancillary_data/"
     if (    config['rof_grid'] == "HDMAmz" ):
        fname_ntopOld = "ntopo_HDMAmz_Global_cdf5_fill_reorder_c20200828.nc"
@@ -91,7 +91,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_downSegId = "ID_next"
        varname_pfafCode = "PFAF"
 
-       is_lake_sim = "T"
+       is_lake_sim = True
 
        dname_nhru = "n"
        dname_sseg = "n"
@@ -177,7 +177,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_pfafCode = "pfaf"
        ancil_dir = "please_set_ancillary_directory_in_user_nl_mizuroute_control"
     else:
-       expect( False, "mizuRoute does NOT know about this grid: "+config['rof_grid'] )
+       expect( False, f"mizuRoute does NOT know about this grid: {config['rof_grid']}" )
 
     #----------------------------------------------------
     # Initialize namelist defaults
@@ -193,9 +193,9 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     # Convert coupling frequency into seconds
     #----------------------------------------------------
     if config['ncpl_base_period'] != "day":
-       expect( False, "NCPL_BASE_PERIOD is expected to be day instead is: "+config['ncpl_base_period'] )
+       expect( False, f"NCPL_BASE_PERIOD is expected to be day instead is: {config['ncpl_base_period']}" )
 
-    dt_qsim = 86400 / int(config['rof_ncpl'])
+    dt_qsim = int(86400 // int(config['rof_ncpl']))
     #----------------------------------------------------
     # Set control values that we get from CESM
     #----------------------------------------------------
@@ -205,7 +205,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     ctl.set( "ancil_dir", ancil_dir )
     ctl.set( "fname_ntopOld", fname_ntopOld )
     nmlgen.set_value( "fname_ntopold", value=os.path.join( ancil_dir, fname_ntopOld ) )
-    ctl.set( "dt_qsim", str(dt_qsim) )
+    ctl.set( "dt_qsim", dt_qsim )
     ctl.set( "dname_sseg", dname_sseg )
     ctl.set( "dname_nhru", dname_nhru )
     ctl.set( "param_nml", "mizuRoute_in" )
@@ -241,27 +241,42 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
 
     ctl.set( "fname_state_in", fname_state_in )
     # Check that the restart file exists and if not see if it can be found in the run directory
-    if fname_state_in is not "empty":
+    if fname_state_in != "empty":
         if not os.path.exists(os.path.join( rundir, fname_state_in )):
             nmlgen.set_value( "fname_state_in", value=os.path.join(rundir, fname_state_in) )
             expect(os.path.exists(fname_state_in), "mizuRoute restart file does NOT exist: "+fname_state_in)
 
-    # Read in the user control file for the case and change settings to it
-    file_src = "user_nl_mizuroute_control"
-    user_ctl_file = os.path.join(caseroot, file_src + inst_string)
-    if ( not os.path.exists( user_ctl_file ) ):
-       safe_copy( os.path.join( srcroot, "cime_config", file_src), user_ctl_file )
-    usrctl = mizuRoute_control()
-    usrctl.read( user_ctl_file, allowEmpty=True )
-    for element in usrctl.get_elmList():
-       value = ctl.get( element )
-       expect( value != "UNSET", "Element in the user_nl_mizuroute_control file is NOT in the control file: "+element )
-       ctl.set( element, usrctl.get( element ) )
+    case_user_file_toml = os.path.join(caseroot, "user_nl_mizuroute_toml" + inst_string)
+    case_user_file_control = os.path.join(caseroot, "user_nl_mizuroute_control" + inst_string)
+
+    has_user_toml = os.path.exists(case_user_file_toml)
+    has_user_control = os.path.exists(case_user_file_control)
+
+    if not has_user_toml and not has_user_control:
+        # Stage user control template into CASEROOT if no user control file exists yet
+        src_file_toml = os.path.join(srcroot, "cime_config", "user_nl_mizuroute_toml")
+        safe_copy(src_file_toml, case_user_file_toml)
+        has_user_toml = True
+
+    expect(not (has_user_toml and has_user_control),
+           "Both TOML and control format user override files exist in CASEROOT. Please use only one format.")
+
+    case_user_vars = None
+    if has_user_toml:
+        case_user_vars = mizuRoute_control.from_toml( case_user_file_toml, allowEmpty=True )
+    elif has_user_control:
+        case_user_vars = mizuRoute_control.from_control( case_user_file_control, allowEmpty=True )
+
+    if case_user_vars is not None:
+        for element in case_user_vars.get_elmList():
+            value = case_user_vars.get( element )
+            expect( ctl.get(element) != "UNSET", "Element in the user control file is NOT in the template control file: "+element )
+            ctl.set( element, value )
 
     #----------------------------------------------------
     # Write output files
     #----------------------------------------------------
-    control_file = os.path.join(confdir, "mizuRoute.control")
+    control_file = os.path.join(confdir, "mizuroute_toml")
     nml_file = os.path.join(confdir, "mizuRoute_in")
     write_nml_in_file(case, nmlgen, confdir, nml_file )
     ctl.write( control_file )
@@ -297,9 +312,8 @@ def buildnml(case, caseroot, compname):
     #----------------------------------------------------
     # Construct the control file generator
     #----------------------------------------------------
-    sampleFile = srcroot + "/route/settings/SAMPLE-coupled.control"
-    ctl = mizuRoute_control()
-    ctl.read( sampleFile )
+    sampleFile = srcroot + "/route/settings/SAMPLE-coupled_toml"
+    ctl = mizuRoute_control.from_toml( sampleFile )
 
     #----------------------------------------------------
     # Do some checking
@@ -335,7 +349,7 @@ def buildnml(case, caseroot, compname):
     # copy control files to rundir
     if os.path.isdir(rundir):
        for destdir in [rundir, caseroot+"/CaseDocs"]:
-          for nfile in ["mizuRoute.control", "mizuRoute_in" ]:
+          for nfile in ["mizuroute_toml", "mizuRoute_in" ]:
              file_src = os.path.join(confdir, nfile )
              file_dest = os.path.join(destdir, nfile )
              if inst_string:

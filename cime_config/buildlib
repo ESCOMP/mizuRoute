@@ -3,7 +3,7 @@
 """
 build mizuRoute library
 """
-import sys, os
+import sys, os, glob, shutil
 
 _CIMEROOT = os.environ.get("CIMEROOT")
 if _CIMEROOT is None:
@@ -32,11 +32,75 @@ def _main_func():
         rof_root = case.get_value("COMP_ROOT_DIR_ROF")
         gmake_j = case.get_value("GMAKE_J")
         gmake = case.get_value("GMAKE")
-        driver = case.get_value("COMP_INTERFACE").lower()
+        comp_interface = case.get_value("COMP_INTERFACE")
+        driver = comp_interface.lower() if comp_interface else ""
 
         expect( driver == "nuopc", "mizuRoute only has a nuopc COMP_INTERFACE" )
         #-------------------------------------------------------
-        # create Filepath file
+        # Pre-build external toml-f static library via CMake
+        #-------------------------------------------------------
+        tomlf_lib = os.path.join(libroot, "libtomlf.a")
+        tomlf_bld = os.path.join(bldroot, "tomlf_bld")
+        tomlf_inst = os.path.join(bldroot, "tomlf_inst")
+
+        if not os.path.isfile(tomlf_lib):
+            incroot = case.get_value("INCROOT")
+            srcroot = case.get_value("SRCROOT")
+
+            tomlf_src = os.path.join(rof_root, "libraries", "toml-f")
+            if not os.path.exists(os.path.join(tomlf_src, "CMakeLists.txt")):
+                tomlf_src = os.path.join(rof_root, "..", "libraries", "toml-f")
+            if not os.path.exists(os.path.join(tomlf_src, "CMakeLists.txt")):
+                tomlf_src = os.path.join(srcroot, "libraries", "toml-f")
+
+            expect(os.path.exists(os.path.join(tomlf_src, "CMakeLists.txt")),
+                   "Could not find toml-f CMakeLists.txt at %s" % tomlf_src)
+
+            if not os.path.isdir(tomlf_bld):
+                os.makedirs(tomlf_bld)
+
+            fc = os.environ.get("FC") or os.environ.get("MPIFC") or os.environ.get("SFC")
+            fflags = os.environ.get("FFLAGS", "")
+            macfile = os.path.join(caseroot, "Macros.make")
+            if os.path.isfile(macfile):
+                with open(macfile, "r") as mf:
+                    for line in mf:
+                        sline = line.strip()
+                        if sline.startswith("MPIFC :=") and not fc:
+                            fc = sline.split(":=")[-1].strip()
+                        elif sline.startswith("SFC :=") and not fc:
+                            fc = sline.split(":=")[-1].strip()
+                        elif sline.startswith("FFLAGS :=") and not fflags:
+                            fflags = sline.split(":=")[-1].strip()
+            if not fc:
+                fc = "ftn"
+
+            if not os.path.isfile(os.path.join(tomlf_bld, "Makefile")):
+                cmake_cmd = 'cmake -DCMAKE_Fortran_COMPILER="{}" -DCMAKE_Fortran_FLAGS="{}" -DCMAKE_INSTALL_PREFIX="{}" "{}"'.format(
+                    fc, fflags, tomlf_inst, tomlf_src
+                )
+                rc_cmake, out_cmake, err_cmake = run_cmd(cmake_cmd, from_dir=tomlf_bld)
+                logger.info("CMake configure toml-f:\n output:\n%s\n err:\n%s\n" % (out_cmake, err_cmake))
+                expect(rc_cmake == 0, "CMake configure for toml-f failed with rc=%s:\n%s" % (rc_cmake, err_cmake))
+
+            make_cmd = "{} -j {} && {} install".format(gmake, gmake_j, gmake)
+            rc_make, out_make, err_make = run_cmd(make_cmd, from_dir=tomlf_bld)
+            logger.info("Make toml-f:\n output:\n%s\n err:\n%s\n" % (out_make, err_make))
+            expect(rc_make == 0, "Make for toml-f failed with rc=%s:\n%s" % (rc_make, err_make))
+
+            mod_files = glob.glob(os.path.join(tomlf_bld, "**", "*.mod"), recursive=True) + \
+                        glob.glob(os.path.join(tomlf_inst, "**", "*.mod"), recursive=True)
+            for mod in mod_files:
+                shutil.copy(mod, incroot)
+                shutil.copy(mod, libroot)
+
+            compiled_libs = glob.glob(os.path.join(tomlf_bld, "**", "libtoml*.a"), recursive=True) + \
+                            glob.glob(os.path.join(tomlf_inst, "**", "libtoml*.a"), recursive=True)
+            expect(len(compiled_libs) > 0, "Could not find compiled toml-f library in %s or %s" % (tomlf_bld, tomlf_inst))
+            shutil.copy(compiled_libs[0], tomlf_lib)
+
+        #-------------------------------------------------------
+        # create Filepath file for mizuRoute
         #-------------------------------------------------------
         filepath_file = os.path.join(bldroot,"Filepath")
         if not os.path.isfile(filepath_file):
@@ -62,6 +126,23 @@ def _main_func():
         rc, out, err = run_cmd(cmd)
         logger.info("%s: \n\n output:\n %s \n\n err:\n\n%s\n"%(cmd,out,err))
         expect(rc == 0, "Command %s failed with rc=%s" % (cmd, rc))
+
+        #-------------------------------------------------------
+        # Merge libtomlf.a object files into librof.a via MRI script
+        #-------------------------------------------------------
+        ar = case.get_value("AR") or "ar"
+        mri_script = os.path.join(tomlf_bld, "merge.mri")
+        with open(mri_script, "w") as f:
+            f.write("CREATE {}\n".format(complib))
+            f.write("ADDLIB {}\n".format(complib))
+            f.write("ADDLIB {}\n".format(tomlf_lib))
+            f.write("SAVE\n")
+            f.write("END\n")
+
+        ar_cmd = "{} -M < {}".format(ar, mri_script)
+        rc_ar, out_ar, err_ar = run_cmd(ar_cmd)
+        logger.info("Merging libtomlf.a into librof.a via MRI script:\n output:\n%s\n err:\n%s\n" % (out_ar, err_ar))
+        expect(rc_ar == 0, "Merge of libtomlf.a into librof.a failed with rc=%s:\n%s" % (rc_ar, err_ar))
 
 ###############################################################################
 
