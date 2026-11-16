@@ -160,8 +160,9 @@ MOD_PATH = $(F_MASTER)build/
 EXE_PATH = $(F_MASTER)bin
 
 # External libraries (if used)
-EXTLIBS =
-EXTINCLUDES =
+EXTLIBS = $(LIBDIR)/tomllib/lib/libtoml-f.a
+EXTINCLUDES = -I$(LIBDIR)/tomllib/include/toml-f/modules
+LDFLAGS = -L$(LIBDIR)/tomllib/lib -ltoml-f
 
 #========================================================================
 # Assemble all of the sub-routines
@@ -278,6 +279,15 @@ endif
 ifdef PNETCDF_PATH
         LDFLAGS    += -L$(PNETCDF_PATH)/lib -lpnetcdf
 endif
+
+TOMLLIBDIR = $(LIBDIR)/tomllib
+TOMLSRCDIR = $(F_MASTER)../libraries/toml-f
+ 
+$(TOMLLIBDIR)/lib/libtoml-f.a:
+	@mkdir -p $(TOMLSRCDIR)/_build
+	cd $(TOMLSRCDIR)/_build && \
+	cmake -DCMAKE_Fortran_COMPILER=$(FC_EXE) -DCMAKE_INSTALL_PREFIX=$(TOMLLIBDIR) -DCMAKE_INSTALL_LIBDIR=lib .. && \
+	$(MAKE) && $(MAKE) install
 
 $(PIOLIB):
 	cd $(LIBDIR); \

@@ -1,0 +1,94 @@
+# ****************************************************************************************************************************
+# ****************************************************************************************************************************
+# ***** DEFINITION OF MODEL CONTROL INFORMATION ******************************************************************************
+# ****************************************************************************************************************************
+# ****************************************************************************************************************************
+# Note: lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines.
+#       lines starting with <xxx> are read till "!"
+#       Do not inclue empty line without !
+#
+#       Please see route/build/src/read_control.f90 for complete options 
+#
+#       Any control variables not in this example use default values defined in public_var.f90.
+#
+# ****************************************************************************************************************************
+# RUN CONTROL 
+# --------------------------------------------
+case_name = "CASE_NAME" # name of simulation
+route_opt = 5 # option for routing schemes (only one-option allowed) 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
+doesBasinRoute = 1 # basin routing options   0-> no, 1->gamma-diestribution UH, otherwise error
+is_flux_wm = true # switch for water abstraction/injection
+hw_drain_point = 1 # how lateral flow is put into a headwater reach 1-> top of headwater, 2-> bottom of headwater
+floodplain = false # logical: floodwater is computed, otherwise, channel is unlimited bank depth
+fname_state_in = "STATE_IN_NC" # input restart netCDF name. remove for run without any particular initial channel states
+newFileFrequency = "monthly" # frequency for new output files (daily, monthly, yearly, single)
+outputFrequency = "monthly" # time frequency used for temporal aggregation of output variables - numeric or daily, monthyly, or yearly
+dt_qsim = 3600 # simulation time interval [sec]
+continue_run = false # logical; T-> append output in existing history files. F-> write output in new history file
+debug = false # debug verbosity level; T -> extra log output. F-> normal log output
+# ****************************************************************************************************************************
+# DEFINE DIRECTORIES 
+# --------------------------
+ancil_dir = "ANCIL_DIR" # directory containing ancillary data (river network data)
+input_dir = "INPUT_DIR" # directory containing input data
+output_dir = "OUTPUT_DIR" # directory containing output data
+# ****************************************************************************************************************************
+# DEFINE FINE NAME AND DIMENSIONS
+# ---------------------------------------
+fname_ntopOld = "NTOPO_NC" # netCDF name for River Network
+dname_sseg = "DIMNAME_SEG" # dimension name of the stream segments
+dname_nhru = "DIMNAME_HRU" # dimension name of the HRUs
+fname_ntopNew = "UPDATED_NTOPO_NC" # netCDF name for augmented River Network
+units_qsim = "mm/s" # units of runoff e.g., mm/s
+varname_area = "Basin_Area" # name of variable holding hru area
+varname_length = "Length" # name of variable holding segment length
+varname_slope = "Slope" # name of variable holding segment slope
+varname_HRUid = "hruid" # name of variable holding HRU id
+varname_hruSegId = "hru_seg_id" # name of variable holding the stream segment below each HRU
+varname_segId = "seg_id" # name of variable holding the ID of each stream segment
+varname_downSegId = "Tosegment" # name of variable holding the ID of the next downstream segment
+varname_pfafCode = "PFAF" # name of variable holding the pfafstetter code
+# ****************************************************************************************************************************
+# Define options for lake handling
+# ----------------------------------------------------
+is_lake_sim = false # Switch lake simulation on/off (T=on/F=off)
+lakeRegulate = false # Switch reservoir on/off (T=on/F=off). F-> all the lakes are natural (use Doll model)
+varname_D03_MaxStorage = "S_max" # Maximum lake volume (for Doll 2003 parametrisation)
+varname_D03_Coefficient = "Coeff" # name of varibale holding the coefficnet of stage-discharge relatioship for lake
+varname_D03_Power = "power" # name of varibale holding the coefficnet of stage-discharge relatioship for lake
+varname_D03_S0 = "S_0" # Maximum lake volume (for Doll 2003 parametrisation)
+varname_islake = "lake" # name of variable holding the islake flage (1=lake, 0=reach)
+varname_lakeModelType = "lake_type" # name of varibale holding lake type (0=endo, 1=Doll, 2=Hanasaki, 3=HYPE)
+LakeInputOption = 2 # fluxes for lake simulation; 0->evaporation+precipitation (default), 1->runoff, 2->evaporation+precipitation+runoff
+# ****************************************************************************************************************************
+# Namelist file name 
+# ---------------------------
+param_nml = "PARAMETER_NML" # Namelist name containing spatially constant parameter values
+# ****************************************************************************************************************************
+# output options
+# ---------------------------
+# NOTE:  discharge and volume output options
+#        Routing options not chosen (see <route_opt>) will be ignored.
+# ---------------------------
+outputNameOption = "generic" # "generic": routing method dependet output does not include routing schem name
+basRunoff = true # HRU average runoff depth at HRU [L/T]
+instRunoff = false # intantaneou runoff volume from Local HRUs at reach [L3/T]
+dlayRunoff = false # delayed runoff voluem (discharge) from local HRUsi at reach [L3/T]
+sumUpstreamRunoff = false # accumulated total upstream discharge at reach [L3/T]
+DWroutedRunoff = true # diffusive wave routed discharge at reach [L3/T]
+DWvolume = true # diffusive wave volume at the end of time step at reach [L3]
+# ****************************************************************************************************************************
+# cesm-coupler: negative flow (qgwl and excess irrigation demand) handling option
+# ---------------------------
+# NOTE: <bypass_routing_option> is options for handling negative runoff from land model (qbwl or excess irrigation demand).
+#       direct_in_place: separate negative HRU runoff from other runoff components and send it to the nearest ocean point through a coupler.
+#       direct_to_outlet: send negative HRU runoff directly to the basin outlet (ocean or endoheic lake) and putting it into the outlet reach.
+#       <qgwl_runoff_option> is options for handling qgwl runoff from CLM.
+#       all: apply all qgwl runoff to bypass_routing, negative: apply only negative runoff, threshold: apply runoff below threshold
+bypass_routing_option = "direct_to_outlet" # options: direct_in_place, or direct_to_outlet
+qgwl_runoff_option = "negative" # options: all, negative, or threshold
+correct_area = false # T => perform area correction between model and coupler areas
+ice_runoff = true # T => ice runoff exported to cpler separately from liquid, otherwise ice is combined with liquid
+# ****************************************************************************************************************************
+# ****************************************************************************************************************************
+# ****************************************************************************************************************************
