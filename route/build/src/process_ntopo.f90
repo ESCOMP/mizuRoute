@@ -476,6 +476,7 @@ END SUBROUTINE augment_ntopo
    end if
 
    ! lake parameters
+   NETOPO_in(iSeg)%isLake = .false.
    if (is_lake_sim) then
      NETOPO_in(iSeg)%isLake       = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
      NETOPO_in(iSeg)%LakeTargVol  = (structNTOPO(iSeg)%var(ixNTOPO%LakeTargVol)%dat(1)==true)
