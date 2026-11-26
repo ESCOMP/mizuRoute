@@ -1,6 +1,21 @@
 # mizuRoute settings converter
 
-Convert mizuRoute settings between legacy `.control` and `.toml` files. Requires Python 3.11 or later, or Python 3.9–3.10 with `tomli` installed (`python3 -m pip install tomli`). This tool does not require CIME python libraries.
+Convert mizuRoute settings between legacy `.control` and `.toml` files. The converter requires Python 3.11 or later and uses only the Python standard library.
+
+If you already have Python 3.11 or later, use your existing installation. To set up Python with Conda, run these commands from the repository root.
+
+```bash
+conda env create -f tools/environment.yml
+conda activate mizuroute-tools
+python --version
+```
+
+On NCAR HPC, you can use the system-provided `npl-2024a` or a later NPL environment. For example, activate `npl-2024a` and check that the active Python is 3.11 or later.
+
+```bash
+conda activate npl-2024a
+python --version
+```
 
 From the mizuRoute sandbox root:
 
@@ -15,6 +30,8 @@ You can also run the script with `python3`, or add `tools/ctl_to_toml` to your `
 The output is saved beside the input with the opposite extension (`.control` -> `.toml` or `.toml` -> `.control`). Existing files are never overwritten: the converter tries `settings.toml`, `settings_YYYYMMDD.toml`, `settings_YYYYMMDD_1.toml`, and increasing numbers. Dates use the machine's local date. The same rule applies to `.control` output. Successful conversion is silent by default; `-v`/`--verbose` logs progress and the output path to stderr. Errors always go to stderr with a nonzero exit status.
 
 Standalone comments, section headings, blank lines, inline comment text, and setting order are preserved. Comment delimiters change between `!` and `#`; alignment and numeric spelling may change. Integers remain integers and floating-point values remain floats, including scientific notation. Legacy `T`/`F` become TOML `true`/`false`; legacy logical spellings `true`, `false`, `.true.`, and `.false.` are also accepted. Date and time values become strings.
+
+The legacy `<route_opt>` value is a sequence of routing method digits. When converting to TOML, the converter moves leading zeros to the end so runoff accumulation stays enabled. For example, `<route_opt> 012345` becomes `route_opt = 123450`, which selects all six methods. A value of `0` alone stays `0`.
 
 Double-quoted legacy values remain strings when converted to TOML. For example, the quotes in this legacy setting keep `0012` as text rather than the number `12`:
 

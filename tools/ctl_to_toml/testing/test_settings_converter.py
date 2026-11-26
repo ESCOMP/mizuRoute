@@ -1,8 +1,10 @@
 """Regression tests; all file writes are isolated in temporary directories."""
 
+from contextlib import redirect_stderr
 from datetime import date
 import importlib.machinery
 import importlib.util
+from io import StringIO
 from pathlib import Path
 import subprocess
 import sys
@@ -117,6 +119,31 @@ single = """abc""" # multiline syntax
         result = self.run_cli("--help")
         self.assertEqual(result.returncode, 0)
         self.assertIn("--verbose", result.stdout)
+
+    def test_python_310_is_rejected_before_importing_parser(self):
+        source = self.directory / "settings.control"
+        source.write_text("<dt_qsim> 86400 ! seconds\n")
+        stderr = StringIO()
+        with (
+            patch.object(sys, "version_info", (3, 10, 0)),
+            patch.dict(sys.modules, {"control_document": None}),
+            redirect_stderr(stderr),
+        ):
+            status = converter.main([str(source)])
+        self.assertNotEqual(status, 0)
+        self.assertIn("Python 3.11 or later is required", stderr.getvalue())
+        self.assertEqual(list(self.directory.iterdir()), [source])
+
+    def test_route_opt_preserves_selected_routing_methods(self):
+        for legacy, expected in (("012345", 123450), ("01", 10), ("0", 0), ("123450", 123450)):
+            with self.subTest(legacy=legacy):
+                source = self.directory / f"routing_{legacy}.control"
+                source.write_text(f"<route_opt> {legacy} ! routing methods\n")
+                result = self.run_cli(source)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                output = source.with_suffix(".toml").read_text()
+                self.assertEqual(tomllib.loads(output)["route_opt"], expected)
+                self.assertIn("# routing methods", output)
 
     def test_invalid_inputs_have_no_output(self):
         cases = [

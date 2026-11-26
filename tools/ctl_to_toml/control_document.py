@@ -4,11 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time
 import json
 import re
-
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib
+import tomllib
 
 
 _NAME = re.compile(r"[A-Za-z0-9_-]+\Z")
@@ -112,8 +108,15 @@ class ControlDocument:
             if not _NAME.fullmatch(key) or key in seen:
                 raise ValueError(f"Line {number}: invalid or duplicate setting {key!r}")
             raw, comment = _split_comment(match[2], "!")
+            raw = raw.strip()
+            # Move leading zeros to the end so integer conversion keeps
+            # routing method 0 (runoff accumulation) enabled.
+            if key == "route_opt" and re.fullmatch(r"\+?0[0-9]+", raw):
+                digits = raw.lstrip("+")
+                nonzero_prefix = digits.lstrip("0")
+                raw = nonzero_prefix + "0" * (len(digits) - len(nonzero_prefix))
             try:
-                value = parse_legacy_value(raw.strip())
+                value = parse_legacy_value(raw)
             except (ValueError, KeyError) as error:
                 raise ValueError(f"Line {number}: {error}") from error
             entries.append(Entry(key, value, comment, indent))

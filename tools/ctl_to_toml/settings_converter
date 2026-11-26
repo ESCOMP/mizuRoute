@@ -34,6 +34,10 @@ def write_output(source, content):
 
 
 def main(argv=None):
+    if sys.version_info < (3, 11):
+        print("settings_converter: error: Python 3.11 or later is required", file=sys.stderr)
+        return 1
+
     parser = argparse.ArgumentParser(
         description="Convert mizuRoute .control settings to TOML, or .toml settings to legacy ASCII."
     )
@@ -53,9 +57,6 @@ def main(argv=None):
         if args.verbose:
             count = sum(entry.key is not None for entry in document.entries)
             print(f"Converted {count} settings: {args.filename} -> {destination}", file=sys.stderr)
-    except ImportError:
-        print("settings_converter: error: Python 3.11+ or the tomli package is required", file=sys.stderr)
-        return 1
     except (OSError, ValueError) as error:
         print(f"settings_converter: error: {error}", file=sys.stderr)
         return 1
