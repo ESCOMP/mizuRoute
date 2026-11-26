@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""Convert a mizuRoute .control or .toml file to the other format."""
+
+import argparse
+from datetime import date
+from pathlib import Path
+import sys
+
+# Resolve the local parser relative to this script, not the working directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+
+def write_output(source, content):
+    """Exclusively create the first available output filename."""
+    suffix = ".toml" if source.suffix == ".control" else ".control"
+    base = source.with_suffix(suffix)
+    dated = base.with_name(f"{base.stem}_{date.today():%Y%m%d}{suffix}")
+    candidate = base
+    number = 0
+    while True:
+        try:
+            handle = candidate.open("x", encoding="utf-8")
+        except FileExistsError:
+            candidate = dated if number == 0 else dated.with_name(f"{dated.stem}_{number}{suffix}")
+            number += 1
+            continue
+        try:
+            with handle:
+                handle.write(content)
+        except BaseException:
+            candidate.unlink()
+            raise
+        return candidate
+
+
+def main(argv=None):
+    if sys.version_info < (3, 11):
+        print("settings_converter: error: Python 3.11 or later is required", file=sys.stderr)
+        return 1
+
+    parser = argparse.ArgumentParser(
+        description="Convert mizuRoute .control settings to TOML, or .toml settings to legacy ASCII."
+    )
+    parser.add_argument("filename", type=Path, help="input .control or .toml file")
+    parser.add_argument("-v", "--verbose", action="store_true", help="log conversion progress to stderr")
+    args = parser.parse_args(argv)
+    try:
+        from control_document import ControlDocument
+        if args.filename.suffix not in (".control", ".toml"):
+            raise ValueError("Input filename must have a .control or .toml extension")
+        if args.verbose:
+            print(f"Reading {args.filename}", file=sys.stderr)
+        document = ControlDocument.parse(args.filename.read_text(encoding="utf-8"), args.filename.suffix)
+        suffix = ".toml" if args.filename.suffix == ".control" else ".control"
+        output = document.render(suffix)
+        destination = write_output(args.filename, output)
+        if args.verbose:
+            count = sum(entry.key is not None for entry in document.entries)
+            print(f"Converted {count} settings: {args.filename} -> {destination}", file=sys.stderr)
+    except (OSError, ValueError) as error:
+        print(f"settings_converter: error: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
