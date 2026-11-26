@@ -33,6 +33,8 @@ Standalone comments, section headings, blank lines, inline comment text, and set
 
 The legacy `<route_opt>` value is a sequence of routing method digits. When converting to TOML, the converter moves leading zeros to the end so runoff accumulation stays enabled. For example, `<route_opt> 012345` becomes `route_opt = 123450`, which selects all six methods. A value of `0` alone stays `0`.
 
+For most legacy settings, the converter infers the type from the text of the value. mizuRoute uses the setting name to determine its type. As a result, an unquoted value such as `<case_name> 0012` can become `case_name = 12` in TOML. **Review converted values that look like numbers or booleans but are meant to be strings.**
+
 Double-quoted legacy values remain strings when converted to TOML. For example, the quotes in this legacy setting keep `0012` as text rather than the number `12`:
 
 ```text
