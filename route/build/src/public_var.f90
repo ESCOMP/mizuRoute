@@ -170,8 +170,6 @@ MODULE public_var
   integer(i4b)         ,public    :: restart_day          = 1               ! restart periodic day.   Default 1st (write every 1st of month)
   integer(i4b)         ,public    :: restart_hour         = 0               ! restart periodic hour.  Default 0hr (write every 00 hr of day)
   character(len=strLen),public    :: fname_state_in       = charMissing     ! name of state file
-  ! SPATIAL CONSTANT PARAMETERS
-  character(len=strLen),public    :: param_nml            = ''              ! name of the namelist file
   ! GAUGE DATA
   character(len=strLen),public    :: gageMetaFile         = charMissing     ! name of the gauge metadata csv
   logical(lgt),public             :: outputAtGage         = .false.         ! logical; T-> history file output at only gauge points
@@ -202,6 +200,16 @@ MODULE public_var
   ! PFAFCODE
   integer(i4b)         ,public    :: maxPfafLen           = 32              ! maximum digit of pfafstetter code (default 32).
   character(len=1)     ,public    :: pfafMissing          = '0'             ! missing pfafcode (e.g., reach without any upstream area)
+  ! spatial constant routing parameter
+  real(dp)             ,public    :: fshape               = 2.5_dp          ! shape parameter in time delay histogram (=gamma distribution) [-]
+  real(dp)             ,public    :: tscale               = 86400           ! scaling factor for the time delay histogram [sec]
+  real(dp)             ,public    :: velo                 = 1.5_dp          ! velocity [m/s] for Saint-Venant equation
+  real(dp)             ,public    :: diff                 = 5000._dp        ! diffusivity [m2/s] for Saint-Venant equation
+  real(dp)             ,public    :: mann_n               = 0.05            ! manning's roughness coefficient [-]
+  real(dp)             ,public    :: wscale               = 0.001_dp        ! scaling factor for river width [-]
+  real(dp)             ,public    :: dscale               = 0.000045_dp     ! scaling factor for river bankful depth [-]
+  real(dp)             ,public    :: floodplainSlope      = 1000            ! floodplain down slope h:v=slope:1 [-]
+  real(dp)             ,public    :: high_depth           = 100000._dp      ! very high river bankful depth [m]
 
   ! CESM Coupling variables
   character(len=32)    ,public    :: bypass_routing_option = 'direct_in_place' ! bypass routing model method: direct_in_place or direct_to_outlet

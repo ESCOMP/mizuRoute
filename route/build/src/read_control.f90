@@ -146,6 +146,12 @@ CONTAINS
    call get_toml_val(table, "scale_factor_prec", scale_factor_prec, err, message)
    call get_toml_val(table, "offset_value_prec", offset_value_prec, err, message)
    call get_toml_val(table, "min_length_route", min_length_route, err, message)
+   call get_toml_val(table, "fshape", fshape, err, message)                     ! spatially constant overland GUH parameter: shape parameter
+   call get_toml_val(table, "tscale", tscale, err, message)                     ! spatially constant overland GUH parameter: time scale parameter
+   call get_toml_val(table, "velo", velo, err, message)                         ! spatially constant IRF velocity parameter
+   call get_toml_val(table, "diff", diff, err, message)                         ! spatially constant IRF diffusion parameter
+   call get_toml_val(table, "mann_n", mann_n, err, message)                     ! spatially constant manning coeffcient
+   call get_toml_val(table, "wscale", wscale, err, message)                     ! spatially constant channel widh scale parameter
    call get_toml_val(table, "fname_ntopOld", fname_ntopOld, err, message)
    call get_toml_val(table, "ntopAugmentMode", ntopAugmentMode, err, message)
    call get_toml_val(table, "fname_ntopNew", fname_ntopNew, err, message)
@@ -194,7 +200,6 @@ CONTAINS
    call get_toml_val(table, "restart_day", restart_day, err, message)
    call get_toml_val(table, "restart_hour", restart_hour, err, message)
    call get_toml_val(table, "fname_state_in", fname_state_in, err, message)
-   call get_toml_val(table, "param_nml", param_nml, err, message)
    call get_toml_val(table, "qmodOption", qmodOption, err, message)
    call get_toml_val(table, "qBlendPeriod", qBlendPeriod, err, message)
    call get_toml_val(table, "QerrTrend", QerrTrend, err, message)
@@ -339,7 +344,6 @@ CONTAINS
    call get_toml_val(table, "varname_userTake", meta_NTOPO(ixNTOPO%userTake)%varName, err, message)
    call get_toml_val(table, "varname_goodBasin", meta_NTOPO(ixNTOPO%goodBasin)%varName, err, message)
    call get_toml_val(table, "varname_pfafCode", meta_PFAF(ixPFAF%code)%varName, err, message)
-
    ! Output history flags
    call get_toml_val(table, "basRunoff", meta_hflx(ixHFLX%basRunoff)%varFile, err, message)
    call get_toml_val(table, "instRunoff", meta_rflx(ixRFLX%instRunoff)%varFile, err, message)
@@ -469,6 +473,13 @@ CONTAINS
    case('<scale_factor_prec>');    read(cData,*,iostat=io_error) scale_factor_prec     ! float; factor to scale the precipitation values
    case('<offset_value_prec>');    read(cData,*,iostat=io_error) offset_value_prec     ! float; offset for precipitation values
    case('<min_length_route>');     read(cData,*,iostat=io_error) min_length_route      ! float; minimum reach length for routing to be performed. pass-through is performed for length less than this threshold
+   ! Spatially constant routing parameter
+   case('<fshape>');               read(cData,*,iostat=io_error) fshape                !
+   case('<tscale>');               read(cData,*,iostat=io_error) tscale                !
+   case('<velo>');                 read(cData,*,iostat=io_error) velo                  !
+   case('<diff>');                 read(cData,*,iostat=io_error) diff                  !
+   case('<mann_n>');               read(cData,*,iostat=io_error) mann_n                !
+   case('<wscale>');               read(cData,*,iostat=io_error) wscale                !
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                         ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode       ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -522,8 +533,6 @@ CONTAINS
    case('<restart_day>');          read(cData,*,iostat=io_error) restart_day           ! restart periodic day
    case('<restart_hour>');         read(cData,*,iostat=io_error) restart_hour          ! restart periodic hour
    case('<fname_state_in>');       fname_state_in       = trim(cData)                  ! filename for the channel states
-   ! SPATIAL CONSTANT PARAMETERS
-   case('<param_nml>');            param_nml            = trim(cData)                  ! name of namelist including routing parameter value
    ! USER OPTIONS: Define options to include/skip calculations
    case('<qmodOption>');           read(cData,*,iostat=io_error) qmodOption            ! option for streamflow modification (DA): 0->no DA, 1->direct insertion
    case('<qBlendPeriod>');         read(cData,*,iostat=io_error) qBlendPeriod          ! number of time steps for which streamflow modification is performed through blending observation
@@ -1117,6 +1126,7 @@ CONTAINS
         'is_vol_wm_jumpstart', 'scale_factor_runoff', 'offset_value_runoff', &
         'scale_factor_Ep', 'offset_value_Ep', 'is_Ep_upward_negative', &
         'scale_factor_prec', 'offset_value_prec', 'min_length_route', &
+        'fshape', 'tscale', 'velo','diff','mann_n','wscale', &
         'fname_ntopOld', 'ntopAugmentMode', 'fname_ntopNew', 'dname_nhru', 'dname_sseg', &
         'fname_qsim', 'vname_qsim', 'vname_evapo', 'vname_precip', 'vname_solute', &
         'vname_time', 'vname_hruid', 'dname_time', 'dname_hruid', 'dname_xlon', 'dname_ylat', &
@@ -1126,7 +1136,7 @@ CONTAINS
         'dname_segid_wm', 'dt_wm', 'is_remap', 'fname_remap', 'vname_hruid_in_remap', &
         'vname_weight', 'vname_qhruid', 'vname_num_qhru', 'vname_i_index', 'vname_j_index', &
         'dname_hru_remap', 'dname_data_remap', 'restart_write', 'restart_date', &
-        'restart_month', 'restart_day', 'restart_hour', 'fname_state_in', 'param_nml', &
+        'restart_month', 'restart_day', 'restart_hour', 'fname_state_in', &
         'qmodOption', 'qBlendPeriod', 'QerrTrend', 'hydGeometryOption', 'topoNetworkOption', &
         'computeReachList', 'gageMetaFile', 'outputAtGage', 'fname_gageObs', 'vname_gageFlow', &
         'vname_gageSite', 'vname_gageTime', 'dname_gageSite', 'dname_gageTime', 'strlen_gageSite', &

@@ -13,7 +13,7 @@ MODULE hydraulic
 ! channel is assumed to be unlimited bank depth.
 
 USE nrtype
-USE globalData, ONLY: bankDepth0 => high_depth
+USE public_var, ONLY: bankDepth0 => high_depth
 
 implicit none
 

@@ -137,7 +137,6 @@ CONTAINS
   USE public_var,          ONLY: qmodOption        ! option for streamflow modification (DA)
   USE popMetadat_module,   ONLY: popMetadat        ! populate metadata
   USE read_control_module, ONLY: read_control      ! read the control file
-  USE read_param_module,   ONLY: read_param        ! read the routing parameters
   USE process_gage_meta,   ONLY: read_gage_meta    ! process gauge metadata
 
   implicit none
@@ -150,14 +149,15 @@ CONTAINS
 
   ierr=0; message='init_model/'
 
+  write(iulog,'(A)') '!!!!!!! WARNINIG !!!!!!!!!'
+  write(iulog,'(A)') 'namelist (default name: param.nml.default) including spatially constant parameters has been removed.'
+  write(iulog,'(A)') 'Those parameters can be defined in control file now.'
+  write(iulog,'(A)') 'If not defined in control file, default values defined in public.90 are used.'
+
   call popMetadat(ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   call read_control(trim(cfile_name), ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! read the routing parameter namelist
-  call read_param(trim(input_dir)//trim(param_nml),ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! read gauge metadata if specified in control file
