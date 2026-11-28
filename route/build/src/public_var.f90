@@ -170,8 +170,6 @@ MODULE public_var
   integer(i4b)         ,public    :: restart_day          = 1               ! restart periodic day.   Default 1st (write every 1st of month)
   integer(i4b)         ,public    :: restart_hour         = 0               ! restart periodic hour.  Default 0hr (write every 00 hr of day)
   character(len=strLen),public    :: fname_state_in       = charMissing     ! name of state file
-  ! SPATIAL CONSTANT PARAMETERS
-  character(len=strLen),public    :: param_nml            = ''              ! name of the namelist file
   ! GAUGE DATA
   character(len=strLen),public    :: gageMetaFile         = charMissing     ! name of the gauge metadata csv
   logical(lgt),public             :: outputAtGage         = .false.         ! logical; T-> history file output at only gauge points

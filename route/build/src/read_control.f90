@@ -200,7 +200,6 @@ CONTAINS
    call get_toml_val(table, "restart_day", restart_day, err, message)
    call get_toml_val(table, "restart_hour", restart_hour, err, message)
    call get_toml_val(table, "fname_state_in", fname_state_in, err, message)
-   call get_toml_val(table, "param_nml", param_nml, err, message)
    call get_toml_val(table, "qmodOption", qmodOption, err, message)
    call get_toml_val(table, "qBlendPeriod", qBlendPeriod, err, message)
    call get_toml_val(table, "QerrTrend", QerrTrend, err, message)
@@ -534,8 +533,6 @@ CONTAINS
    case('<restart_day>');          read(cData,*,iostat=io_error) restart_day           ! restart periodic day
    case('<restart_hour>');         read(cData,*,iostat=io_error) restart_hour          ! restart periodic hour
    case('<fname_state_in>');       fname_state_in       = trim(cData)                  ! filename for the channel states
-   ! SPATIAL CONSTANT PARAMETERS
-   case('<param_nml>');            param_nml            = trim(cData)                  ! name of namelist including routing parameter value
    ! USER OPTIONS: Define options to include/skip calculations
    case('<qmodOption>');           read(cData,*,iostat=io_error) qmodOption            ! option for streamflow modification (DA): 0->no DA, 1->direct insertion
    case('<qBlendPeriod>');         read(cData,*,iostat=io_error) qBlendPeriod          ! number of time steps for which streamflow modification is performed through blending observation
@@ -1139,7 +1136,7 @@ CONTAINS
         'dname_segid_wm', 'dt_wm', 'is_remap', 'fname_remap', 'vname_hruid_in_remap', &
         'vname_weight', 'vname_qhruid', 'vname_num_qhru', 'vname_i_index', 'vname_j_index', &
         'dname_hru_remap', 'dname_data_remap', 'restart_write', 'restart_date', &
-        'restart_month', 'restart_day', 'restart_hour', 'fname_state_in', 'param_nml', &
+        'restart_month', 'restart_day', 'restart_hour', 'fname_state_in', &
         'qmodOption', 'qBlendPeriod', 'QerrTrend', 'hydGeometryOption', 'topoNetworkOption', &
         'computeReachList', 'gageMetaFile', 'outputAtGage', 'fname_gageObs', 'vname_gageFlow', &
         'vname_gageSite', 'vname_gageTime', 'dname_gageSite', 'dname_gageTime', 'strlen_gageSite', &
