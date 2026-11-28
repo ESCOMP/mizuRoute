@@ -176,18 +176,6 @@ MODULE globalData
   real(dp),                        public :: time_conv_solute           ! conversion factor for time units (days, hours, sec) for solute mass flux, converted to sec
   real(dp),                        public :: mass_conv_solute           ! conversion factor for mass units (mg, g, kg) for solute mass flux, converted to mg
 
-  ! ---------- routing parameter names -------------------------------------------------------------------
-  ! spatial constant ....
-  real(dp),                        public :: fshape                     ! shape parameter in time delay histogram (=gamma distribution) [-]
-  real(dp),                        public :: tscale                     ! scaling factor for the time delay histogram [sec]
-  real(dp),                        public :: velo                       ! velocity [m/s] for Saint-Venant equation
-  real(dp),                        public :: diff                       ! diffusivity [m2/s] for Saint-Venant equation
-  real(dp),                        public :: mann_n                     ! manning's roughness coefficient [-]
-  real(dp),                        public :: wscale                     ! scaling factor for river width [-]
-  real(dp),                        public :: dscale=0.000045            ! scaling factor for river bankful depth [-]
-  real(dp),                        public :: floodplainSlope=1000       ! floodplain down slope h:v=slope:1 [-]
-  real(dp),                        public :: high_depth=100000._dp      ! very high river bankful depth [m]
-
   ! ---------- general structure information --------------------------------------------------------
 
   type(struct_info),               public :: meta_struct(nStructures)   ! metadata on the data structures

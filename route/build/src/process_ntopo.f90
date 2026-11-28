@@ -60,11 +60,11 @@ CONTAINS
  ! Routing parameter estimation routine
  USE process_param,ONLY: make_uh               ! construct reach unit hydrograph
  ! routing spatial constant parameters
- USE globalData,   ONLY: mann_n                ! spatial constant channel parameters - manning coefficient
- USE globalData,   ONLY: wscale, dscale        ! spatial constant channel parameters for width and bankful depth
- USE globalData,   ONLY: floodplainSlope       ! spatial constant floodplain slope
- USE globalData,   ONLY: velo, diff            ! IRF routing parameters (Transfer function parameters)
- USE globalData,   ONLY: high_depth            ! high bankful depth for no floodplain river geometry (just setting high bankful depth)
+ USE public_var,   ONLY: mann_n                ! spatial constant channel parameters - manning coefficient
+ USE public_var,   ONLY: wscale, dscale        ! spatial constant channel parameters for width and bankful depth
+ USE public_var,   ONLY: floodplainSlope       ! spatial constant floodplain slope
+ USE public_var,   ONLY: velo, diff            ! IRF routing parameters (Transfer function parameters)
+ USE public_var,   ONLY: high_depth            ! high bankful depth for no floodplain river geometry (just setting high bankful depth)
  USE public_var,   ONLY: floodplain            ! floodplain mode. F->only channel T-> channel with bankful depth and floodplain
  USE public_var,   ONLY: dt                    ! simulation time step [sec]
  USE hydraulic,    ONLY: storage               ! compute channel storage

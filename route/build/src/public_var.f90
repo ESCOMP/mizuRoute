@@ -202,6 +202,16 @@ MODULE public_var
   ! PFAFCODE
   integer(i4b)         ,public    :: maxPfafLen           = 32              ! maximum digit of pfafstetter code (default 32).
   character(len=1)     ,public    :: pfafMissing          = '0'             ! missing pfafcode (e.g., reach without any upstream area)
+  ! spatial constant routing parameter
+  real(dp)             ,public    :: fshape               = 2.5_dp          ! shape parameter in time delay histogram (=gamma distribution) [-]
+  real(dp)             ,public    :: tscale               = 86400           ! scaling factor for the time delay histogram [sec]
+  real(dp)             ,public    :: velo                 = 1.5_dp          ! velocity [m/s] for Saint-Venant equation
+  real(dp)             ,public    :: diff                 = 5000._dp        ! diffusivity [m2/s] for Saint-Venant equation
+  real(dp)             ,public    :: mann_n               = 0.05            ! manning's roughness coefficient [-]
+  real(dp)             ,public    :: wscale               = 0.001_dp        ! scaling factor for river width [-]
+  real(dp)             ,public    :: dscale               = 0.000045_dp     ! scaling factor for river bankful depth [-]
+  real(dp)             ,public    :: floodplainSlope      = 1000            ! floodplain down slope h:v=slope:1 [-]
+  real(dp)             ,public    :: high_depth           = 100000._dp      ! very high river bankful depth [m]
 
   ! CESM Coupling variables
   character(len=32)    ,public    :: bypass_routing_option = 'direct_in_place' ! bypass routing model method: direct_in_place or direct_to_outlet

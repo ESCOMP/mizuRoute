@@ -146,6 +146,12 @@ CONTAINS
    call get_toml_val(table, "scale_factor_prec", scale_factor_prec, err, message)
    call get_toml_val(table, "offset_value_prec", offset_value_prec, err, message)
    call get_toml_val(table, "min_length_route", min_length_route, err, message)
+   call get_toml_val(table, "fshape", fshape, err, message)                     ! spatially constant overland GUH parameter: shape parameter
+   call get_toml_val(table, "tscale", tscale, err, message)                     ! spatially constant overland GUH parameter: time scale parameter
+   call get_toml_val(table, "velo", velo, err, message)                         ! spatially constant IRF velocity parameter
+   call get_toml_val(table, "diff", diff, err, message)                         ! spatially constant IRF diffusion parameter
+   call get_toml_val(table, "mann_n", mann_n, err, message)                     ! spatially constant manning coeffcient
+   call get_toml_val(table, "wscale", wscale, err, message)                     ! spatially constant channel widh scale parameter
    call get_toml_val(table, "fname_ntopOld", fname_ntopOld, err, message)
    call get_toml_val(table, "ntopAugmentMode", ntopAugmentMode, err, message)
    call get_toml_val(table, "fname_ntopNew", fname_ntopNew, err, message)
@@ -339,7 +345,6 @@ CONTAINS
    call get_toml_val(table, "varname_userTake", meta_NTOPO(ixNTOPO%userTake)%varName, err, message)
    call get_toml_val(table, "varname_goodBasin", meta_NTOPO(ixNTOPO%goodBasin)%varName, err, message)
    call get_toml_val(table, "varname_pfafCode", meta_PFAF(ixPFAF%code)%varName, err, message)
-
    ! Output history flags
    call get_toml_val(table, "basRunoff", meta_hflx(ixHFLX%basRunoff)%varFile, err, message)
    call get_toml_val(table, "instRunoff", meta_rflx(ixRFLX%instRunoff)%varFile, err, message)
@@ -469,6 +474,13 @@ CONTAINS
    case('<scale_factor_prec>');    read(cData,*,iostat=io_error) scale_factor_prec     ! float; factor to scale the precipitation values
    case('<offset_value_prec>');    read(cData,*,iostat=io_error) offset_value_prec     ! float; offset for precipitation values
    case('<min_length_route>');     read(cData,*,iostat=io_error) min_length_route      ! float; minimum reach length for routing to be performed. pass-through is performed for length less than this threshold
+   ! Spatially constant routing parameter
+   case('<fshape>');               read(cData,*,iostat=io_error) fshape                !
+   case('<tscale>');               read(cData,*,iostat=io_error) tscale                !
+   case('<velo>');                 read(cData,*,iostat=io_error) velo                  !
+   case('<diff>');                 read(cData,*,iostat=io_error) diff                  !
+   case('<mann_n>');               read(cData,*,iostat=io_error) mann_n                !
+   case('<wscale>');               read(cData,*,iostat=io_error) wscale                !
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                         ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode       ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -1117,6 +1129,7 @@ CONTAINS
         'is_vol_wm_jumpstart', 'scale_factor_runoff', 'offset_value_runoff', &
         'scale_factor_Ep', 'offset_value_Ep', 'is_Ep_upward_negative', &
         'scale_factor_prec', 'offset_value_prec', 'min_length_route', &
+        'fshape', 'tscale', 'velo','diff','mann_n','wscale', &
         'fname_ntopOld', 'ntopAugmentMode', 'fname_ntopNew', 'dname_nhru', 'dname_sseg', &
         'fname_qsim', 'vname_qsim', 'vname_evapo', 'vname_precip', 'vname_solute', &
         'vname_time', 'vname_hruid', 'dname_time', 'dname_hruid', 'dname_xlon', 'dname_ylat', &

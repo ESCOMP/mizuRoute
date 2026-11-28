@@ -207,7 +207,6 @@ INIT = \
 IO = \
     process_remap.f90 \
     read_control.f90 \
-    read_param.f90 \
     read_streamSeg.f90 \
     write_streamSeg.f90 \
     standalone/read_runoff.f90 \
@@ -282,7 +281,7 @@ endif
 
 TOMLLIBDIR = $(LIBDIR)/tomllib
 TOMLSRCDIR = $(F_MASTER)../libraries/toml-f
- 
+
 $(TOMLLIBDIR)/lib/libtoml-f.a:
 	@mkdir -p $(TOMLSRCDIR)/_build
 	cd $(TOMLSRCDIR)/_build && \
